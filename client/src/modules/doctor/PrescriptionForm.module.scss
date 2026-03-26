@@ -1,0 +1,346 @@
+.container {
+  max-width: 860px;
+  padding: 28px;
+}
+
+.title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 24px;
+}
+
+.section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px 22px;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 14px;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+
+  .req { color: #ef4444; margin-left: 2px; }
+}
+
+.input, .textarea {
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #111827;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: #1a56db;
+    box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.1);
+  }
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 72px;
+}
+
+// Medicine search
+.searchWrapper {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  z-index: 100;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.dropdownItem {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.1s;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: #f0f4ff; }
+}
+
+.drugName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.drugMeta {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.controlledBadge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #b45309;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.noResults {
+  padding: 14px;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+// Drug item card
+.itemCard {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.itemName {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.itemStrength {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-left: 6px;
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.1s;
+
+  &:hover { background: #fee2e2; }
+}
+
+.itemGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+
+  @media (max-width: 560px) { grid-template-columns: 1fr; }
+}
+
+// Frequency buttons
+.freqGroup {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.freqBtn {
+  padding: 6px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { border-color: #1a56db; color: #1a56db; }
+
+  &.active {
+    background: #1a56db;
+    border-color: #1a56db;
+    color: #fff;
+  }
+}
+
+// Duration slider
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider {
+  flex: 1;
+  accent-color: #1a56db;
+  cursor: pointer;
+}
+
+.sliderValue {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1a56db;
+  min-width: 60px;
+  text-align: right;
+}
+
+.quantityDisplay {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-top: 4px;
+
+  span {
+    font-weight: 600;
+    color: #111827;
+  }
+}
+
+.addItemBtn {
+  width: 100%;
+  padding: 10px;
+  border: 2px dashed #d1d5db;
+  border-radius: 8px;
+  background: none;
+  color: #6b7280;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 4px;
+
+  &:hover {
+    border-color: #1a56db;
+    color: #1a56db;
+    background: #f0f4ff;
+  }
+}
+
+// Warnings
+.warningBox {
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+
+  &.interaction {
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+  }
+
+  &.allergy {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+  }
+}
+
+.warningTitle {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+// Actions
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.cancelBtn {
+  padding: 10px 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover { background: #f3f4f6; }
+}
+
+.submitBtn {
+  padding: 10px 24px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-width: 160px;
+
+  &:hover:not(:disabled) { background: #1648c0; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// Success state
+.successBox {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+
+  h3 {
+    margin: 0 0 8px;
+    color: #15803d;
+    font-size: 1.125rem;
+  }
+
+  p {
+    margin: 0;
+    color: #166534;
+    font-size: 0.875rem;
+  }
+}
+
+.errorText {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-top: 2px;
+}

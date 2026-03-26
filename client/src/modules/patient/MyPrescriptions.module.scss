@@ -1,0 +1,253 @@
+.container {
+  padding: 24px;
+  max-width: 860px;
+}
+
+.header {
+  margin-bottom: 24px;
+
+  h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+  }
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-color: #c7d2fe;
+  }
+}
+
+.cardLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardDate {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.cardDoctor {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 6px;
+}
+
+.cardItems {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badgeIssued {
+  background: #fff7ed;
+  color: #c2410c;
+  border: 1px solid #fed7aa;
+}
+
+.badgePartial {
+  background: #fefce8;
+  color: #a16207;
+  border: 1px solid #fde68a;
+}
+
+.badgeDispensed {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #86efac;
+}
+
+.badgeDraft {
+  background: #f3f4f6;
+  color: #6b7280;
+  border: 1px solid #e5e7eb;
+}
+
+// Detail view
+.detail {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.detailHeader {
+  background: #1a56db;
+  padding: 20px 24px;
+  color: #fff;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detailTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.detailMeta {
+  font-size: 0.8125rem;
+  opacity: 0.85;
+  margin: 0;
+}
+
+.backBtn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 5px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+
+  &:hover { background: rgba(255,255,255,0.25); }
+}
+
+.detailBody {
+  padding: 24px;
+}
+
+.diagnosisRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.icdTag {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+.itemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.itemsTable th {
+  text-align: left;
+  padding: 10px 12px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.itemsTable td {
+  padding: 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  vertical-align: top;
+}
+
+.itemsTable tr:last-child td {
+  border-bottom: none;
+}
+
+.medicineName {
+  font-weight: 500;
+  color: #111827;
+}
+
+.medicineGeneric {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.detailNotes {
+  margin-top: 20px;
+  padding: 14px;
+  background: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.empty {
+  text-align: center;
+  padding: 60px 24px;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px 24px;
+  color: #9ca3af;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.pageBtn {
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) { background: #f3f4f6; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}

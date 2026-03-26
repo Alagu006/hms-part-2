@@ -1,0 +1,191 @@
+.page {
+  padding: 24px;
+  max-width: 960px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.bookBtn {
+  padding: 9px 20px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+
+  &:hover { background: #1648c0; }
+}
+
+// ── Tabs ───────────────────────────────────────────────────────────────────
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tab {
+  padding: 9px 20px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-radius: 4px 4px 0 0;
+
+  &:hover { color: #1a56db; background: #eff6ff; }
+
+  &.tabActive {
+    color: #1a56db;
+    border-bottom-color: #1a56db;
+    background: none;
+  }
+}
+
+// ── Card / Table ──────────────────────────────────────────────────────────
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+
+  thead tr {
+    background: #f9fafb;
+
+    th {
+      padding: 12px 20px;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid #e5e7eb;
+    }
+  }
+
+  tbody tr {
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.1s;
+
+    &:last-child { border-bottom: none; }
+    &:hover { background: #f9fafb; }
+  }
+
+  td {
+    padding: 14px 20px;
+    font-size: 0.875rem;
+    color: #374151;
+    vertical-align: middle;
+  }
+}
+
+// ── Date / time cell ────────────────────────────────────────────────────────
+.dateTime {
+  display: flex;
+  flex-direction: column;
+}
+
+.date {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.875rem;
+}
+
+.time {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
+// ── Doctor name ────────────────────────────────────────────────────────────
+.docName {
+  font-weight: 500;
+  color: #111827;
+}
+
+// ── Badges ─────────────────────────────────────────────────────────────────
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.badgeInPerson  { background: #dbeafe; color: #1d4ed8; }
+.badgeTele      { background: #ede9fe; color: #6d28d9; }
+.badgeFollow    { background: #d1fae5; color: #065f46; }
+.badgeEmergency { background: #fee2e2; color: #991b1b; }
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.statusSched    { background: #f3f4f6; color: #374151; }
+.statusConfirm  { background: #dbeafe; color: #1d4ed8; }
+.statusProgress { background: #fef3c7; color: #92400e; }
+.statusDone     { background: #dcfce7; color: #15803d; }
+.statusCancell  { background: #fee2e2; color: #991b1b; }
+.statusNoShow    { background: #fee2e2; color: #991b1b; }
+
+// ── States ─────────────────────────────────────────────────────────────────
+.emptyState,
+.errorState {
+  padding: 60px 24px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #9ca3af;
+}
+
+.errorState { color: #ef4444; }
+
+// ── Skeleton ────────────────────────────────────────────────────────────────
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.4s ease-in-out infinite;
+  height: 14px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

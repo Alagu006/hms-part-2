@@ -1,0 +1,349 @@
+.wrapper { padding: 4px 0; }
+
+.loading, .empty {
+  text-align: center;
+  padding   : 40px;
+  color     : #9ca3af;
+  font-size : 0.9375rem;
+}
+
+// ---------------------------------------------------------------------------
+// Top bar
+// ---------------------------------------------------------------------------
+.topBar {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : center;
+  flex-wrap      : wrap;
+  gap            : 12px;
+  margin-bottom  : 16px;
+}
+
+.legend {
+  display    : flex;
+  align-items: center;
+  gap        : 14px;
+  font-size  : 0.8125rem;
+  color      : #374151;
+  flex-wrap  : wrap;
+}
+
+.dot {
+  display      : inline-block;
+  width        : 10px;
+  height       : 10px;
+  border-radius: 50%;
+  margin-right : 4px;
+
+  &.available   { background: #22c55e; }
+  &.occupied    { background: #ef4444; }
+  &.maintenance { background: #f59e0b; }
+  &.reserved    { background: #8b5cf6; }
+}
+
+.filterGroup {
+  display: flex;
+  gap    : 6px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  background   : #fff;
+  border       : 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding      : 4px 12px;
+  font-size    : 0.8125rem;
+  cursor       : pointer;
+  color        : #374151;
+  transition   : background 0.15s;
+  &:hover { background: #f9fafb; }
+}
+
+.activeFilter {
+  background  : #1d4ed8;
+  color       : #fff;
+  border-color: #1d4ed8;
+}
+
+// ---------------------------------------------------------------------------
+// Room list
+// ---------------------------------------------------------------------------
+.roomList {
+  display              : grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap                  : 16px;
+}
+
+.roomCard {
+  background   : #fff;
+  border       : 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding      : 14px 16px;
+}
+
+.roomHeader {
+  display    : flex;
+  align-items: center;
+  gap        : 8px;
+  flex-wrap  : wrap;
+  margin-bottom: 12px;
+}
+
+.roomNumber {
+  font-weight: 700;
+  font-size  : 0.9375rem;
+  color      : #111827;
+}
+
+.roomType {
+  font-size     : 0.6875rem;
+  font-weight   : 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background    : #eff6ff;
+  color         : #1d4ed8;
+  padding       : 2px 8px;
+  border-radius : 10px;
+}
+
+.deptName {
+  font-size: 0.8125rem;
+  color    : #6b7280;
+}
+
+.floor {
+  font-size: 0.75rem;
+  color    : #9ca3af;
+  margin-left: auto;
+}
+
+.roomMeta {
+  font-size: 0.875rem;
+  color    : #6b7280;
+}
+
+// ---------------------------------------------------------------------------
+// Bed grid
+// ---------------------------------------------------------------------------
+.bedGrid {
+  display  : flex;
+  flex-wrap: wrap;
+  gap      : 8px;
+}
+
+.noBeds {
+  font-size: 0.8125rem;
+  color    : #9ca3af;
+  font-style: italic;
+}
+
+.bedCell {
+  width        : 52px;
+  height       : 52px;
+  border-radius: 8px;
+  border       : 2px solid transparent;
+  cursor       : pointer;
+  display      : flex;
+  flex-direction: column;
+  align-items  : center;
+  justify-content: center;
+  gap          : 2px;
+  transition   : transform 0.1s, box-shadow 0.1s;
+  font-size    : 0.75rem;
+
+  &:hover {
+    transform : scale(1.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  &:focus-visible {
+    outline       : 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
+  &.available {
+    background  : #dcfce7;
+    border-color: #86efac;
+    color       : #15803d;
+  }
+
+  &.occupied {
+    background  : #fee2e2;
+    border-color: #fca5a5;
+    color       : #dc2626;
+  }
+
+  &.maintenance {
+    background  : #fef3c7;
+    border-color: #fcd34d;
+    color       : #92400e;
+  }
+
+  &.reserved {
+    background  : #ede9fe;
+    border-color: #c4b5fd;
+    color       : #6d28d9;
+  }
+}
+
+.bedNum {
+  font-weight: 700;
+  font-size  : 0.8125rem;
+}
+
+.bedPatient {
+  font-size  : 0.625rem;
+  font-weight: 600;
+  background : rgba(0, 0, 0, 0.12);
+  padding    : 0 4px;
+  border-radius: 4px;
+}
+
+// ---------------------------------------------------------------------------
+// Modal
+// ---------------------------------------------------------------------------
+.overlay {
+  position       : fixed;
+  inset          : 0;
+  background     : rgba(0, 0, 0, 0.45);
+  display        : flex;
+  align-items    : center;
+  justify-content: center;
+  z-index        : 200;
+  padding        : 16px;
+}
+
+.modal {
+  background   : #fff;
+  border-radius: 12px;
+  width        : 100%;
+  max-width    : 420px;
+  box-shadow   : 0 8px 40px rgba(0, 0, 0, 0.18);
+}
+
+.modalHeader {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : center;
+  padding        : 16px 20px;
+  border-bottom  : 1px solid #e5e7eb;
+
+  h3 { margin: 0; font-size: 1rem; }
+
+  button {
+    background: transparent;
+    border    : none;
+    font-size : 1.125rem;
+    cursor    : pointer;
+    color     : #6b7280;
+    &:hover { color: #111827; }
+  }
+}
+
+.patientInfo {
+  display    : flex;
+  align-items: center;
+  gap        : 8px;
+  padding    : 10px 20px;
+  background : #f0fdf4;
+  font-size  : 0.875rem;
+  color      : #15803d;
+}
+
+.patientLabel {
+  font-weight: 600;
+  color      : #166534;
+}
+
+.mrn {
+  font-size  : 0.75rem;
+  color      : #6b7280;
+  margin-left: auto;
+}
+
+.modalBody { padding: 16px 20px; }
+
+.fieldLabel {
+  display    : block;
+  font-size  : 0.8125rem;
+  font-weight: 600;
+  color      : #374151;
+  margin-bottom: 8px;
+}
+
+.statusGroup {
+  display  : flex;
+  flex-wrap: wrap;
+  gap      : 8px;
+  margin-bottom: 16px;
+}
+
+.statusBtn {
+  padding      : 7px 14px;
+  border-radius: 8px;
+  border       : 2px solid transparent;
+  font-size    : 0.875rem;
+  cursor       : pointer;
+  transition   : all 0.15s;
+
+  &.available   { background: #dcfce7; color: #15803d; border-color: #86efac; }
+  &.occupied    { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+  &.maintenance { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+  &.reserved    { background: #ede9fe; color: #6d28d9; border-color: #c4b5fd; }
+
+  &.selected {
+    outline       : 2px solid #1d4ed8;
+    outline-offset: 2px;
+    font-weight   : 700;
+  }
+}
+
+.notesInput {
+  width        : 100%;
+  border       : 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding      : 8px 12px;
+  font-size    : 0.875rem;
+  resize       : vertical;
+  outline      : none;
+  box-sizing   : border-box;
+  font-family  : inherit;
+  &:focus { border-color: #93c5fd; }
+}
+
+.error {
+  color     : #ef4444;
+  font-size : 0.8125rem;
+  margin-top: 8px;
+}
+
+.modalFooter {
+  display        : flex;
+  justify-content: flex-end;
+  gap            : 10px;
+  padding        : 14px 20px;
+  border-top     : 1px solid #e5e7eb;
+}
+
+.cancelBtn {
+  background   : #fff;
+  border       : 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding      : 8px 18px;
+  font-size    : 0.875rem;
+  cursor       : pointer;
+  &:hover { background: #f9fafb; }
+}
+
+.saveBtn {
+  background   : #1d4ed8;
+  color        : #fff;
+  border       : none;
+  border-radius: 8px;
+  padding      : 8px 18px;
+  font-size    : 0.875rem;
+  font-weight  : 600;
+  cursor       : pointer;
+  &:disabled { opacity: 0.5; cursor: default; }
+  &:hover:not(:disabled) { background: #1e40af; }
+}

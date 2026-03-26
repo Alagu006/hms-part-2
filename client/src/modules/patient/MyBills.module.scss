@@ -1,0 +1,82 @@
+.page { padding: 24px; max-width: 900px; margin: 0 auto; font-family: system-ui, sans-serif; }
+.title { font-size: 1.5rem; font-weight: 700; margin-bottom: 20px; color: #111827; }
+.loading, .empty { color: #9ca3af; padding: 24px 0; }
+.error { color: #ef4444; font-size: 0.875rem; }
+
+// Status badges
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.badgePending  { background: #fef3c7; color: #92400e; }
+.badgePartial  { background: #dbeafe; color: #1e40af; }
+.badgePaid     { background: #d1fae5; color: #065f46; }
+.badgeRefunded { background: #f3e8ff; color: #6b21a8; }
+.badgeDraft    { background: #f3f4f6; color: #6b7280; }
+
+// Bill list
+.list { display: flex; flex-direction: column; gap: 12px; }
+.card {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 16px 20px; gap: 16px;
+  &:hover { border-color: #93c5fd; box-shadow: 0 2px 8px rgba(59,130,246,.1); }
+}
+.cardLeft { flex: 1; }
+.cardMid  { flex: 1; text-align: center; }
+.cardRight { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.billNum  { font-weight: 700; color: #111827; font-size: 0.95rem; }
+.billDate { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+.amount   { font-size: 1.1rem; font-weight: 700; color: #111827; }
+.outstanding { font-size: 0.8rem; color: #ef4444; margin-top: 2px; }
+.cardActions { display: flex; gap: 8px; }
+.viewBtn {
+  background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px;
+  padding: 5px 12px; cursor: pointer; font-size: 0.8rem;
+  &:hover { background: #e5e7eb; }
+}
+.payNowBtn {
+  background: #10b981; color: #fff; border: none; border-radius: 6px;
+  padding: 5px 12px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+  &:hover { background: #059669; }
+}
+
+// Detail overlay
+.detailOverlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 100;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.detailBox {
+  background: #fff; border-radius: 12px; padding: 28px; max-width: 760px; width: 100%;
+  max-height: 85vh; overflow-y: auto;
+}
+.detailHeader {
+  display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px;
+}
+.detailTitle { font-size: 1.2rem; font-weight: 700; color: #111827; margin: 0; }
+.detailMeta  { font-size: 0.8rem; color: #6b7280; margin: 4px 0 0; }
+.closeBtn {
+  background: none; border: 1px solid #e5e7eb; border-radius: 6px;
+  padding: 4px 10px; cursor: pointer; font-size: 1rem;
+  &:hover { background: #f3f4f6; }
+}
+.subTitle { font-size: 0.9rem; font-weight: 600; color: #374151; margin: 16px 0 8px; }
+
+.detailTable {
+  width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 12px;
+  th, td { border: 1px solid #e5e7eb; padding: 6px 10px; }
+  th { background: #f9fafb; font-weight: 600; }
+}
+.tfootLabel { text-align: right; color: #6b7280; }
+.paidAmt { color: #10b981; font-weight: 600; }
+.outstandingAmt { color: #ef4444; font-weight: 600; }
+
+.detailActions { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+.payBtn {
+  background: #1e3a5f; color: #fff; border: none; border-radius: 8px;
+  padding: 10px 20px; cursor: pointer; font-size: 0.9rem; font-weight: 600;
+  &:hover { background: #1e40af; }
+  &:disabled { opacity: .5; cursor: not-allowed; }
+}
+.receiptBtn {
+  background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 8px;
+  padding: 10px 16px; cursor: pointer; font-size: 0.875rem;
+  &:hover { background: #e5e7eb; }
+}

@@ -1,0 +1,29 @@
+/**
+ * Nodemailer transporter singleton.
+ * Kept separate to avoid circular imports between email.service.js and queue.js.
+ */
+import nodemailer from 'nodemailer';
+
+export const transporter = nodemailer.createTransport({
+  host  : process.env.SMTP_HOST   || 'smtp.gmail.com',
+  port  : parseInt(process.env.SMTP_PORT || '465', 10),
+  secure: process.env.SMTP_SECURE !== 'false',
+  auth  : {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+  pool          : true,
+  maxConnections: 5,
+  maxMessages   : 100,
+});
+
+transporter.verify((err) => {
+  if (err) console.error('[mailer] SMTP connection failed:', err.message);
+  else     console.log('[mailer] SMTP ready');
+});
+
+export const FROM = `"${process.env.HOSPITAL_NAME || 'HMS'}" <${process.env.SMTP_USER}>`;
+
+export async function sendMail({ to, subject, html }) {
+  return transporter.sendMail({ from: FROM, to, subject, html });
+}

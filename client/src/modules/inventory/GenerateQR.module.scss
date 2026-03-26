@@ -1,0 +1,245 @@
+.overlay {
+  position       : fixed;
+  inset          : 0;
+  background     : rgba(0, 0, 0, 0.5);
+  display        : flex;
+  align-items    : center;
+  justify-content: center;
+  z-index        : 200;
+  padding        : 16px;
+}
+
+.panel {
+  background   : #fff;
+  border-radius: 14px;
+  width        : 100%;
+  max-width    : 440px;
+  max-height   : 90vh;
+  overflow-y   : auto;
+  box-shadow   : 0 8px 40px rgba(0, 0, 0, 0.2);
+}
+
+.header {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : center;
+  padding        : 16px 20px;
+  border-bottom  : 1px solid #e5e7eb;
+
+  h3 { margin: 0; font-size: 1rem; }
+
+  button {
+    background: transparent;
+    border    : none;
+    font-size : 1.125rem;
+    cursor    : pointer;
+    color     : #6b7280;
+    &:hover { color: #111827; }
+  }
+}
+
+.body { padding: 20px; }
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+.searchWrap {
+  position     : relative;
+  margin-bottom: 14px;
+}
+
+.fieldLabel {
+  display      : block;
+  font-size    : 0.8125rem;
+  font-weight  : 600;
+  color        : #374151;
+  margin-bottom: 6px;
+}
+
+.searchInput {
+  width        : 100%;
+  border       : 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding      : 9px 12px;
+  font-size    : 0.875rem;
+  outline      : none;
+  box-sizing   : border-box;
+  &:focus { border-color: #93c5fd; }
+}
+
+.dropdown {
+  position     : absolute;
+  top          : 100%;
+  left         : 0;
+  right        : 0;
+  background   : #fff;
+  border       : 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow   : 0 4px 16px rgba(0, 0, 0, 0.1);
+  z-index      : 10;
+  list-style   : none;
+  margin       : 4px 0 0;
+  padding      : 4px 0;
+  max-height   : 200px;
+  overflow-y   : auto;
+}
+
+.dropdownItem {
+  display    : flex;
+  align-items: center;
+  gap        : 8px;
+  padding    : 9px 14px;
+  cursor     : pointer;
+  font-size  : 0.875rem;
+
+  &:hover { background: #f9fafb; }
+}
+
+.itemName { flex: 1; color: #111827; font-weight: 500; }
+.itemSku  { font-size: 0.75rem; color: #6b7280; font-family: monospace; }
+.itemCat  { font-size: 0.6875rem; color: #9ca3af; }
+
+// ---------------------------------------------------------------------------
+// Selected card
+// ---------------------------------------------------------------------------
+.selectedCard {
+  background   : #eff6ff;
+  border       : 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding      : 12px 14px;
+  margin-bottom: 14px;
+}
+
+.selectedName {
+  font-weight  : 600;
+  font-size    : 0.9375rem;
+  color        : #1e40af;
+  margin-bottom: 4px;
+}
+
+.selectedMeta {
+  display  : flex;
+  gap      : 12px;
+  flex-wrap: wrap;
+  font-size: 0.8125rem;
+  color    : #3b82f6;
+}
+
+// ---------------------------------------------------------------------------
+// Generate button
+// ---------------------------------------------------------------------------
+.generateBtn {
+  width        : 100%;
+  background   : #1d4ed8;
+  color        : #fff;
+  border       : none;
+  border-radius: 10px;
+  padding      : 12px;
+  font-size    : 0.9375rem;
+  font-weight  : 600;
+  cursor       : pointer;
+  transition   : background 0.15s;
+  margin-bottom: 14px;
+
+  &:hover:not(:disabled) { background: #1e40af; }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+.error {
+  background   : #fee2e2;
+  color        : #dc2626;
+  border-radius: 8px;
+  padding      : 10px 14px;
+  font-size    : 0.875rem;
+  margin-bottom: 12px;
+}
+
+// ---------------------------------------------------------------------------
+// QR display
+// ---------------------------------------------------------------------------
+.qrSection {
+  display       : flex;
+  flex-direction: column;
+  align-items   : center;
+  gap           : 14px;
+}
+
+.qrImage {
+  width        : 220px;
+  height       : 220px;
+  border       : 1px solid #e5e7eb;
+  border-radius: 8px;
+  display      : block;
+}
+
+.qrItemName {
+  font-size  : 1rem;
+  font-weight: 700;
+  color      : #111827;
+  text-align : center;
+}
+
+.qrMeta {
+  display  : flex;
+  gap      : 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 0.8125rem;
+  color    : #6b7280;
+}
+
+.qrCode {
+  font-family: monospace;
+  font-size  : 0.6875rem;
+  color      : #9ca3af;
+  word-break : break-all;
+  text-align : center;
+}
+
+.printBtn {
+  background   : #fff;
+  border       : 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding      : 9px 20px;
+  font-size    : 0.875rem;
+  cursor       : pointer;
+  color        : #374151;
+  &:hover { background: #f9fafb; }
+}
+
+// ---------------------------------------------------------------------------
+// Print area — hidden on screen, shown when printing
+// ---------------------------------------------------------------------------
+.printArea {
+  display       : flex;
+  flex-direction: column;
+  align-items   : center;
+  gap           : 8px;
+  padding       : 16px;
+}
+
+.printHeader {
+  font-size  : 0.875rem;
+  font-weight: 600;
+  color      : #374151;
+}
+
+@media print {
+  // Hide everything except the print area
+  body > * { display: none !important; }
+
+  // Show only the QR print area
+  #qr-print-area {
+    display       : flex !important;
+    flex-direction: column;
+    align-items   : center;
+    gap           : 8px;
+    padding       : 24px;
+    font-family   : Arial, sans-serif;
+  }
+
+  #qr-print-area img {
+    width : 200px;
+    height: 200px;
+  }
+}

@@ -1,0 +1,447 @@
+.page {
+  padding: 24px;
+  max-width: 1400px;
+}
+
+// ── Stats row ────────────────────────────────────────────────────────────────
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.statValue {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.statAlert {
+  border-color: #fca5a5;
+  background: #fef2f2;
+
+  .statLabel { color: #dc2626; }
+  .statValue { color: #dc2626; }
+}
+
+// ── Two-column layout ───────────────────────────────────────────────────────
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+// ── Section ────────────────────────────────────────────────────────────────
+.section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badgeAlert {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+// ── Pending prescription cards ────────────────────────────────────────────
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.prescriptionCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff;
+  transition: box-shadow 0.15s;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  }
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.patientInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.patientName {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.patientId {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  font-family: monospace;
+  margin-top: 2px;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.metaItem {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.metaTime {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.medicinesList {
+  margin-bottom: 12px;
+}
+
+.medicinesLabel {
+  font-size: 0.8125rem;
+  color: #374151;
+}
+
+.dispenseBtn {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #059669;
+  border-radius: 6px;
+  background: #fff;
+  color: #059669;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #ecfdf5;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// ── Dispensed table ────────────────────────────────────────────────────────
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.dispensedTable,
+.lowStockTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+  }
+}
+
+.tableLoading {
+  padding: 14px;
+}
+
+// ── Low stock table ────────────────────────────────────────────────────────
+.lowStockRow {
+  td:first-child {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.warningIcon {
+  color: #d97706;
+  font-size: 1rem;
+}
+
+.restockAction {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.restockInput {
+  width: 70px;
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+
+  &:focus {
+    outline: none;
+    border-color: #1a56db;
+  }
+}
+
+.restockBtn {
+  padding: 4px 12px;
+  border: 1px solid #1a56db;
+  border-radius: 4px;
+  background: #fff;
+  color: #1a56db;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #eff6ff;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+
+.modalTitle {
+  margin: 0 0 12px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.modalMessage {
+  margin: 0 0 20px;
+  font-size: 0.9375rem;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancelBtn,
+.confirmBtn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cancelBtn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+
+  &:hover {
+    background: #f9fafb;
+  }
+}
+
+.confirmBtn {
+  border: 1px solid #059669;
+  background: #059669;
+  color: #fff;
+
+  &:hover {
+    background: #047857;
+  }
+}
+
+// ── Toast ───────────────────────────────────────────────────────────────────
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease-out;
+  z-index: 1001;
+}
+
+.toastSuccess {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.toastError {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.toastClose {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+// ── States ─────────────────────────────────────────────────────────────────
+.emptyState,
+.errorState {
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.errorState {
+  color: #ef4444;
+}
+
+// ── Skeleton ───────────────────────────────────────────────────────────────
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

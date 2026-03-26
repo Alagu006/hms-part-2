@@ -1,0 +1,78 @@
+.wrapper {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+
+  &.idle {
+    background: #1a56db;
+    color: #fff;
+    border-color: #1a56db;
+
+    &:hover { background: #1648c0; }
+  }
+
+  &.downloading,
+  &.decrypting {
+    background: #f3f4f6;
+    color: #6b7280;
+    border-color: #e5e7eb;
+    cursor: not-allowed;
+  }
+
+  &.done {
+    background: #f0fdf4;
+    color: #15803d;
+    border-color: #86efac;
+    cursor: default;
+  }
+
+  &.error {
+    background: #fff5f5;
+    color: #b91c1c;
+    border-color: #fca5a5;
+    cursor: pointer;
+
+    &:hover { background: #fee2e2; }
+  }
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #1a56db;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.errorText {
+  font-size: 0.8rem;
+  color: #ef4444;
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.4;
+}
+
+.successText {
+  font-size: 0.8rem;
+  color: #15803d;
+  margin: 0;
+}

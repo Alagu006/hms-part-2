@@ -1,0 +1,135 @@
+.wrapper {
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 12px 16px;
+}
+
+.replyPreview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f3f4f6;
+  border-left: 3px solid #1a56db;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.replyText {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.replyClose {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0 2px;
+  line-height: 1;
+
+  &:hover { color: #374151; }
+}
+
+.inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.textarea {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  color: #111827;
+  background: #f9fafb;
+  resize: none;
+  outline: none;
+  max-height: 120px;
+  min-height: 40px;
+  line-height: 1.5;
+  transition: border-color 0.15s, background 0.15s;
+  font-family: inherit;
+
+  &:focus {
+    border-color: #1a56db;
+    background: #fff;
+  }
+}
+
+.sendBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+
+  &:hover:not(:disabled) { background: #1648c0; }
+  &:active:not(:disabled) { transform: scale(0.95); }
+  &:disabled { background: #d1d5db; cursor: not-allowed; }
+}
+
+.emojiBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: none;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.1s;
+
+  &:hover { background: #f3f4f6; }
+}
+
+.emojiPicker {
+  position: absolute;
+  bottom: 70px;
+  right: 16px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 220px;
+  z-index: 200;
+}
+
+.emojiOption {
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.1s;
+
+  &:hover { background: #f3f4f6; }
+}
+
+.encryptingHint {
+  font-size: 0.7rem;
+  color: #9ca3af;
+  text-align: right;
+  margin-top: 4px;
+}

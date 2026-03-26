@@ -1,0 +1,176 @@
+.wrapper {
+  display       : flex;
+  flex-direction: column;
+  gap           : 8px;
+}
+
+.header {
+  display    : flex;
+  align-items: center;
+  gap        : 8px;
+  margin-bottom: 4px;
+}
+
+.title {
+  margin   : 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color    : #111827;
+}
+
+.count {
+  background   : #dbeafe;
+  color        : #1d4ed8;
+  font-size    : 0.75rem;
+  font-weight  : 600;
+  padding      : 1px 8px;
+  border-radius: 20px;
+}
+
+.list {
+  display       : flex;
+  flex-direction: column;
+  gap           : 8px;
+}
+
+// ---------------------------------------------------------------------------
+// Card
+// ---------------------------------------------------------------------------
+.card {
+  background   : #fff;
+  border       : 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding      : 14px 16px;
+  transition   : box-shadow 0.15s;
+
+  &:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07); }
+}
+
+.cardTop {
+  display        : flex;
+  justify-content: space-between;
+  align-items    : flex-start;
+  gap            : 12px;
+}
+
+.sessionInfo {
+  display       : flex;
+  flex-direction: column;
+  gap           : 4px;
+  min-width     : 0;
+}
+
+.otherParty {
+  font-size  : 0.9375rem;
+  font-weight: 600;
+  color      : #111827;
+  white-space: nowrap;
+  overflow   : hidden;
+  text-overflow: ellipsis;
+}
+
+.datetime {
+  display  : flex;
+  flex-wrap: wrap;
+  gap      : 4px;
+  font-size: 0.8125rem;
+  color    : #6b7280;
+}
+
+.dot { color: #d1d5db; }
+
+// ---------------------------------------------------------------------------
+// Status badge
+// ---------------------------------------------------------------------------
+.statusBadge {
+  font-size     : 0.6875rem;
+  font-weight   : 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding       : 3px 10px;
+  border-radius : 20px;
+  flex-shrink   : 0;
+}
+
+.statusScheduled { background: #dbeafe; color: #1d4ed8; }
+.statusActive    { background: #dcfce7; color: #15803d; }
+.statusEnded     { background: #f3f4f6; color: #6b7280; }
+.statusCancelled { background: #fee2e2; color: #dc2626; }
+
+// ---------------------------------------------------------------------------
+// Card bottom: join / countdown
+// ---------------------------------------------------------------------------
+.cardBottom {
+  margin-top: 12px;
+  display   : flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.joinBtn {
+  background   : #1d4ed8;
+  color        : #fff;
+  border       : none;
+  border-radius: 8px;
+  padding      : 8px 18px;
+  font-size    : 0.875rem;
+  font-weight  : 600;
+  cursor       : pointer;
+  transition   : background 0.15s;
+
+  &:hover { background: #1e40af; }
+}
+
+.countdown {
+  display    : flex;
+  align-items: center;
+  gap        : 8px;
+}
+
+.countdownLabel {
+  font-size: 0.75rem;
+  color    : #9ca3af;
+}
+
+.countdownValue {
+  font-size  : 0.9375rem;
+  font-weight: 700;
+  color      : #374151;
+  font-variant-numeric: tabular-nums;
+}
+
+// ---------------------------------------------------------------------------
+// States
+// ---------------------------------------------------------------------------
+.empty {
+  display        : flex;
+  flex-direction : column;
+  align-items    : center;
+  gap            : 6px;
+  padding        : 24px;
+  color          : #9ca3af;
+  font-size      : 0.875rem;
+  text-align     : center;
+
+  span { font-size: 1.75rem; }
+  p    { margin: 0; }
+}
+
+.errorText {
+  color    : #ef4444;
+  font-size: 0.875rem;
+  margin   : 0;
+}
+
+.skeleton {
+  height       : 80px;
+  background   : linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  border-radius: 10px;
+  animation    : shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

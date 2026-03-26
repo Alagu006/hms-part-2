@@ -1,0 +1,390 @@
+// ---------------------------------------------------------------------------
+// Floating action button
+// ---------------------------------------------------------------------------
+.fab {
+  position     : fixed;
+  bottom       : 28px;
+  right        : 28px;
+  width        : 56px;
+  height       : 56px;
+  border-radius: 50%;
+  background   : #1d4ed8;
+  color        : #fff;
+  border       : none;
+  font-size    : 1.375rem;
+  cursor       : pointer;
+  box-shadow   : 0 4px 16px rgba(29, 78, 216, 0.45);
+  display      : flex;
+  align-items  : center;
+  justify-content: center;
+  z-index      : 300;
+  transition   : background 0.2s, transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    background: #1e40af;
+    box-shadow: 0 6px 20px rgba(29, 78, 216, 0.55);
+    transform : scale(1.06);
+  }
+
+  &.fabOpen {
+    background: #374151;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  &:focus-visible {
+    outline       : 3px solid #93c5fd;
+    outline-offset: 3px;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Chat window
+// ---------------------------------------------------------------------------
+.window {
+  position      : fixed;
+  bottom        : 96px;
+  right         : 28px;
+  width         : 380px;
+  max-height    : 600px;
+  background    : #fff;
+  border-radius : 16px;
+  box-shadow    : 0 8px 40px rgba(0, 0, 0, 0.18);
+  display       : flex;
+  flex-direction: column;
+  z-index       : 299;
+  overflow      : hidden;
+  animation     : popIn 0.2s ease-out;
+
+  @media (max-width: 480px) {
+    width     : calc(100vw - 24px);
+    right     : 12px;
+    bottom    : 84px;
+    max-height: 70vh;
+  }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92) translateY(12px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+// ---------------------------------------------------------------------------
+// Header
+// ---------------------------------------------------------------------------
+.header {
+  display    : flex;
+  align-items: center;
+  gap        : 10px;
+  padding    : 14px 16px;
+  background : #1d4ed8;
+  color      : #fff;
+  flex-shrink: 0;
+}
+
+.headerAvatar {
+  font-size  : 1.5rem;
+  flex-shrink: 0;
+}
+
+.headerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.headerName {
+  font-weight: 600;
+  font-size  : 0.9375rem;
+}
+
+.headerStatus {
+  display    : flex;
+  align-items: center;
+  gap        : 5px;
+  font-size  : 0.75rem;
+  color      : rgba(255, 255, 255, 0.8);
+}
+
+.onlineDot {
+  width        : 7px;
+  height       : 7px;
+  border-radius: 50%;
+  background   : #4ade80;
+  flex-shrink  : 0;
+}
+
+.closeBtn {
+  background: transparent;
+  border    : none;
+  color     : rgba(255, 255, 255, 0.8);
+  font-size : 1rem;
+  cursor    : pointer;
+  padding   : 4px;
+  line-height: 1;
+
+  &:hover { color: #fff; }
+}
+
+// ---------------------------------------------------------------------------
+// Disclaimer
+// ---------------------------------------------------------------------------
+.disclaimer {
+  background : #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  padding    : 14px 16px;
+  display    : flex;
+  flex-direction: column;
+  gap        : 8px;
+  flex-shrink: 0;
+}
+
+.disclaimerIcon {
+  font-size: 1.5rem;
+  text-align: center;
+}
+
+.disclaimerText {
+  font-size: 0.8125rem;
+  color    : #78350f;
+  line-height: 1.5;
+
+  strong { display: block; margin-bottom: 4px; font-size: 0.875rem; }
+  p      { margin: 0; }
+}
+
+.disclaimerBtn {
+  background   : #d97706;
+  color        : #fff;
+  border       : none;
+  border-radius: 8px;
+  padding      : 8px 16px;
+  font-size    : 0.875rem;
+  font-weight  : 600;
+  cursor       : pointer;
+  align-self   : flex-end;
+  transition   : background 0.15s;
+
+  &:hover { background: #b45309; }
+}
+
+// ---------------------------------------------------------------------------
+// Messages area
+// ---------------------------------------------------------------------------
+.messages {
+  flex      : 1;
+  overflow-y: auto;
+  padding   : 16px 12px;
+  display   : flex;
+  flex-direction: column;
+  gap       : 4px;
+  scroll-behavior: smooth;
+
+  &::-webkit-scrollbar       { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+}
+
+.emptyState {
+  display       : flex;
+  flex-direction: column;
+  align-items   : center;
+  justify-content: center;
+  flex          : 1;
+  gap           : 8px;
+  color         : #9ca3af;
+  font-size     : 0.9375rem;
+  text-align    : center;
+  padding       : 24px;
+
+  p { margin: 0; }
+}
+
+.emptyIcon { font-size: 2.5rem; }
+
+// ---------------------------------------------------------------------------
+// Message rows
+// ---------------------------------------------------------------------------
+.messageRow {
+  display    : flex;
+  align-items: flex-end;
+  gap        : 6px;
+  margin-bottom: 6px;
+}
+
+.userRow {
+  flex-direction: row-reverse;
+}
+
+.botRow {
+  flex-direction: row;
+}
+
+.botAvatar {
+  font-size  : 1.125rem;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+.messageGroup {
+  display       : flex;
+  flex-direction: column;
+  max-width     : 78%;
+
+  .userRow & { align-items: flex-end; }
+  .botRow  & { align-items: flex-start; }
+}
+
+// ---------------------------------------------------------------------------
+// Bubbles
+// ---------------------------------------------------------------------------
+.bubble {
+  padding      : 10px 14px;
+  border-radius: 18px;
+  font-size    : 0.875rem;
+  line-height  : 1.5;
+  word-break   : break-word;
+  white-space  : pre-wrap;
+
+  &.user {
+    background   : #1d4ed8;
+    color        : #fff;
+    border-bottom-right-radius: 4px;
+  }
+
+  &.bot {
+    background   : #f3f4f6;
+    color        : #111827;
+    border-bottom-left-radius: 4px;
+  }
+}
+
+.timestamp {
+  font-size : 0.6875rem;
+  color     : #9ca3af;
+  margin-top: 3px;
+  padding   : 0 4px;
+}
+
+// ---------------------------------------------------------------------------
+// Typing indicator
+// ---------------------------------------------------------------------------
+.typingDots {
+  display    : flex;
+  align-items: center;
+  gap        : 4px;
+  padding    : 2px 4px;
+
+  span {
+    width        : 7px;
+    height       : 7px;
+    border-radius: 50%;
+    background   : #9ca3af;
+    animation    : bounce 1.2s infinite ease-in-out;
+
+    &:nth-child(1) { animation-delay: 0s; }
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
+  }
+}
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%            { transform: translateY(-6px); }
+}
+
+// ---------------------------------------------------------------------------
+// Quick reply chips
+// ---------------------------------------------------------------------------
+.quickReplies {
+  display   : flex;
+  flex-wrap : wrap;
+  gap       : 6px;
+  padding   : 8px 12px;
+  border-top: 1px solid #f3f4f6;
+  flex-shrink: 0;
+}
+
+.chip {
+  background   : #eff6ff;
+  color        : #1d4ed8;
+  border       : 1px solid #bfdbfe;
+  border-radius: 20px;
+  padding      : 5px 12px;
+  font-size    : 0.75rem;
+  cursor       : pointer;
+  white-space  : nowrap;
+  transition   : background 0.15s, border-color 0.15s;
+
+  &:hover:not(:disabled) {
+    background  : #dbeafe;
+    border-color: #93c5fd;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor : default;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Input area
+// ---------------------------------------------------------------------------
+.inputArea {
+  display    : flex;
+  align-items: flex-end;
+  gap        : 8px;
+  padding    : 10px 12px;
+  border-top : 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+
+.input {
+  flex        : 1;
+  border      : 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding     : 9px 14px;
+  font-size   : 0.875rem;
+  resize      : none;
+  outline     : none;
+  line-height : 1.4;
+  max-height  : 100px;
+  overflow-y  : auto;
+  font-family : inherit;
+  color       : #111827;
+  transition  : border-color 0.15s;
+
+  &:focus { border-color: #93c5fd; }
+  &:disabled { background: #f9fafb; }
+
+  &::placeholder { color: #9ca3af; }
+}
+
+.sendBtn {
+  width        : 38px;
+  height       : 38px;
+  border-radius: 50%;
+  background   : #1d4ed8;
+  color        : #fff;
+  border       : none;
+  font-size    : 1rem;
+  cursor       : pointer;
+  display      : flex;
+  align-items  : center;
+  justify-content: center;
+  flex-shrink  : 0;
+  transition   : background 0.15s, transform 0.1s;
+
+  &:hover:not(:disabled) { background: #1e40af; }
+  &:active:not(:disabled) { transform: scale(0.93); }
+  &:disabled { background: #d1d5db; cursor: default; }
+}
+
+// ---------------------------------------------------------------------------
+// Footer
+// ---------------------------------------------------------------------------
+.footer {
+  text-align: center;
+  font-size : 0.6875rem;
+  color     : #9ca3af;
+  padding   : 6px 12px 10px;
+  flex-shrink: 0;
+}

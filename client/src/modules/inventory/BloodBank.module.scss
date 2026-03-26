@@ -1,0 +1,245 @@
+.page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 24px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px;
+}
+
+.error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+}
+
+// Availability
+.availSection { margin-bottom: 32px; }
+
+.availGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 12px;
+}
+
+.availCard {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 12px;
+  text-align: center;
+  position: relative;
+
+  &.lowStock {
+    background: #fef2f2;
+    border-color: #fca5a5;
+  }
+}
+
+.bloodGroup {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.availCount {
+  display: block;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1a56db;
+  line-height: 1.2;
+}
+
+.availLabel {
+  display: block;
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.lowBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+// Form
+.formSection {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 32px;
+}
+
+.form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #374151;
+  font-weight: 500;
+
+  select, input {
+    padding: 8px 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fff;
+
+    &:focus {
+      outline: none;
+      border-color: #1a56db;
+      box-shadow: 0 0 0 2px rgba(26,86,219,0.15);
+    }
+  }
+}
+
+.formActions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.saveBtn {
+  padding: 8px 20px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+
+  &:hover:not(:disabled) { background: #1648c0; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.cancelBtn {
+  padding: 8px 16px;
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:hover { background: #f3f4f6; }
+}
+
+// Table
+.tableSection { }
+
+.tableWrap { overflow-x: auto; }
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #f3f4f6;
+    color: #374151;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #111827;
+  }
+
+  tr:hover td { background: #f9fafb; }
+}
+
+.bgBadge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.statusBadge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+
+  &.s_AVAILABLE { background: #d1fae5; color: #065f46; }
+  &.s_RESERVED  { background: #fef3c7; color: #92400e; }
+  &.s_USED      { background: #f3f4f6; color: #6b7280; }
+  &.s_EXPIRED   { background: #fef2f2; color: #991b1b; }
+}
+
+.actions { display: flex; gap: 8px; }
+
+.editBtn {
+  padding: 4px 10px;
+  background: #eff6ff;
+  color: #1a56db;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+
+  &:hover { background: #dbeafe; }
+}
+
+.delBtn {
+  padding: 4px 10px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+
+  &:hover { background: #fee2e2; }
+}
+
+.empty {
+  text-align: center;
+  color: #9ca3af;
+  padding: 24px;
+}

@@ -1,0 +1,261 @@
+.page {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 1.25rem;
+}
+
+.filters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+
+  select {
+    padding: 0.45rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: #fff;
+    color: #374151;
+    outline: none;
+
+    &:focus { border-color: #6366f1; box-shadow: 0 0 0 2px #e0e7ff; }
+  }
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 1.5rem;
+  align-items: start;
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Table */
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.83rem;
+
+  th {
+    padding: 0.65rem 1rem;
+    text-align: left;
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  td {
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+  }
+}
+
+.row {
+  cursor: pointer;
+  &:hover td { background: #f9fafb; }
+  &:last-child td { border-bottom: none; }
+}
+
+.selectedRow td { background: #f0f4ff !important; }
+
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.roleList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.roleBadge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.statusActive   { color: #16a34a; font-weight: 600; }
+.statusInactive { color: #dc2626; font-weight: 600; }
+
+.mono { font-family: monospace; font-size: 0.78rem; }
+.empty { text-align: center; color: #9ca3af; padding: 1.5rem; }
+
+.deactivateBtn, .activateBtn {
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s;
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.deactivateBtn {
+  background: #fee2e2;
+  color: #dc2626;
+  &:hover:not(:disabled) { background: #fecaca; }
+}
+
+.activateBtn {
+  background: #dcfce7;
+  color: #16a34a;
+  &:hover:not(:disabled) { background: #bbf7d0; }
+}
+
+/* Side panel */
+.panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  position: sticky;
+  top: 1rem;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.panelAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #e0e7ff;
+  color: #4338ca;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.panelName {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #111;
+}
+
+.panelId {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  font-family: monospace;
+}
+
+.closeBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 1rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+
+  &:hover { background: #f3f4f6; color: #374151; }
+}
+
+.panelBody {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+
+  span:first-child { color: #6b7280; }
+  span:last-child  { color: #111; font-weight: 500; }
+}
+
+.sectionLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9ca3af;
+  margin-bottom: 0.4rem;
+}
+
+.rolesSection, .sessionsSection {
+  border-top: 1px solid #f3f4f6;
+  padding-top: 0.75rem;
+}
+
+.sessionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.8rem;
+
+  &:last-child { border-bottom: none; }
+}
+
+.logoutBtn {
+  padding: 0.25rem 0.6rem;
+  border: 1px solid #fca5a5;
+  border-radius: 5px;
+  background: #fff;
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { background: #fee2e2; }
+}
