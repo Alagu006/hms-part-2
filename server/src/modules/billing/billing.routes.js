@@ -4,6 +4,7 @@ import { authorize }      from '../../shared/middleware/rbac.js';
 import { validate }       from '../../shared/middleware/validate.js';
 import { apiRateLimiter } from '../../shared/middleware/rateLimiter.js';
 import { auditMiddleware } from '../../shared/middleware/audit.js';
+import { checkOwnership } from '../../shared/middleware/ownership.js';
 import * as ctrl from './billing.controller.js';
 import {
   createBillSchema,
@@ -14,6 +15,9 @@ import {
   createInsuranceSchema,
   updateInsuranceSchema,
   discountApprovalSchema,
+  billPdfSchema,
+  createRazorpayOrderSchema,
+  verifyRazorpayPaymentSchema,
 } from './billing.schema.js';
 
 const router = Router();
@@ -23,10 +27,30 @@ const billing = authorize('RECEPTIONIST', 'BILLING', 'ADMIN', 'SUPER_ADMIN');
 const admin   = authorize('ADMIN', 'SUPER_ADMIN');
 
 // ── Bills ────────────────────────────────────────────────────────────────────
+router.get('/:id/pdf',
+  authorize('BILLING', 'PATIENT', 'ADMIN', 'SUPER_ADMIN', 'RECEPTIONIST'),
+  validate(billPdfSchema),
+  checkOwnership('bill'),
+  ctrl.downloadBillPdf
+);
+router.post('/:id/create-order',
+  authorize('PATIENT', 'ADMIN', 'SUPER_ADMIN', 'RECEPTIONIST', 'BILLING'),
+  validate(createRazorpayOrderSchema),
+  ctrl.createRazorpayOrderHandler
+);
+router.post('/:id/verify-payment',
+  authorize('PATIENT', 'ADMIN', 'SUPER_ADMIN', 'RECEPTIONIST', 'BILLING'),
+  validate(verifyRazorpayPaymentSchema),
+  ctrl.verifyRazorpayPaymentHandler
+);
 router.get('/pending-services/:patientId', billing, ctrl.getPendingServicesHandler);
 router.post('/',                           billing, validate(createBillSchema),    ctrl.createBillHandler);
 router.get('/patient/:patientId',          authorize('*'),                         ctrl.getBillsByPatientHandler);
-router.get('/:id',                         authorize('*'),                         ctrl.getBillHandler);
+router.get('/:id',
+  authorize('*'),
+  checkOwnership('bill'),
+  ctrl.getBillHandler
+);
 router.patch('/:id/pay',                   authorize('*'), validate(payBillSchema), ctrl.payBillHandler);
 router.post('/:id/refund',                 billing, validate(refundBillSchema),    ctrl.refundBillHandler);
 router.patch('/:id/insurance-claim',       billing, validate(insuranceClaimSchema), ctrl.insuranceClaimHandler);

@@ -1,0 +1,550 @@
+.page {
+  padding: 24px;
+  max-width: 1400px;
+}
+
+// ── Stats row ────────────────────────────────────────────────────────────────
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.statValue {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+// ── Two-column layout ───────────────────────────────────────────────────────
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  align-items: start;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.leftCol,
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+// ── Section ────────────────────────────────────────────────────────────────
+.section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+// ── Appointments table ──────────────────────────────────────────────────────
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.appointmentsTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th {
+    text-align: left;
+    padding: 10px 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+  }
+}
+
+.appointmentRow {
+  &:hover {
+    background: #fafafa;
+  }
+}
+
+.timeCell {
+  font-family: monospace;
+  font-weight: 500;
+  color: #374151;
+}
+
+// ── Badges ──────────────────────────────────────────────────────────────────
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.statusScheduled { background: #dbeafe; color: #1e40af; }
+.statusConfirmed { background: #dcfce7; color: #166534; }
+.statusInProgress { background: #fef3c7; color: #92400e; }
+.statusCompleted { background: #d1fae5; color: #065f46; }
+.statusCancelled { background: #f3f4f6; color: #6b7280; }
+.statusNoShow { background: #fee2e2; color: #991b1b; }
+
+.typeInPerson { background: #e0e7ff; color: #3730a3; }
+.typeTelemedicine { background: #f3e8ff; color: #6b21a8; }
+.typeFollowUp { background: #fce7f3; color: #9d174d; }
+.typeEmergency { background: #fee2e2; color: #991b1b; }
+
+// ── Action buttons ──────────────────────────────────────────────────────────
+.actionBtns {
+  display: flex;
+  gap: 8px;
+}
+
+.checkInBtn {
+  padding: 4px 12px;
+  border: 1px solid #059669;
+  border-radius: 4px;
+  background: #fff;
+  color: #059669;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #ecfdf5;
+  }
+}
+
+.noShowBtn {
+  padding: 4px 12px;
+  border: 1px solid #dc2626;
+  border-radius: 4px;
+  background: #fff;
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #fef2f2;
+  }
+}
+
+// ── Bed summary ─────────────────────────────────────────────────────────────
+.bedSummary {
+  padding: 14px 18px;
+}
+
+.bedSummaryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.bedTotal {
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.bedCount {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #059669;
+}
+
+.viewMatrixLink {
+  background: none;
+  border: none;
+  color: #1a56db;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.wardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.wardCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+}
+
+.wardName {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.wardCount {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.availableCount {
+  font-weight: 700;
+  color: #059669;
+}
+
+// ── Recent patients ─────────────────────────────────────────────────────────
+.viewAllLink {
+  background: none;
+  border: none;
+  color: #1a56db;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.patientList {
+  display: flex;
+  flex-direction: column;
+}
+
+.patientRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.1s;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: #f9fafb;
+  }
+}
+
+.patientInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.patientName {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.patientId {
+  font-size: 0.6875rem;
+  color: #9ca3af;
+  font-family: monospace;
+}
+
+.patientMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.statusBadge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.inpatientBadge {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.outpatientBadge {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.timeAgo {
+  font-size: 0.6875rem;
+  color: #9ca3af;
+}
+
+.viewBtn {
+  padding: 4px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+  }
+}
+
+// ── Visitor form ────────────────────────────────────────────────────────────
+.visitorSection {
+  padding: 14px 18px;
+}
+
+.visitorForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.formRow {
+  display: flex;
+  gap: 12px;
+
+  @media (max-width: 500px) {
+    flex-direction: column;
+  }
+}
+
+.formLabel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.formInput,
+.formSelect {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #111827;
+  background: #fff;
+
+  &:focus {
+    outline: none;
+    border-color: #1a56db;
+    box-shadow: 0 0 0 2px rgba(26, 86, 219, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+}
+
+.formSelect {
+  cursor: pointer;
+}
+
+.searchResults {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.searchResultItem {
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.1s;
+
+  &:hover {
+    background: #f3f4f6;
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid #f3f4f6;
+  }
+}
+
+.submitBtn {
+  padding: 8px 16px;
+  border: 1px solid #1a56db;
+  border-radius: 6px;
+  background: #1a56db;
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #1e40af;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.successMsg {
+  font-size: 0.8125rem;
+  color: #059669;
+  font-weight: 500;
+}
+
+// ── Recent visitors ─────────────────────────────────────────────────────────
+.recentVisitors {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.recentTitle {
+  margin: 0 0 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.recentVisitorItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.75rem;
+  border-bottom: 1px solid #f9fafb;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.recentVisitorName {
+  color: #374151;
+  font-weight: 500;
+}
+
+.recentVisitorPatient {
+  color: #9ca3af;
+}
+
+.recentVisitorTime {
+  color: #9ca3af;
+}
+
+// ── States ─────────────────────────────────────────────────────────────────
+.emptyState,
+.errorState {
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.errorState {
+  color: #ef4444;
+}
+
+.tableLoading,
+.listLoading {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+// ── Skeleton ───────────────────────────────────────────────────────────────
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

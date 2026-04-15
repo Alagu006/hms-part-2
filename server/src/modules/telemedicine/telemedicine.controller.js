@@ -22,7 +22,7 @@ export async function listMySessions(req, res) {
     const result = await svc.listMySessions(
       req.user.id,
       req.user.roles,
-      req.query
+      req.parsedQuery ?? req.query
     );
     res.json({ data: result });
   } catch (err) {

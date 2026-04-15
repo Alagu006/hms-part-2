@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
 import styles from './IncidentReport.module.scss';
 
 const API = import.meta.env.VITE_API_URL ?? '/api';
-const auth = () => ({ Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` });
 
 const TYPES = [
   { value: 'NEAR_MISS',          label: 'Near Miss' },
@@ -35,12 +35,10 @@ export default function IncidentReport() {
           .map(s => s.trim())
           .filter(Boolean),
       };
-      const res = await fetch(`${API}/incidents`, {
-        method : 'POST',
-        headers: { ...auth(), 'Content-Type': 'application/json' },
-        body   : JSON.stringify(body),
+      await apiFetch(`${API}/incidents`, {
+        method: 'POST',
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Submission failed');
       setForm(EMPTY);
       setSuccess(true);
     } catch (e) {

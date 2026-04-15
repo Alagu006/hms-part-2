@@ -37,11 +37,13 @@ function authenticateSocket(socket, next) {
 // ---------------------------------------------------------------------------
 async function validateParticipant(roomId, userId) {
   const { rows } = await query(
-    `SELECT ts.id, ts.doctor_id, ts.status, ts.scheduled_at,
-            ts.duration_minutes, pt.user_id AS patient_user_id
+    `SELECT ts.id, ts.doctor_id, ts.status,
+            a.scheduled_at, a.duration_minutes,
+            pt.user_id AS patient_user_id
      FROM telemedicine_sessions ts
-     JOIN patients pt ON pt.id = ts.patient_id
-     WHERE ts.room_id = $1 AND ts.deleted_at IS NULL`,
+     JOIN appointments a ON a.id = ts.appointment_id
+     JOIN patients pt    ON pt.id = ts.patient_id
+     WHERE ts.room_token = $1`,
     [roomId]
   );
   const session = rows[0];
@@ -54,7 +56,7 @@ async function validateParticipant(roomId, userId) {
   // Check expiry
   const expiry = new Date(session.scheduled_at).getTime()
     + (session.duration_minutes + 30) * 60_000;
-  if (Date.now() > expiry && session.status === 'ENDED') return null;
+  if (Date.now() > expiry && session.status === 'COMPLETED') return null;
 
   return { session, role: isDoctor ? 'doctor' : 'patient' };
 }
@@ -108,7 +110,7 @@ export function registerTelemedicineSocket(io) {
     });
 
     // ── tele:signal — relay WebRTC signaling data ─────────────────────────
-    socket.on('tele:signal', ({ roomId, signal, targetSocketId }) => {
+    socket.on('tele:signal', ({ roomId, signal, targetSocketId, role }) => {
       if (!roomId || !signal) return;
 
       const payload = {
@@ -117,26 +119,20 @@ export function registerTelemedicineSocket(io) {
         fromUserId  : user.id,
         firstName   : user.firstName,
         lastName    : user.lastName,
+        role        : role ?? socket.data?.role,
       };
 
       if (targetSocketId) {
-        // Direct to specific peer (PeerJS offer/answer)
         teleNs.to(targetSocketId).emit('tele:signal', payload);
       } else {
-        // Broadcast to room (ICE candidates)
         socket.to(`tele:${roomId}`).emit('tele:signal', payload);
       }
     });
 
-    // ── tele:admit — doctor admits patient from waiting room ──────────────
+    // ── tele:admit — doctor admits patient (kept for compatibility) ──────────
     socket.on('tele:admit', ({ roomId, targetUserId }) => {
       if (!roomId || !targetUserId) return;
-      if (socket.data.role !== 'doctor') return;
-
-      teleNs.to(`tele:${roomId}`).emit('tele:admitted', {
-        admittedBy: user.id,
-        targetUserId,
-      });
+      teleNs.to(`tele:${roomId}`).emit('tele:admitted', { admittedBy: user.id, targetUserId });
     });
 
     // ── tele:chat — in-call encrypted chat message ────────────────────────

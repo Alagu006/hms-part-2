@@ -18,75 +18,104 @@ import { pool } from '../db/pool.js';
  * @param {string}  [opts.ip]        - Client IP
  * @param {string}  [opts.userAgent] - Client user-agent
  */
-export async function auditLog({
-  userId,
-  action,
-  entity,
-  entityId = null,
-  prevData = null,
-  nextData = null,
-  ip       = null,
-  userAgent = null,
-}) {
+export async function auditLog(userIdOrOpts, action, entity, entityId, prevData, nextData, ip, userAgent) {
+  // Support both calling styles:
+  // auditLog({ userId, action, entity, ... })  — named object
+  // auditLog(userId, action, entity, ...)       — positional args (legacy)
+  let opts;
+  if (userIdOrOpts && typeof userIdOrOpts === 'object' && !Array.isArray(userIdOrOpts)) {
+    opts = userIdOrOpts;
+  } else {
+    opts = { userId: userIdOrOpts, action, entity, entityId, prevData, nextData, ip, userAgent };
+  }
+
+  const {
+    userId    = null,
+    action:   act,
+    entity:   ent,
+    entityId: eid  = null,
+    prevData: prev = null,
+    nextData: next = null,
+    ip:       ipAddr = null,
+    userAgent: ua    = null,
+  } = opts;
+
+  if (!act || !ent) {
+    console.error('[audit] Skipping log — missing action or entity', { action: act, entity: ent });
+    return;
+  }
   try {
-    // Fetch the hash of the most recent audit row to build the chain
-    const { rows } = await pool.query(
-      `SELECT row_hash FROM audit_logs ORDER BY created_at DESC LIMIT 1`
-    );
-    const prevHash = rows[0]?.row_hash ?? null;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Serialize all audit writes with a single advisory lock
+      await client.query('SELECT pg_advisory_xact_lock(7891234)');
 
-    // Build a deterministic string to hash for this row
-    const rowContent = JSON.stringify({
-      userId, action, entity, entityId,
-      prevData, nextData, ip, prevHash,
-      ts: new Date().toISOString(),
-    });
-    const rowHash = crypto.createHash('sha256').update(rowContent).digest('hex');
+      const { rows } = await client.query(
+        `SELECT row_hash FROM audit_logs ORDER BY created_at DESC, id DESC LIMIT 1`
+      );
+      const prevHash = rows[0]?.row_hash ?? null;
 
-    await pool.query(
-      `INSERT INTO audit_logs
-         (id, user_id, action, entity, entity_id, prev_data, next_data,
-          ip_address, user_agent, prev_hash, row_hash, created_at)
-       VALUES
-         (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
-      [
-        userId   || null,
-        action,
-        entity,
-        entityId || null,
-        prevData  ? JSON.stringify(prevData)  : null,
-        nextData  ? JSON.stringify(nextData)  : null,
-        ip        || null,
-        userAgent || null,
-        prevHash,
-        rowHash,
-      ]
-    );
+      const rowContent = [userId, act, ent, eid, ipAddr, prevHash, Date.now()].join('|');
+      const rowHash = crypto.createHash('sha256').update(rowContent).digest('hex');
+
+      await client.query(
+        `INSERT INTO audit_logs
+           (id, user_id, action, entity, entity_id, prev_data, next_data,
+            ip_address, user_agent, prev_hash, row_hash, created_at)
+         VALUES
+           (gen_random_uuid(), $1::uuid, $2, $3, $4::uuid, $5, $6, $7, $8, $9, $10, clock_timestamp())`,
+        [
+          userId    || null,
+          act,
+          ent,
+          eid       || null,
+          prev      ? JSON.stringify(prev)  : null,
+          next      ? JSON.stringify(next)  : null,
+          ipAddr    || null,
+          ua        || null,
+          prevHash,
+          rowHash,
+        ]
+      );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
-    // Audit failures must never crash the main request
     console.error('[audit] Failed to write audit log:', err.message);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Express middleware — auto-logs every mutating request after response
+// Express middleware — auto-logs every request after response
 // ---------------------------------------------------------------------------
 export function auditMiddleware(req, res, next) {
-  const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
-  if (!mutatingMethods.includes(req.method)) return next();
-
   const originalJson = res.json.bind(res);
 
   res.json = function (body) {
-    // Fire-and-forget after response is sent
+    const method    = req.method;
+    const baseUrl   = req.baseUrl;
+    const path      = req.path;
+    const userId    = req.user?.id ?? null;
+    const ip        = req.ip;
+    const userAgent = req.headers['user-agent'];
+    const status    = res.statusCode;
+
     setImmediate(() => {
+      if (!method) return; // safety guard
+      const action = method === 'GET' ? 'VIEW' : method;
       auditLog({
-        userId   : req.user?.id ?? null,
-        action   : req.method,
-        entity   : req.baseUrl + req.path,
-        ip       : req.ip,
-        userAgent: req.headers['user-agent'],
-        nextData : res.statusCode < 400 ? { status: res.statusCode } : null,
+        userId,
+        action,
+        entity   : baseUrl + path,
+        ip,
+        userAgent,
+        nextData : status < 400 ? { status } : null,
       });
     });
     return originalJson(body);

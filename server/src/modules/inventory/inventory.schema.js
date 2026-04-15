@@ -75,3 +75,21 @@ export const adjustQuantitySchema = z.object({
     reason    : z.string().max(500).optional(),
   }),
 });
+
+const ROOM_TYPES = ['GENERAL', 'ICU', 'PRIVATE', 'SEMI_PRIVATE', 'EMERGENCY', 'OT', 'ISOLATION'];
+
+export const createRoomSchema = z.object({
+  body: z.object({
+    roomNumber  : z.string().min(1).max(20),
+    roomType    : z.enum(ROOM_TYPES),
+    floor       : z.coerce.number().int().min(0).max(50),
+    departmentId: z.string().uuid().optional().nullable(),
+  }),
+});
+
+export const createBedSchema = z.object({
+  params: z.object({ roomId: z.string().uuid() }),
+  body  : z.object({
+    bedNumber: z.string().min(1).max(20),
+  }),
+});

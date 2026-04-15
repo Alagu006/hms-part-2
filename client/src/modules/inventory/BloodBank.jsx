@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
 import styles from './BloodBank.module.scss';
 
 const API = import.meta.env.VITE_API_URL ?? '/api';
-const auth = () => ({ Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` });
 
 const BLOOD_GROUPS = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 const STATUSES     = ['AVAILABLE','RESERVED','USED','EXPIRED'];
@@ -20,14 +20,12 @@ export default function BloodBank() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [avRes, unRes] = await Promise.all([
-        fetch(`${API}/blood-bank/availability`, { headers: auth() }),
-        fetch(`${API}/blood-bank`,              { headers: auth() }),
+      const [av, un] = await Promise.all([
+        apiFetch(`${API}/blood-bank/availability`),
+        apiFetch(`${API}/blood-bank`),
       ]);
-      if (!avRes.ok || !unRes.ok) throw new Error('Failed to load blood bank data');
-      const [av, un] = await Promise.all([avRes.json(), unRes.json()]);
-      setAvailability(av);
-      setUnits(un);
+      setAvailability(Array.isArray(av) ? av : (av?.data ?? []));
+      setUnits(Array.isArray(un) ? un : (un?.data ?? un?.units ?? []));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -43,12 +41,10 @@ export default function BloodBank() {
     try {
       const url    = editId ? `${API}/blood-bank/${editId}` : `${API}/blood-bank`;
       const method = editId ? 'PATCH' : 'POST';
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: { ...auth(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...form, units: Number(form.units) }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Save failed');
       setForm(EMPTY_FORM);
       setEditId(null);
       await fetchAll();
@@ -72,7 +68,7 @@ export default function BloodBank() {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this blood unit record?')) return;
-    await fetch(`${API}/blood-bank/${id}`, { method: 'DELETE', headers: auth() });
+    await apiFetch(`${API}/blood-bank/${id}`, { method: 'DELETE' });
     await fetchAll();
   };
 

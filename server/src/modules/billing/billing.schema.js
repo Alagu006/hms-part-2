@@ -86,3 +86,21 @@ export const discountApprovalSchema = z.object({
     note    : z.string().optional(),
   }),
 });
+
+export const billPdfSchema = z.object({
+  params: z.object({ id: z.string().uuid() }),
+});
+
+export const createRazorpayOrderSchema = z.object({
+  params: z.object({ id: z.string().uuid() }),
+  body: z.object({}).optional(),
+});
+
+export const verifyRazorpayPaymentSchema = z.object({
+  params: z.object({ id: z.string().uuid() }),
+  body: z.object({
+    razorpayOrderId  : z.string().min(1),
+    razorpayPaymentId: z.string().min(1),
+    razorpaySignature: z.string().min(1),
+  }),
+});

@@ -18,7 +18,7 @@ export async function createBroadcast(req, res, next) {
 
 export async function listBroadcasts(req, res, next) {
   try {
-    const result = await svc.listBroadcasts(req.query);
+    const result = await svc.listBroadcasts((req.parsedQuery ?? req.query));
     return res.status(200).json(result);
   } catch (err) { next(err); }
 }
@@ -33,7 +33,7 @@ export async function getBroadcast(req, res, next) {
 
 export async function getReadReceipts(req, res, next) {
   try {
-    const result = await svc.getReadReceipts(req.params.id, req.query);
+    const result = await svc.getReadReceipts(req.params.id, (req.parsedQuery ?? req.query));
     return res.status(200).json(result);
   } catch (err) { next(err); }
 }

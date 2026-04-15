@@ -18,6 +18,9 @@ const IV_LENGTH  = 12; // 96-bit IV recommended for GCM
  * Use this when you already have a key from the server.
  */
 export async function importKey(base64Key) {
+  if (!crypto?.subtle) {
+    throw new Error('Web Crypto API is unavailable. Please access the app over HTTPS.');
+  }
   const raw = base64ToBuffer(base64Key);
   return crypto.subtle.importKey('raw', raw, { name: ALGO }, false, ['encrypt', 'decrypt']);
 }
@@ -56,8 +59,15 @@ export async function deriveKey(passphrase, salt) {
 
 /**
  * Generate a fresh random AES-256-GCM CryptoKey.
+ * Requires a secure context (HTTPS or localhost) — crypto.subtle is undefined over plain HTTP.
  */
 export async function generateKey() {
+  if (!crypto?.subtle) {
+    throw new Error(
+      'Web Crypto API is unavailable. This feature requires a secure connection (HTTPS). ' +
+      'Please access the app over HTTPS.'
+    );
+  }
   return crypto.subtle.generateKey({ name: ALGO, length: KEY_LENGTH }, true, ['encrypt', 'decrypt']);
 }
 
@@ -185,6 +195,47 @@ export function generateSalt() {
 }
 
 // ---------------------------------------------------------------------------
+// File encrypt / decrypt (binary ArrayBuffer)
+// ---------------------------------------------------------------------------
+
+/**
+ * Encrypt a binary file (ArrayBuffer) with AES-256-GCM.
+ * Returns the encrypted bytes as a Uint8Array and the IV as base64.
+ *
+ * @param {ArrayBuffer} fileBuffer
+ * @param {CryptoKey}   key
+ * @returns {Promise<{ encryptedBuffer: Uint8Array, iv: string }>}
+ */
+export async function encryptFile(fileBuffer, key) {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+  const cipherbuffer = await crypto.subtle.encrypt(
+    { name: ALGO, iv },
+    key,
+    fileBuffer
+  );
+  return {
+    encryptedBuffer: new Uint8Array(cipherbuffer),
+    iv: bufferToBase64(iv),
+  };
+}
+
+/**
+ * Decrypt an encrypted file buffer back to its original bytes.
+ *
+ * @param {ArrayBuffer|Uint8Array} encryptedBuffer
+ * @param {string}                 ivBase64
+ * @param {CryptoKey}              key
+ * @returns {Promise<ArrayBuffer>}
+ */
+export async function decryptFile(encryptedBuffer, ivBase64, key) {
+  return crypto.subtle.decrypt(
+    { name: ALGO, iv: base64ToBuffer(ivBase64) },
+    key,
+    encryptedBuffer
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Messaging helpers — group key encrypt/decrypt
 // ---------------------------------------------------------------------------
 
@@ -207,4 +258,55 @@ export async function encryptMessage(text, groupKey) {
  */
 export async function decryptMessage(ciphertext, iv, groupKey) {
   return decrypt({ ciphertext, iv }, groupKey);
+}
+
+/**
+ * Decode a raw (unencrypted) RS256 JWT and return the payload object.
+ * Returns null if decoding fails.
+ */
+export function decodeJwtPayload(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Profile image — encrypt before upload, decrypt after download
+// ---------------------------------------------------------------------------
+
+/**
+ * Encrypt a profile image ArrayBuffer with AES-256-GCM.
+ * Returns { encryptedBlob, keyB64, ivB64 } ready for upload.
+ *
+ * @param {ArrayBuffer} imageBuffer
+ * @returns {Promise<{ encryptedBlob: Blob, keyB64: string, ivB64: string }>}
+ */
+export async function encryptProfileImage(imageBuffer) {
+  const key = await generateKey();
+  const { encryptedBuffer, iv: ivB64 } = await encryptFile(imageBuffer, key);
+  const keyB64 = await exportKey(key);
+  const encryptedBlob = new Blob([encryptedBuffer], { type: 'application/octet-stream' });
+  return { encryptedBlob, keyB64, ivB64 };
+}
+
+/**
+ * Decrypt a profile image ArrayBuffer and return an object URL for display.
+ * Revoke the URL when the component unmounts.
+ *
+ * @param {ArrayBuffer} encryptedBuffer
+ * @param {string}      ivB64
+ * @param {string}      keyB64
+ * @param {string}      mimeType
+ * @returns {Promise<string>}  — object URL
+ */
+export async function decryptProfileImageToUrl(encryptedBuffer, ivB64, keyB64, mimeType = 'image/jpeg') {
+  const key = await importKey(keyB64);
+  const plainBuffer = await decryptFile(encryptedBuffer, ivB64, key);
+  const blob = new Blob([plainBuffer], { type: mimeType });
+  return URL.createObjectURL(blob);
 }

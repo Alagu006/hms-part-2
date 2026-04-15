@@ -1,0 +1,66 @@
+.page { padding: 24px; max-width: 960px; }
+
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
+}
+
+.title { margin: 0; font-size: 1.5rem; font-weight: 700; color: #111827; }
+
+.controls { display: flex; align-items: center; gap: 10px; }
+
+.select {
+  padding: 7px 12px; border: 1px solid #d1d5db; border-radius: 6px;
+  font-size: 0.875rem; color: #374151; background: #fff; cursor: pointer;
+  &:focus { outline: none; border-color: #1a56db; }
+}
+
+.viewToggle {
+  display: flex; background: #f3f4f6; border-radius: 6px; padding: 3px;
+}
+
+.viewBtn {
+  padding: 5px 14px; border: none; border-radius: 5px; font-size: 0.8125rem;
+  font-weight: 500; color: #6b7280; background: none; cursor: pointer;
+  &.active { background: #fff; color: #111827; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+}
+
+// Latest card
+.latestCard {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  padding: 16px 20px; margin-bottom: 20px;
+}
+
+.latestLabel { font-size: 0.8125rem; color: #6b7280; display: block; margin-bottom: 12px; }
+
+.latestGrid { display: flex; flex-wrap: wrap; gap: 16px; }
+
+.latestItem { display: flex; flex-direction: column; gap: 2px; }
+
+.latestVal { font-size: 1.25rem; font-weight: 700; color: #111827; }
+
+.latestUnit { font-size: 0.75rem; color: #9ca3af; }
+
+// Table
+.tableWrap { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+
+.table {
+  width: 100%; border-collapse: collapse;
+  thead tr { background: #f9fafb; }
+  th { padding: 11px 14px; text-align: left; font-size: 0.75rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e5e7eb; }
+  td { padding: 12px 14px; font-size: 0.875rem; color: #374151; border-bottom: 1px solid #f3f4f6; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f9fafb; }
+}
+
+.nurse { color: #6b7280; font-size: 0.8125rem; }
+
+// Charts
+.chartGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; @media (max-width: 640px) { grid-template-columns: 1fr; } }
+
+.chartPanel {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px;
+  h4 { font-size: 0.8rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px; }
+}
+
+.empty { padding: 60px 24px; text-align: center; color: #9ca3af; font-size: 0.9rem; }

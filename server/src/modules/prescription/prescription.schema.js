@@ -35,6 +35,13 @@ export const patientHistorySchema = z.object({
   }),
 });
 
+export const myPrescriptionsSchema = z.object({
+  query: z.object({
+    page : z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+  }),
+});
+
 export const dispenseSchema = z.object({
   params: z.object({ id: uuid }),
   body  : z.object({
@@ -65,5 +72,11 @@ export const listPrescriptionsSchema = z.object({
     date   : z.string().optional(),
     page   : z.coerce.number().int().min(1).default(1),
     limit  : z.coerce.number().int().min(1).max(100).default(20),
+  }),
+});
+
+export const importOpenFdaSchema = z.object({
+  body: z.object({
+    query: z.string().min(2).max(200),
   }),
 });

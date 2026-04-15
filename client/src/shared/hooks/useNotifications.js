@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { io }               from 'socket.io-client';
 import { create }           from 'zustand';
+import { apiFetch }         from '../utils/auth.js';
 
 const API_BASE   = import.meta.env.VITE_API_URL    ?? '/api';
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? '';
+import { getSocketUrl } from '../utils/socketUrl.js';
+const SOCKET_URL = getSocketUrl();
 
 // ---------------------------------------------------------------------------
 // High-priority types that show a toast
@@ -73,11 +75,8 @@ export function useNotifications(currentUser) {
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    fetch(`${API_BASE}/notifications/unread-count`, {
-      headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-    })
-      .then((r) => r.json())
-      .then((json) => store.setUnreadCount(json.count ?? 0))
+    apiFetch(`${API_BASE}/notifications/unread-count`)
+      .then((json) => store.setUnreadCount(json?.count ?? 0))
       .catch(console.error);
   }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -128,11 +127,9 @@ export function useNotifications(currentUser) {
         if (permission !== 'granted') return;
 
         // Fetch VAPID public key
-        const keyRes = await fetch(`${API_BASE}/notifications/vapid-public-key`, {
-          headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-        });
-        if (!keyRes.ok) return;
-        const { key } = await keyRes.json();
+        const keyData = await apiFetch(`${API_BASE}/notifications/vapid-public-key`);
+        if (!keyData?.key) return;
+        const { key } = keyData;
 
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.subscribe({
@@ -140,12 +137,9 @@ export function useNotifications(currentUser) {
           applicationServerKey: urlBase64ToUint8Array(key),
         });
 
-        await fetch(`${API_BASE}/notifications/subscribe`, {
+        await apiFetch(`${API_BASE}/notifications/subscribe`, {
           method : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization : `Bearer ${sessionStorage.getItem('accessToken')}`,
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ subscription: sub.toJSON() }),
         });
       } catch (err) {
@@ -158,39 +152,27 @@ export function useNotifications(currentUser) {
 
   // ── REST helpers exposed to components ───────────────────────────────────
   async function fetchNotifications(page = 1) {
-    const res = await fetch(`${API_BASE}/notifications?page=${page}&limit=20`, {
-      headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-    });
-    const json = await res.json();
-    if (page === 1) store.setNotifications(json.notifications ?? []);
-    else store.setNotifications([...store.notifications, ...(json.notifications ?? [])]);
-    store.setUnreadCount(json.unreadCount ?? 0);
+    const json = await apiFetch(`${API_BASE}/notifications?page=${page}&limit=20`);
+    if (page === 1) store.setNotifications(json?.notifications ?? []);
+    else store.setNotifications([...store.notifications, ...(json?.notifications ?? [])]);
+    store.setUnreadCount(json?.unreadCount ?? 0);
     return json;
   }
 
   async function markRead(id) {
     store.markRead(id);
     store.decrementUnread();
-    await fetch(`${API_BASE}/notifications/${id}/read`, {
-      method : 'PATCH',
-      headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-    }).catch(console.error);
+    await apiFetch(`${API_BASE}/notifications/${id}/read`, { method: 'PATCH' }).catch(console.error);
   }
 
   async function markAllRead() {
     store.markAllRead();
-    await fetch(`${API_BASE}/notifications/read-all`, {
-      method : 'PATCH',
-      headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-    }).catch(console.error);
+    await apiFetch(`${API_BASE}/notifications/read-all`, { method: 'PATCH' }).catch(console.error);
   }
 
   async function remove(id) {
     store.removeNotification(id);
-    await fetch(`${API_BASE}/notifications/${id}`, {
-      method : 'DELETE',
-      headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-    }).catch(console.error);
+    await apiFetch(`${API_BASE}/notifications/${id}`, { method: 'DELETE' }).catch(console.error);
   }
 
   return { fetchNotifications, markRead, markAllRead, remove };

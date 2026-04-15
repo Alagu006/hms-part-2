@@ -1,5 +1,6 @@
 import { query, withTransaction } from '../../shared/db/pool.js';
 import { pgEncryptFields, pgDecryptFields } from '../../shared/db/pgcrypto.js';
+import { auditLog } from '../../shared/middleware/audit.js';
 
 const ENCRYPTED_FIELDS = ['visitor_name', 'visitor_phone', 'id_number'];
 
@@ -33,7 +34,9 @@ export async function logVisitor(data, loggedBy, ip, userAgent) {
     ]
   );
 
-  return decryptRow(rows[0]);
+  const visitor = await decryptRow(rows[0]);
+  await auditLog(loggedBy, 'CREATE', 'visitor_logs', rows[0].id, null, { patientId: data.patientId, purpose: data.purpose });
+  return visitor;
 }
 
 export async function getVisitorHistory(patientId, { page, limit }) {
@@ -63,6 +66,11 @@ export async function getVisitorHistory(patientId, { page, limit }) {
 }
 
 export async function checkoutVisitor(id, approvedBy) {
+  const [before] = await query(
+    `SELECT * FROM visitor_logs WHERE id = $1 AND checked_out_at IS NULL`,
+    [id]
+  );
+
   const { rows } = await query(
     `UPDATE visitor_logs
      SET checked_out_at = NOW(), approved_by = $2
@@ -70,5 +78,73 @@ export async function checkoutVisitor(id, approvedBy) {
      RETURNING *`,
     [id, approvedBy]
   );
+
+  if (rows[0]) {
+    await auditLog(approvedBy, 'UPDATE', 'visitor_logs', rows[0].id, before ? { ...before } : null, { ...rows[0] });
+  }
+
   return rows[0] ? decryptRow(rows[0]) : null;
+}
+
+export async function listAllVisitors({ page, limit, date, checkedOut }) {
+  const offset = (page - 1) * limit;
+  const params = [];
+  const where = [];
+
+  if (date) {
+    params.push(date);
+    where.push(`DATE(v.checked_in_at) = $${params.length}`);
+  }
+
+  if (checkedOut === 'true') {
+    where.push(`v.checked_out_at IS NOT NULL`);
+  } else if (checkedOut === 'false') {
+    where.push(`v.checked_out_at IS NULL`);
+  }
+
+  const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+  params.push(limit, offset);
+  const limitIdx = params.length - 1;
+  const offsetIdx = params.length;
+
+  const sql = `
+    SELECT
+      v.id, v.patient_id, v.visitor_name, v.visitor_phone,
+      v.relationship, v.id_type, v.id_number, v.purpose,
+      v.checked_in_at, v.checked_out_at, v.badge_number,
+      u.first_name || ' ' || u.last_name AS approved_by_name,
+      p.first_name || ' ' || p.last_name AS patient_name,
+      p.mrn AS patient_mrn,
+      COUNT(*) OVER() AS total_count
+    FROM visitor_logs v
+    LEFT JOIN users u ON u.id = v.approved_by
+    LEFT JOIN patients p ON p.id = v.patient_id
+    ${whereClause}
+    ORDER BY v.checked_in_at DESC
+    LIMIT $${limitIdx} OFFSET $${offsetIdx}
+  `;
+
+  const { rows } = await query(sql, params);
+  const total = rows[0]?.total_count ?? 0;
+  const items = await decryptRows(rows.map(({ total_count, ...r }) => r));
+
+  return { visitors: items, total: parseInt(total, 10), page, limit };
+}
+
+// Search past visitors by name or phone (for autocomplete on check-in)
+export async function searchPastVisitors(q) {
+  const term = `%${q}%`;
+  const { rows } = await query(
+    `SELECT DISTINCT ON (v.visitor_name, v.visitor_phone)
+       v.visitor_name, v.visitor_phone, v.relationship, v.id_type, v.id_number
+     FROM visitor_logs v
+     WHERE
+       pgp_sym_decrypt(decode(v.visitor_name, 'hex'), $2) ILIKE $1
+       OR pgp_sym_decrypt(decode(v.visitor_phone, 'hex'), $2) ILIKE $1
+     ORDER BY v.visitor_name, v.visitor_phone, v.checked_in_at DESC
+     LIMIT 10`,
+    [term, process.env.PG_CRYPTO_KEY]
+  );
+  return decryptRows(rows);
 }

@@ -81,6 +81,22 @@ CREATE TABLE user_roles (
 );
 
 -- =============================================================================
+-- AUTH SESSIONS
+-- =============================================================================
+CREATE TABLE sessions (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    ip_hash         TEXT NOT NULL,
+    user_agent_hash TEXT NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ NOT NULL,
+    revoked_at      TIMESTAMPTZ NULL
+);
+
+CREATE INDEX idx_sessions_user_id     ON sessions(user_id);
+CREATE INDEX idx_sessions_user_active ON sessions(user_id) WHERE revoked_at IS NULL;
+
+-- =============================================================================
 -- DEPARTMENTS
 -- =============================================================================
 CREATE TABLE departments (
@@ -197,7 +213,7 @@ CREATE TABLE medical_records (
 -- =============================================================================
 CREATE TABLE vitals (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    medical_record_id   UUID NOT NULL REFERENCES medical_records(id),
+    medical_record_id   UUID REFERENCES medical_records(id),
     patient_id          UUID NOT NULL REFERENCES patients(id),
     recorded_by         UUID NOT NULL REFERENCES users(id),
     recorded_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -336,6 +352,7 @@ CREATE TABLE message_group_members (
     role        TEXT NOT NULL DEFAULT 'MEMBER' CHECK (role IN ('ADMIN','MEMBER')),
     joined_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     left_at     TIMESTAMPTZ NULL,
+    last_read_at TIMESTAMPTZ NULL,
     UNIQUE (group_id, user_id)
 );
 
@@ -358,7 +375,7 @@ CREATE TABLE messages (
 CREATE TABLE notifications (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id),
-    type            TEXT NOT NULL CHECK (type IN ('APPOINTMENT','LAB_RESULT','PRESCRIPTION','MESSAGE','SYSTEM','ALERT','SHIFT','LEAVE')),
+    type            TEXT NOT NULL CHECK (type IN ('APPOINTMENT','LAB_RESULT','PRESCRIPTION','MESSAGE','SYSTEM','ALERT','SHIFT','LEAVE','OT_SCHEDULED','BLOOD_REQUEST','EMERGENCY_ALERT','DISCHARGE_SUMMARY','INCIDENT','BROADCAST','TELEMEDICINE_REMINDER','APPOINTMENT_BOOKED','NEW_MESSAGE','VITALS_CRITICAL','DRUG_INTERACTION_WARN','EQUIPMENT_MAINTENANCE','BILL_GENERATED')),
     title           TEXT NOT NULL,          -- AES-256-GCM encrypted at app layer
     body            TEXT NOT NULL,          -- AES-256-GCM encrypted at app layer
     encryption_iv   TEXT NOT NULL,
@@ -497,8 +514,9 @@ CREATE TABLE leave_balances (
 CREATE TABLE broadcasts (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title           TEXT NOT NULL,
-    body            TEXT NOT NULL,          -- AES-256-GCM encrypted at app layer
+    body            TEXT NOT NULL,
     encryption_iv   TEXT NOT NULL,
+    priority        TEXT NOT NULL DEFAULT 'MEDIUM' CHECK (priority IN ('LOW','MEDIUM','HIGH','CRITICAL')),
     target_roles    user_role[] NOT NULL,
     sent_by         UUID NOT NULL REFERENCES users(id),
     sent_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),

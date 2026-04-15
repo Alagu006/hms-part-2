@@ -1,28 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNotificationStore, useNotifications } from '../../shared/hooks/useNotifications.js';
+import ActiveSessions from '../../shared/components/ActiveSessions.jsx';
 import styles from './NotificationBell.module.scss';
 
 // ---------------------------------------------------------------------------
 // Type → icon + color map
 // ---------------------------------------------------------------------------
 const TYPE_CONFIG = {
-  APPOINTMENT_BOOKED   : { icon: '📅', bg: '#dbeafe' },
-  LAB_RESULT_UPLOADED  : { icon: '🧪', bg: '#fef3c7' },
-  PRESCRIPTION_ISSUED  : { icon: '💊', bg: '#dcfce7' },
-  LEAVE_APPROVED       : { icon: '✅', bg: '#dcfce7' },
-  LEAVE_REJECTED       : { icon: '❌', bg: '#fee2e2' },
-  PATIENT_ASSIGNED     : { icon: '🏥', bg: '#ede9fe' },
-  LOW_STOCK            : { icon: '📦', bg: '#fef3c7' },
-  BROADCAST            : { icon: '📢', bg: '#e0f2fe' },
-  NEW_MESSAGE          : { icon: '💬', bg: '#dbeafe' },
-  TELEMEDICINE_REMINDER: { icon: '📹', bg: '#ede9fe' },
-  BILL_GENERATED       : { icon: '🧾', bg: '#fef3c7' },
-  EQUIPMENT_MAINTENANCE: { icon: '🔧', bg: '#f3f4f6' },
-  DRUG_INTERACTION_WARN: { icon: '⚠️', bg: '#fef3c7' },
-  VITALS_CRITICAL      : { icon: '🚨', bg: '#fee2e2' },
+  APPOINTMENT          : { icon: '📅', bg: '#dbeafe' },
+  LAB_ORDER            : { icon: '🔬', bg: '#fef3c7' },
+  LAB_RESULT           : { icon: '🧪', bg: '#fef3c7' },
+  PRESCRIPTION         : { icon: '💊', bg: '#dcfce7' },
+  LEAVE                : { icon: '✅', bg: '#dcfce7' },
+  SYSTEM               : { icon: '🏥', bg: '#ede9fe' },
+  ALERT                : { icon: '⚠️', bg: '#fef3c7' },
+  MESSAGE              : { icon: '💬', bg: '#dbeafe' },
+  SHIFT                : { icon: '🕐', bg: '#f3f4f6' },
   OT_SCHEDULED         : { icon: '🏨', bg: '#ede9fe' },
   BLOOD_REQUEST        : { icon: '🩸', bg: '#fee2e2' },
   EMERGENCY_ALERT      : { icon: '🚨', bg: '#fee2e2' },
+  DISCHARGE_SUMMARY    : { icon: '📋', bg: '#dcfce7' },
+  INCIDENT             : { icon: '🔧', bg: '#f3f4f6' },
 };
 
 function getConfig(type) {
@@ -85,6 +83,7 @@ export default function NotificationBell({ currentUser }) {
   const [page, setPage]         = useState(1);
   const [hasMore, setHasMore]   = useState(true);
   const [loading, setLoading]   = useState(false);
+  const [showSessions, setShowSessions] = useState(false);
   const dropdownRef = useRef(null);
 
   const { unreadCount, notifications } = useNotificationStore();
@@ -224,11 +223,24 @@ export default function NotificationBell({ currentUser }) {
                 </button>
               </div>
             )}
+
+            <div className={styles.sessionsLink}>
+              <button
+                className={styles.sessionsBtn}
+                onClick={() => { setOpen(false); setShowSessions(true); }}
+              >
+                Manage sessions
+              </button>
+            </div>
           </div>
         )}
       </div>
 
       <ToastList />
+
+      {showSessions && (
+        <ActiveSessions onClose={() => setShowSessions(false)} />
+      )}
     </>
   );
 }

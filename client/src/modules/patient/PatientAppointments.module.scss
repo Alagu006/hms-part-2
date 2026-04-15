@@ -189,3 +189,183 @@
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+.btnJoin {
+  padding: 5px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 5px;
+  border: none;
+  background: #7c3aed;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  &:hover { background: #6d28d9; }
+}
+
+// ── Row actions ────────────────────────────────────────────────────────────
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btnEdit {
+  padding: 5px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 5px;
+  border: 1px solid #1a56db;
+  background: #fff;
+  color: #1a56db;
+  cursor: pointer;
+  transition: background 0.15s;
+  &:hover { background: #eff6ff; }
+}
+
+.btnCancel {
+  padding: 5px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 5px;
+  border: 1px solid #ef4444;
+  background: #fff;
+  color: #ef4444;
+  cursor: pointer;
+  transition: background 0.15s;
+  &:hover { background: #fef2f2; }
+}
+
+// ── Modal overlay ──────────────────────────────────────────────────────────
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 28px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.modalSub {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #111827;
+  box-sizing: border-box;
+  &:focus { outline: none; border-color: #1a56db; box-shadow: 0 0 0 3px #dbeafe; }
+}
+
+.textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #111827;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+  &:focus { outline: none; border-color: #1a56db; box-shadow: 0 0 0 3px #dbeafe; }
+}
+
+.fieldError {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #ef4444;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btnPrimary {
+  padding: 8px 20px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover { background: #1648c0; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.btnSecondary {
+  padding: 8px 20px;
+  background: #f3f4f6;
+  color: #374151;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover { background: #e5e7eb; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.btnDanger {
+  padding: 8px 20px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover { background: #dc2626; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111827;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  z-index: 1100;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+}

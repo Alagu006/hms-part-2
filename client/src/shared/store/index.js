@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { useShallow } from 'zustand/react/shallow';
 
 // ---------------------------------------------------------------------------
 // Auth slice
@@ -111,7 +112,27 @@ export const useStore = create(
   )
 );
 
+// Hydrate Zustand state from sessionStorage on startup so that synchronous
+// reads (e.g. api.js interceptor reading useStore.getState().accessToken)
+// have the correct token value before the persist middleware rehydrates.
+// ---------------------------------------------------------------------------
+const stored = sessionStorage.getItem('hms-auth');
+if (stored) {
+  try {
+    const { state } = JSON.parse(stored);
+    if (state?.accessToken) {
+      useStore.setState({
+        user        : state.user        ?? null,
+        accessToken : state.accessToken,
+        permissions : state.permissions ?? [],
+      });
+    }
+  } catch {
+    // Corrupt storage — ignore
+  }
+}
+
 // Convenience selectors
-export const useAuth         = () => useStore((s) => ({ user: s.user, accessToken: s.accessToken, setAuth: s.setAuth, clearAuth: s.clearAuth, hasRole: s.hasRole, hasAnyRole: s.hasAnyRole }));
-export const useNotifStore   = () => useStore((s) => ({ notifications: s.notifications, unreadCount: s.unreadCount, setNotifications: s.setNotifications, setUnreadCount: s.setUnreadCount, incrementUnread: s.incrementUnread, decrementUnread: s.decrementUnread, prependNotification: s.prependNotification, markRead: s.markRead, markAllRead: s.markAllRead, removeNotification: s.removeNotification }));
-export const useMessaging    = () => useStore((s) => ({ activeGroup: s.activeGroup, unreadPerGroup: s.unreadPerGroup, setActiveGroup: s.setActiveGroup, setUnreadPerGroup: s.setUnreadPerGroup, incrementGroupUnread: s.incrementGroupUnread, clearGroupUnread: s.clearGroupUnread }));
+export const useAuth         = () => useStore(useShallow((s) => ({ user: s.user, accessToken: s.accessToken, setAuth: s.setAuth, clearAuth: s.clearAuth, hasRole: s.hasRole, hasAnyRole: s.hasAnyRole })));
+export const useNotifStore   = () => useStore(useShallow((s) => ({ notifications: s.notifications, unreadCount: s.unreadCount, setNotifications: s.setNotifications, setUnreadCount: s.setUnreadCount, incrementUnread: s.incrementUnread, decrementUnread: s.decrementUnread, prependNotification: s.prependNotification, markRead: s.markRead, markAllRead: s.markAllRead, removeNotification: s.removeNotification })));
+export const useMessaging    = () => useStore(useShallow((s) => ({ activeGroup: s.activeGroup, unreadPerGroup: s.unreadPerGroup, setActiveGroup: s.setActiveGroup, setUnreadPerGroup: s.setUnreadPerGroup, incrementGroupUnread: s.incrementGroupUnread, clearGroupUnread: s.clearGroupUnread })));

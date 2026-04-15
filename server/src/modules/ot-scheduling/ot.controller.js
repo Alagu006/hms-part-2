@@ -9,7 +9,7 @@ export async function createOTSchedule(req, res, next) {
 
 export async function getOTSchedules(req, res, next) {
   try {
-    const rows = await svc.getOTSchedules(req.query);
+    const rows = await svc.getOTSchedules((req.parsedQuery ?? req.query));
     res.json(rows);
   } catch (err) { next(err); }
 }

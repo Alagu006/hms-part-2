@@ -2,31 +2,32 @@ import { query }        from '../db/pool.js';
 import { pgEncrypt, pgDecrypt } from '../db/pgcrypto.js';
 import { redis }        from './redis.service.js';
 import { sendPushNotification } from './webpush.service.js';
+import { auditLog } from '../middleware/audit.js';
 
 // ---------------------------------------------------------------------------
 // Notification type enum
 // ---------------------------------------------------------------------------
 export const NotificationType = Object.freeze({
-  APPOINTMENT_BOOKED    : 'APPOINTMENT_BOOKED',
-  LAB_RESULT_UPLOADED   : 'LAB_RESULT_UPLOADED',
-  PRESCRIPTION_ISSUED   : 'PRESCRIPTION_ISSUED',
-  LEAVE_APPROVED        : 'LEAVE_APPROVED',
-  LEAVE_REJECTED        : 'LEAVE_REJECTED',
-  PATIENT_ASSIGNED      : 'PATIENT_ASSIGNED',
-  LOW_STOCK             : 'LOW_STOCK',
-  BROADCAST             : 'BROADCAST',
-  NEW_MESSAGE           : 'NEW_MESSAGE',
-  TELEMEDICINE_REMINDER : 'TELEMEDICINE_REMINDER',
-  BILL_GENERATED        : 'BILL_GENERATED',
-  EQUIPMENT_MAINTENANCE : 'EQUIPMENT_MAINTENANCE',
-  DRUG_INTERACTION_WARN : 'DRUG_INTERACTION_WARN',
-  VITALS_CRITICAL       : 'VITALS_CRITICAL',
+  APPOINTMENT_BOOKED    : 'APPOINTMENT',
+  LAB_ORDER_CREATED     : 'LAB_ORDER',
+  LAB_RESULT_UPLOADED   : 'LAB_RESULT',
+  PRESCRIPTION_ISSUED   : 'PRESCRIPTION',
+  LEAVE_APPROVED        : 'LEAVE',
+  LEAVE_REJECTED        : 'LEAVE',
+  PATIENT_ASSIGNED      : 'SYSTEM',
+  LOW_STOCK             : 'ALERT',
+  BROADCAST             : 'SYSTEM',
+  NEW_MESSAGE           : 'MESSAGE',
+  TELEMEDICINE_REMINDER : 'APPOINTMENT',
+  BILL_GENERATED        : 'SYSTEM',
+  EQUIPMENT_MAINTENANCE : 'ALERT',
+  DRUG_INTERACTION_WARN : 'ALERT',
+  VITALS_CRITICAL       : 'ALERT',
   OT_SCHEDULED          : 'OT_SCHEDULED',
   BLOOD_REQUEST         : 'BLOOD_REQUEST',
   EMERGENCY_ALERT       : 'EMERGENCY_ALERT',
 });
 
-// High-priority types that trigger a toast on the client
 export const HIGH_PRIORITY_TYPES = new Set([
   NotificationType.VITALS_CRITICAL,
   NotificationType.EMERGENCY_ALERT,
@@ -41,7 +42,7 @@ const UNREAD_KEY = (userId) => `notif:unread:${userId}`;
 // ---------------------------------------------------------------------------
 
 /**
- * @param {string}  userId
+ * @param {string}  userId       — the actor (who triggered this notification)
  * @param {string}  type        — NotificationType value
  * @param {string}  title       — plaintext
  * @param {string}  body        — plaintext
@@ -49,15 +50,12 @@ const UNREAD_KEY = (userId) => `notif:unread:${userId}`;
  * @param {object}  [io]        — Socket.io server instance (optional)
  */
 export async function createNotification(userId, type, title, body, metadata = {}, io = null) {
-  // Encrypt title + body at rest
   const [encTitle, encBody, encIv] = await Promise.all([
     pgEncrypt(title),
     pgEncrypt(body),
     pgEncrypt(JSON.stringify(metadata)),
   ]);
 
-  // Generate a single IV placeholder — pgcrypto manages its own IV internally,
-  // but we store a reference string for the client-side AES layer
   const encryptionIv = 'pgcrypto';
 
   const { rows } = await query(
@@ -104,6 +102,18 @@ export async function createNotification(userId, type, title, body, metadata = {
     data : { type, ...metadata },
   }).catch((err) => console.warn('[notification] Push failed:', err.message));
 
+  await auditLog({
+    userId,
+    action  : 'CREATE',
+    entity  : 'notifications',
+    entityId: notification.id,
+    nextData: {
+      recipientId: notification.user_id,
+      type: notification.type,
+      title: '[encrypted]',
+    },
+  });
+
   return notification;
 }
 
@@ -120,7 +130,7 @@ export async function markAsRead(notificationId, userId) {
   );
 
   if (rows[0]) {
-    // Decrement Redis counter (floor at 0)
+    await auditLog({ userId, action: 'UPDATE', entity: 'notifications', entityId: notificationId, prevData: { is_read: false }, nextData: { is_read: true } });
     const current = await redis.get(UNREAD_KEY(userId));
     if (current && parseInt(current, 10) > 0) {
       await redis.decr(UNREAD_KEY(userId));
@@ -134,12 +144,15 @@ export async function markAsRead(notificationId, userId) {
 // Mark all as read
 // ---------------------------------------------------------------------------
 export async function markAllAsRead(userId) {
-  await query(
+  const { rowCount } = await query(
     `UPDATE notifications SET is_read = TRUE, read_at = NOW()
      WHERE user_id = $1 AND is_read = FALSE`,
     [userId]
   );
   await redis.set(UNREAD_KEY(userId), '0');
+  if (rowCount > 0) {
+    await auditLog({ userId, action: 'UPDATE', entity: 'notifications', entityId: 'bulk', prevData: { is_read: false }, nextData: { is_read: true, count: rowCount } });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -160,7 +173,6 @@ export async function getUnreadCount(userId) {
   );
 
   const count = parseInt(rows[0].count, 10);
-  // Repopulate Redis
   await redis.setex(UNREAD_KEY(userId), 3600, String(count));
   return count;
 }
@@ -168,18 +180,20 @@ export async function getUnreadCount(userId) {
 // ---------------------------------------------------------------------------
 // Get paginated notifications (decrypt on read)
 // ---------------------------------------------------------------------------
-export async function getNotifications(userId, { page = 1, limit = 20 } = {}) {
+export async function getNotifications(userId, { page = 1, limit = 20, type } = {}) {
   const offset = (page - 1) * limit;
+  const params = [userId, limit, offset];
+  const typeFilter = type ? (params.push(type), `AND type = $${params.length}`) : '';
 
   const { rows } = await query(
     `SELECT id, type, title, body, encryption_iv, entity_type, entity_id,
             is_read, read_at, created_at,
             COUNT(*) OVER() AS total_count
      FROM notifications
-     WHERE user_id = $1 AND deleted_at IS NULL
+     WHERE user_id = $1 AND deleted_at IS NULL ${typeFilter}
      ORDER BY created_at DESC
      LIMIT $2 OFFSET $3`,
-    [userId, limit, offset]
+    params
   );
 
   const total = rows[0]?.total_count ?? 0;
@@ -218,7 +232,8 @@ export async function deleteNotification(notificationId, userId) {
      RETURNING id, is_read`,
     [notificationId, userId]
   );
-  if (rows[0] && !rows[0].is_read) {
+  if (rows[0]) {
+    await auditLog({ userId, action: 'DELETE', entity: 'notifications', entityId: notificationId, prevData: { id: notificationId, is_read: rows[0].is_read } });
     const current = await redis.get(UNREAD_KEY(userId));
     if (current && parseInt(current, 10) > 0) await redis.decr(UNREAD_KEY(userId));
   }

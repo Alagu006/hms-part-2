@@ -49,24 +49,29 @@ function baseTemplate(title, bodyHtml) {
 </html>`;
 }
 
-export function tempPasswordTemplate(password) {
+export function tempPasswordTemplate(loginId, password, loginLabel = 'Employee ID') {
   return baseTemplate('Your Temporary Password', `
     <h2 style="margin:0 0 16px;color:#111827;font-size:22px;">Welcome to ${process.env.HOSPITAL_NAME || 'HMS'}</h2>
     <p style="margin:0 0 12px;color:#374151;font-size:15px;line-height:1.6;">
-      Your account has been created. Use the temporary password below to log in.
-      You will be required to change it on first login.
+      Your account has been created. Use the credentials below to log in.
+      You will be required to change your password on first login.
     </p>
-    <div style="background:#f3f4f6;border-radius:6px;padding:16px 24px;margin:24px 0;text-align:center;">
-      <p style="margin:0;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:1px;">
+    <div style="background:#f3f4f6;border-radius:6px;padding:16px 24px;margin:24px 0;">
+      <p style="margin:0 0 8px;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:1px;">
+        ${loginLabel}
+      </p>
+      <p style="margin:0 0 16px;color:#111827;font-size:24px;font-weight:bold;font-family:monospace;letter-spacing:2px;">
+        ${loginId}
+      </p>
+      <p style="margin:0 0 8px;color:#6b7280;font-size:13px;text-transform:uppercase;letter-spacing:1px;">
         Temporary Password
       </p>
-      <p style="margin:8px 0 0;color:#111827;font-size:28px;font-weight:bold;
-                letter-spacing:4px;font-family:monospace;">
+      <p style="margin:0;color:#111827;font-size:24px;font-weight:bold;font-family:monospace;letter-spacing:2px;">
         ${password}
       </p>
     </div>
     <p style="margin:0;color:#ef4444;font-size:13px;">
-      ⚠ This password expires in 24 hours. Do not share it with anyone.
+      ⚠ Change your password immediately after first login. Do not share these credentials.
     </p>
   `);
 }
@@ -99,13 +104,13 @@ export function otpTemplate(otp) {
 /**
  * Queue a temporary password email.
  */
-export async function sendTempPassword(to, password) {
+export async function sendTempPassword(to, loginId, password, loginLabel = 'Employee ID') {
   await emailQueue.add(
     'tempPassword',
     {
       to,
-      subject: `Your temporary password — ${process.env.HOSPITAL_NAME || 'HMS'}`,
-      html   : tempPasswordTemplate(password),
+      subject: `Your account credentials — ${process.env.HOSPITAL_NAME || 'HMS'}`,
+      html   : tempPasswordTemplate(loginId, password, loginLabel),
     },
     { attempts: 3, backoff: { type: 'exponential', delay: 5_000 } }
   );

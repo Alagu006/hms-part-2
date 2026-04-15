@@ -51,9 +51,13 @@ export default function ForcePasswordChange() {
     if (!username) return;
     setLoading(true);
     try {
+      const csrfRes = await fetch('/api/auth/csrf-token', { credentials: 'include' });
+      const { csrfToken } = await csrfRes.json();
+
       const res = await fetch('/api/auth/otp/request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
         body: JSON.stringify({ username }),
       });
       if (res.ok) setOtpSent(true);
@@ -80,10 +84,14 @@ export default function ForcePasswordChange() {
     setLoading(true);
 
     try {
+      const csrfRes = await fetch('/api/auth/csrf-token', { credentials: 'include' });
+      const { csrfToken } = await csrfRes.json();
+
       const res = await fetch('/api/auth/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, otp, newPassword: form.newPassword }),
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrfToken },
+        body: JSON.stringify({ username, otp, newPassword: form.newPassword, confirmPassword: form.confirmPassword }),
       });
 
       const data = await res.json();

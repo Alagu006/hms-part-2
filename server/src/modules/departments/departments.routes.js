@@ -26,7 +26,7 @@ router.get(
   authorize('SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'RECEPTIONIST',
             'LAB_TECH', 'PHARMACIST', 'INVENTORY', 'BILLING', 'HR',
             'RADIOLOGIST', 'DIETITIAN', 'PHYSIO', 'ANESTHETIST',
-            'SOCIAL_WORKER', 'IT_ADMIN', 'SECURITY_OFC', 'ORDERLY'),
+            'SOCIAL_WORKER', 'IT_ADMIN', 'SECURITY_OFC', 'ORDERLY', 'PATIENT'),
   validate(listDepartmentsSchema),
   listDepartments
 );

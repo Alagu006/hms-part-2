@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
+import PatientAllergies from '../../shared/components/PatientAllergies.jsx';
 import styles from './RecordVitals.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
@@ -82,9 +85,77 @@ function VitalChart({ data, dataKey, label, color, unit, domain }) {
 }
 
 // ---------------------------------------------------------------------------
+// Patient search
+// ---------------------------------------------------------------------------
+function PatientSearch({ onSelect }) {
+  const [query, setQuery]     = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    if (query.trim().length < 2) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const json = await apiFetch(`${API_BASE}/patients?search=${encodeURIComponent(query.trim())}&limit=10`);
+        setResults(json?.patients ?? []);
+      } catch { setResults([]); }
+      finally { setLoading(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  return (
+    <div className={styles.patientSearchWrap}>
+      <label className={styles.label}>Search Patient</label>
+      <input
+        className={styles.input}
+        placeholder="Enter patient name or MRN (e.g. PAT588465)…"
+        value={query}
+        onChange={e => { setQuery(e.target.value); setTouched(true); }}
+        aria-label="Search patient"
+        autoFocus
+      />
+      {loading && <div className={styles.searchHint}>Searching…</div>}
+      {touched && !loading && query.length >= 2 && results.length === 0 && (
+        <div className={styles.searchHint}>No patients found.</div>
+      )}
+      {results.length > 0 && (
+        <ul className={styles.patientList} role="listbox">
+          {results.map(p => (
+            <li key={p.id} role="option" tabIndex={0}
+              className={styles.patientItem}
+              onClick={() => onSelect(p)}
+              onKeyDown={e => e.key === 'Enter' && onSelect(p)}>
+              <div className={styles.patientItemMain}>
+                <span className={styles.patientName}>{p.first_name} {p.last_name}</span>
+                <span className={styles.patientMrn}>{p.mrn}</span>
+              </div>
+              {(p.room_number || p.bed_number) && (
+                <span className={styles.patientRoom}>Room {p.room_number} · Bed {p.bed_number}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export default function RecordVitals({ patientId, patientName }) {
+export default function RecordVitals({ patientId: propPatientId, patientName: propPatientName }) {
+  const location = useLocation();
+  const statePatientId   = location.state?.patientId;
+  const statePatientName = location.state?.patientName;
+
+  const [selectedPatient, setSelectedPatient] = useState(
+    propPatientId || statePatientId
+      ? { id: propPatientId ?? statePatientId, name: propPatientName ?? statePatientName }
+      : null
+  );
   const [tab, setTab]         = useState('form');
   const [form, setForm]       = useState(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
@@ -92,15 +163,15 @@ export default function RecordVitals({ patientId, patientName }) {
   const [history, setHistory] = useState([]);
   const [histLoading, setHistLoading] = useState(false);
 
+  const patientId   = selectedPatient?.id;
+  const patientName = selectedPatient?.name;
+
   const fetchHistory = useCallback(async () => {
     if (!patientId) return;
     setHistLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/vitals/patient/${patientId}?days=7&limit=50`, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-      });
-      const json = await res.json();
-      setHistory(json.vitals ?? []);
+      const data = await apiFetch(`${API_BASE}/vitals/patient/${patientId}?days=7&limit=50`);
+      setHistory(data.vitals ?? []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -137,17 +208,10 @@ export default function RecordVitals({ patientId, patientName }) {
       }
       if (form.notes) payload.notes = form.notes;
 
-      const res = await fetch(`${API_BASE}/vitals`, {
+      const data = await apiFetch(`${API_BASE}/vitals`, {
         method : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization : `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
         body: JSON.stringify(payload),
       });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Failed to record vitals');
 
       setToast({ message: 'Vitals recorded successfully', type: 'success' });
       setForm(INITIAL_FORM);
@@ -161,26 +225,33 @@ export default function RecordVitals({ patientId, patientName }) {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h2>Vitals{patientName ? ` — ${patientName}` : ''}</h2>
-        <div className={styles.tabs} role="tablist">
-          <button
-            role="tab" aria-selected={tab === 'form'}
-            className={`${styles.tab} ${tab === 'form' ? styles.active : ''}`}
-            onClick={() => setTab('form')}
-          >
-            Record
+        <h2>Record Vitals{patientName ? ` — ${patientName}` : ''}</h2>
+        {selectedPatient && (
+          <button className={styles.changePatientBtn}
+            onClick={() => { setSelectedPatient(null); setHistory([]); setForm(INITIAL_FORM); }}>
+            Change Patient
           </button>
-          <button
-            role="tab" aria-selected={tab === 'chart'}
-            className={`${styles.tab} ${tab === 'chart' ? styles.active : ''}`}
-            onClick={() => setTab('chart')}
-          >
-            Chart (7d)
-          </button>
-        </div>
+        )}
+        {selectedPatient && (
+          <div className={styles.tabs} role="tablist">
+            <button role="tab" aria-selected={tab === 'form'}
+              className={`${styles.tab} ${tab === 'form' ? styles.active : ''}`}
+              onClick={() => setTab('form')}>Record</button>
+            <button role="tab" aria-selected={tab === 'chart'}
+              className={`${styles.tab} ${tab === 'chart' ? styles.active : ''}`}
+              onClick={() => setTab('chart')}>Chart (7d)</button>
+            <button role="tab" aria-selected={tab === 'allergies'}
+              className={`${styles.tab} ${tab === 'allergies' ? styles.active : ''} ${styles.tabAllergies}`}
+              onClick={() => setTab('allergies')}>🚨 Allergies</button>
+          </div>
+        )}
       </div>
 
-      {tab === 'form' && (
+      {!selectedPatient && (
+        <PatientSearch onSelect={p => setSelectedPatient({ id: p.id, name: `${p.first_name} ${p.last_name}` })} />
+      )}
+
+      {selectedPatient && tab === 'form' && (
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <div className={styles.grid}>
             {/* Blood Pressure */}
@@ -290,7 +361,7 @@ export default function RecordVitals({ patientId, patientName }) {
         </form>
       )}
 
-      {tab === 'chart' && (
+      {selectedPatient && tab === 'chart' && (
         <div className={styles.chartContainer}>
           {histLoading ? (
             <div className={styles.noData}>Loading chart data…</div>
@@ -306,6 +377,15 @@ export default function RecordVitals({ patientId, patientName }) {
               <VitalChart data={history} dataKey="respiratory_rate" label="Resp. Rate" color="#0891b2" unit="/min" />
             </div>
           )}
+        </div>
+      )}
+
+      {selectedPatient && tab === 'allergies' && (
+        <div className={styles.allergiesContainer}>
+          <PatientAllergies
+            patientId={patientId}
+            patientName={patientName}
+          />
         </div>
       )}
 

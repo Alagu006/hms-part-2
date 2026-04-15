@@ -16,7 +16,7 @@ export async function createPatient(req, res, next) {
 
 export async function listPatients(req, res, next) {
   try {
-    const filters = { ...req.query };
+    const filters = { ...(req.parsedQuery ?? req.query) };
     if (filters.doctorId === 'me') {
       filters.doctorId = req.user.id;
     }
@@ -73,6 +73,26 @@ export async function getMyRecords(req, res, next) {
     const result = await patientService.getMyRecords(req.user.id);
     if (!result) return res.status(404).json({ error: 'No patient record found for this account' });
     return res.status(200).json({ data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getMedicalRecord(req, res, next) {
+  try {
+    const record = await patientService.getMedicalRecordById(req.params.id);
+    if (!record) return res.status(404).json({ error: 'Medical record not found' });
+    return res.status(200).json({ data: record });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function lookupPatientByMrn(req, res, next) {
+  try {
+    const patient = await patientService.getPatientByMrn(req.query.mrn);
+    if (!patient) return res.status(404).json({ error: 'No patient found with that MRN' });
+    return res.status(200).json({ data: patient });
   } catch (err) {
     next(err);
   }

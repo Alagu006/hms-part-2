@@ -1,6 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { VariableSizeList as VList } from 'react-window';
-import AutoSizer from 'react-virtualized-auto-sizer';
+import { useState, useEffect, useRef } from 'react';
 import { decryptMessage } from '../../shared/utils/crypto.js';
 import styles from './MessageList.module.scss';
 
@@ -178,23 +176,13 @@ export default function MessageList({
   const [contextMenu, setContextMenu] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
   const listRef  = useRef(null);
-  const sizeMap  = useRef({});
 
   // Scroll to bottom on new messages
   useEffect(() => {
-    if (listRef.current && messages.length) {
-      listRef.current.scrollToItem(messages.length - 1, 'end');
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages.length]);
-
-  const getSize = useCallback((index) => sizeMap.current[index] ?? 72, []);
-
-  function setSize(index, size) {
-    if (sizeMap.current[index] !== size) {
-      sizeMap.current[index] = size;
-      listRef.current?.resetAfterIndex(index);
-    }
-  }
 
   function handleReact(messageId, emoji) {
     socket?.emit('message:react', { messageId, groupId, emoji });
@@ -222,36 +210,21 @@ export default function MessageList({
         </div>
       )}
 
-      <AutoSizer>
-        {({ height, width }) => (
-          <VList
-            ref={listRef}
-            height={pinnedMessages?.length ? height - 40 : height}
-            width={width}
-            itemCount={messages.length}
-            itemSize={getSize}
-            className={styles.listOuter}
-          >
-            {({ index, style }) => {
-              const msg = messages[index];
-              return (
-                <div style={style} className={styles.row}>
-                  <MeasuredBubble
-                    msg={msg}
-                    currentUserId={currentUserId}
-                    groupKey={groupKey}
-                    onContextMenu={(data) => setContextMenu(data)}
-                    onReact={handleReact}
-                    hovered={hoveredId === msg.id}
-                    onHover={handleHover}
-                    onSize={(h) => setSize(index, h + 8)}
-                  />
-                </div>
-              );
-            }}
-          </VList>
-        )}
-      </AutoSizer>
+      <div ref={listRef} className={styles.listOuter}>
+        {messages.map((msg, index) => (
+          <div key={msg.id} className={styles.row}>
+            <MessageBubble
+              msg={msg}
+              currentUserId={currentUserId}
+              groupKey={groupKey}
+              onContextMenu={(data) => setContextMenu(data)}
+              onReact={handleReact}
+              hovered={hoveredId === msg.id}
+              onHover={handleHover}
+            />
+          </div>
+        ))}
+      </div>
 
       {/* Typing indicator */}
       <div className={styles.typingIndicator} aria-live="polite">
@@ -274,15 +247,3 @@ export default function MessageList({
   );
 }
 
-// Wrapper to measure rendered height for VariableSizeList
-function MeasuredBubble({ onSize, ...props }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    if (ref.current) onSize(ref.current.getBoundingClientRect().height);
-  });
-  return (
-    <div ref={ref}>
-      <MessageBubble {...props} />
-    </div>
-  );
-}

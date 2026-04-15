@@ -1,8 +1,28 @@
 import { query, withTransaction } from '../../shared/db/pool.js';
 import { redis }                  from '../../shared/services/redis.service.js';
+import { auditLog }              from '../../shared/middleware/audit.js';
 
 const PUBSUB_CHANNEL = 'messaging:events';
 const DELETE_WINDOW  = 5 * 60 * 1000; // 5 minutes in ms
+
+export async function getMessagingUsers(currentUserId) {
+  const { rows } = await query(
+    `SELECT u.id, u.first_name, u.last_name, u.department_id,
+            d.name AS department_name,
+            array_agg(DISTINCT ur.role) AS roles
+     FROM users u
+     JOIN user_roles ur ON ur.user_id = u.id AND ur.revoked_at IS NULL
+     LEFT JOIN departments d ON d.id = u.department_id
+     WHERE u.id != $1
+       AND u.deleted_at IS NULL
+       AND u.is_active = TRUE
+       AND ur.role != 'PATIENT'
+     GROUP BY u.id, u.first_name, u.last_name, u.department_id, d.name
+     ORDER BY u.first_name, u.last_name`,
+    [currentUserId]
+  );
+  return rows;
+}
 
 // ---------------------------------------------------------------------------
 // Groups
@@ -11,6 +31,16 @@ export async function getUserGroups(userId) {
   const { rows } = await query(
     `SELECT
        mg.id, mg.name, mg.type, mg.created_at,
+       -- for DIRECT groups, expose the other user's id and name
+       CASE WHEN mg.type = 'DIRECT' THEN
+         (SELECT mgm2.user_id FROM message_group_members mgm2
+          WHERE mgm2.group_id = mg.id AND mgm2.user_id != $1 AND mgm2.left_at IS NULL LIMIT 1)
+       END AS other_user_id,
+       CASE WHEN mg.type = 'DIRECT' THEN
+         (SELECT u2.first_name || ' ' || u2.last_name FROM message_group_members mgm2
+          JOIN users u2 ON u2.id = mgm2.user_id
+          WHERE mgm2.group_id = mg.id AND mgm2.user_id != $1 AND mgm2.left_at IS NULL LIMIT 1)
+       END AS other_user_name,
        -- last message (content is ciphertext — never decoded server-side)
        lm.id          AS last_msg_id,
        lm.content     AS last_msg_content,
@@ -42,6 +72,56 @@ export async function getUserGroups(userId) {
   return rows;
 }
 
+// ---------------------------------------------------------------------------
+// Department group — get or create, then add user as member
+// ---------------------------------------------------------------------------
+export async function getOrCreateDepartmentGroup(departmentId, userId, actorId, groupName) {
+  let deptName = groupName;
+
+  if (departmentId) {
+    const { rows: deptRows } = await query(
+      `SELECT name FROM departments WHERE id = $1`, [departmentId]
+    );
+    if (!deptRows[0] && !groupName) return null;
+    deptName = deptRows[0]?.name ?? groupName;
+  }
+
+  if (!deptName) return null;
+
+  // Find existing DEPARTMENT group for this dept (stored in metadata via name convention)
+  const { rows: existing } = await query(
+    `SELECT mg.id FROM message_groups mg
+     WHERE mg.type = 'DEPARTMENT'
+       AND mg.name = $1
+       AND mg.deleted_at IS NULL
+     LIMIT 1`,
+    [deptName]
+  );
+
+  let groupId;
+  if (existing[0]) {
+    groupId = existing[0].id;
+  } else {
+    // Create the department group with actorId as creator
+    const { rows: created } = await query(
+      `INSERT INTO message_groups (id, name, type, created_by, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, 'DEPARTMENT', $2, NOW(), NOW()) RETURNING id`,
+      [deptName, actorId]
+    );
+    groupId = created[0].id;
+  }
+
+  // Add user if not already a member
+  await query(
+    `INSERT INTO message_group_members (id, group_id, user_id, role, joined_at)
+     VALUES (gen_random_uuid(), $1, $2, 'MEMBER', NOW())
+     ON CONFLICT (group_id, user_id) DO NOTHING`,
+    [groupId, userId]
+  );
+
+  return groupId;
+}
+
 export async function createGroup(name, type, creatorId, memberIds = []) {
   return withTransaction(async (client) => {
     const { rows } = await client.query(
@@ -59,6 +139,9 @@ export async function createGroup(name, type, creatorId, memberIds = []) {
         [group.id, uid, uid === creatorId ? 'ADMIN' : 'MEMBER']
       );
     }
+
+    await auditLog(creatorId, 'CREATE', 'message_groups', group.id, null, { name: group.name, type: group.type });
+
     return group;
   });
 }
@@ -83,6 +166,15 @@ export async function isMember(groupId, userId) {
   return rows.length > 0;
 }
 
+export async function addMember(groupId, userId) {
+  await query(
+    `INSERT INTO message_group_members (id, group_id, user_id, role, joined_at)
+     VALUES (gen_random_uuid(), $1, $2, 'MEMBER', NOW())
+     ON CONFLICT (group_id, user_id) DO UPDATE SET left_at = NULL, joined_at = NOW()`,
+    [groupId, userId]
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Messages
 // ---------------------------------------------------------------------------
@@ -102,7 +194,14 @@ export async function saveMessage({ groupId, senderId, content, encryptionIv, re
     [groupId]
   );
 
-  return rows[0];
+  const msg = rows[0];
+  await auditLog(senderId, 'CREATE', 'messages', msg.id, null, {
+    groupId: msg.group_id,
+    content: '[encrypted]',
+    replyToId: msg.reply_to_id,
+  });
+
+  return msg;
 }
 
 export async function getGroupHistory(groupId, userId, { page = 1, limit = 50 } = {}) {
@@ -192,6 +291,7 @@ export async function deleteMessage(messageId, userId) {
        WHERE id = $1`,
       [messageId]
     );
+    await auditLog(userId, 'UPDATE', 'messages', messageId, { content: '[encrypted]', deleted: false }, { deleted: true });
   } else {
     // Delete for me only — store in a per-user hidden list
     await query(
@@ -200,6 +300,7 @@ export async function deleteMessage(messageId, userId) {
        ON CONFLICT (message_id, user_id) DO NOTHING`,
       [messageId, userId]
     );
+    await auditLog(userId, 'UPDATE', 'messages', messageId, { content: '[encrypted]', hidden: false }, { hidden: true });
   }
 
   return { messageId, deleteForEveryone };
@@ -218,6 +319,9 @@ export async function addReaction(messageId, userId, emoji) {
     `SELECT emoji, user_id FROM message_reactions WHERE message_id = $1`,
     [messageId]
   );
+
+  await auditLog(userId, 'UPDATE', 'message_reactions', null, null, { messageId, emoji, action: 'ADD' });
+
   return rows;
 }
 
@@ -226,6 +330,7 @@ export async function removeReaction(messageId, userId, emoji) {
     `DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3`,
     [messageId, userId, emoji]
   );
+  await auditLog(userId, 'UPDATE', 'message_reactions', null, null, { messageId, emoji, action: 'REMOVE' });
 }
 
 export async function getPinnedMessages(groupId) {
@@ -244,6 +349,50 @@ export async function getPinnedMessages(groupId) {
 }
 
 // ---------------------------------------------------------------------------
+// Group key management
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the shared AES-256-GCM key for a group.
+ * Creates one on first call (lazy init).
+ */
+export async function getOrCreateGroupKey(groupId) {
+  // Try cache first
+  const cached = await redis.get(`groupkey:${groupId}`);
+  if (cached) return cached;
+
+  const { rows } = await query(
+    `SELECT group_key FROM message_group_keys WHERE group_id = $1`,
+    [groupId]
+  );
+
+  if (rows[0]) {
+    await redis.setex(`groupkey:${groupId}`, 3600, rows[0].group_key);
+    return rows[0].group_key;
+  }
+
+  // Generate a new 256-bit key as base64
+  const keyBytes = Array.from({ length: 32 }, () => Math.floor(Math.random() * 256));
+  const keyBase64 = Buffer.from(keyBytes).toString('base64');
+
+  await query(
+    `INSERT INTO message_group_keys (id, group_id, group_key, created_at)
+     VALUES (gen_random_uuid(), $1, $2, NOW())
+     ON CONFLICT (group_id) DO NOTHING`,
+    [groupId, keyBase64]
+  );
+
+  // Re-fetch in case of race condition
+  const { rows: fresh } = await query(
+    `SELECT group_key FROM message_group_keys WHERE group_id = $1`,
+    [groupId]
+  );
+  const finalKey = fresh[0]?.group_key ?? keyBase64;
+  await redis.setex(`groupkey:${groupId}`, 3600, finalKey);
+  return finalKey;
+}
+
+// ---------------------------------------------------------------------------
 // Redis pub/sub helpers
 // ---------------------------------------------------------------------------
 export async function publishEvent(event, payload) {
@@ -258,6 +407,7 @@ export async function markGroupRead(groupId, userId) {
      WHERE group_id = $1 AND user_id = $2`,
     [groupId, userId]
   );
+  await auditLog(userId, 'UPDATE', 'message_group_members', null, null, { groupId, action: 'MARK_READ' });
 }
 
 export async function getReactions(messageId) {
@@ -280,6 +430,8 @@ export async function markMessageRead(messageId, userId) {
      ON CONFLICT (message_id, user_id) DO UPDATE SET read_at = NOW()`,
     [messageId, userId]
   );
+
+  await auditLog(userId, 'UPDATE', 'message_reads', null, null, { messageId, action: 'MARK_READ' });
 
   return { messageId, userId };
 }

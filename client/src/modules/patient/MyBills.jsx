@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
 import styles from './MyBills.module.scss';
 
 const API = import.meta.env.VITE_API_URL ?? '/api';
-// Razorpay test key — replace with your actual test key from dashboard.razorpay.com
-const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID ?? 'rzp_test_XXXXXXXXXX';
-
-const token = () => sessionStorage.getItem('accessToken');
+const RAZORPAY_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
 
 function fmt(n) { return Number(n ?? 0).toFixed(2); }
 function fmtDate(iso) {
@@ -27,23 +25,35 @@ function StatusBadge({ status }) {
   return <span className={`${styles.badge} ${styles[cfg.cls]}`}>{cfg.label}</span>;
 }
 
-// ---------------------------------------------------------------------------
-// Load Razorpay script lazily
-// ---------------------------------------------------------------------------
-function loadRazorpay() {
+function Toast({ message, type, onDismiss }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+  return (
+    <div style={{
+      position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
+      padding: '12px 20px', borderRadius: 8,
+      background: type === 'success' ? '#065f46' : '#991b1b',
+      color: '#fff', fontSize: '0.9rem', minWidth: 240,
+      boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+    }}>
+      {message}
+    </div>
+  );
+}
+
+function loadRazorpayScript() {
   return new Promise((resolve) => {
     if (window.Razorpay) { resolve(true); return; }
     const s = document.createElement('script');
-    s.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    s.src = RAZORPAY_SCRIPT;
     s.onload  = () => resolve(true);
     s.onerror = () => resolve(false);
-    document.body.appendChild(s);
+    document.head.appendChild(s);
   });
 }
 
-// ---------------------------------------------------------------------------
-// Receipt PDF (simple print-based)
-// ---------------------------------------------------------------------------
 function printReceipt(bill) {
   const items = (bill.items ?? []).map((it) =>
     `<tr><td>${it.description}</td><td>${it.item_type}</td><td>${it.quantity}</td>
@@ -93,52 +103,47 @@ function printReceipt(bill) {
   w.print();
 }
 
-// ---------------------------------------------------------------------------
-// Pay Now — Razorpay checkout
-// ---------------------------------------------------------------------------
-async function initiateRazorpay({ bill, onSuccess, onError }) {
-  const loaded = await loadRazorpay();
+async function initiateRazorpay({ billId, billNumber, patientName, onSuccess, onError }) {
+  const loaded = await loadRazorpayScript();
   if (!loaded) { onError('Failed to load Razorpay. Check your connection.'); return; }
 
-  // Calculate outstanding
-  const paid = (bill.payments ?? [])
-    .filter((p) => p.status === 'COMPLETED' && p.method !== 'REFUND')
-    .reduce((s, p) => s + +p.amount, 0);
-  const outstanding = Math.max(0, +bill.net_amount - paid);
+  let orderData;
+  try {
+    const json = await apiFetch(`${API}/bills/${billId}/create-order`, {
+      method : 'POST',
+    });
+    orderData = json.data;
+  } catch (e) { onError(e.message); return; }
 
   const options = {
-    key        : RAZORPAY_KEY_ID,
-    amount     : Math.round(outstanding * 100), // paise
-    currency   : 'INR',
+    key        : orderData.key,
+    amount     : orderData.amount,
+    currency   : orderData.currency,
     name       : 'City General Hospital',
-    description: `Bill ${bill.bill_number}`,
+    description: `Bill ${billNumber}`,
     image      : '/logo.png',
-    prefill    : { name: bill.patient_name ?? '', email: '', contact: '' },
-    notes      : { bill_id: bill.id, bill_number: bill.bill_number },
+    order_id   : orderData.orderId,
+    prefill    : { name: patientName ?? '', email: '', contact: '' },
+    notes      : { bill_id: billId },
     theme      : { color: '#1e3a5f' },
     handler    : async (response) => {
-      // Record payment on server
       try {
-        const r = await fetch(`${API}/bills/${bill.id}/pay`, {
-          method : 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
+        const vjson = await apiFetch(`${API}/bills/${billId}/verify-payment`, {
+          method : 'POST',
           body   : JSON.stringify({
-            amount              : outstanding,
-            paymentMethod       : 'ONLINE',
-            razorpayOrderId     : response.razorpay_order_id,
-            razorpayPaymentId   : response.razorpay_payment_id,
+            razorpayOrderId  : response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
           }),
         });
-        const json = await r.json();
-        if (!r.ok) throw new Error(json.error ?? 'Payment recording failed');
-        onSuccess(json.data);
+        onSuccess(vjson.data);
       } catch (e) { onError(e.message); }
     },
     modal: { ondismiss: () => {} },
   };
 
   const rzp = new window.Razorpay(options);
-  rzp.on('payment.failed', (resp) => onError(resp.error.description));
+  rzp.on('payment.failed', (resp) => onError(resp.error.description ?? 'Payment failed. Please try again.'));
   rzp.open();
 }
 
@@ -146,18 +151,25 @@ async function initiateRazorpay({ bill, onSuccess, onError }) {
 // Bill detail panel
 // ---------------------------------------------------------------------------
 function BillDetail({ bill, onClose, onPaySuccess }) {
-  const [paying, setPaying]   = useState(false);
-  const [payError, setPayError] = useState(null);
+  const [paying, setPaying] = useState(false);
+  const [toast, setToast]   = useState(null);
 
   const handlePay = async () => {
     setPaying(true);
-    setPayError(null);
     await initiateRazorpay({
-      bill,
-      onSuccess: (data) => { setPaying(false); onPaySuccess(data); },
-      onError  : (msg)  => { setPaying(false); setPayError(msg); },
+      billId    : bill.id,
+      billNumber: bill.bill_number,
+      patientName: bill.patient_name,
+      onSuccess: () => {
+        setPaying(false);
+        setToast({ message: 'Payment successful', type: 'success' });
+        onPaySuccess();
+      },
+      onError: (msg) => {
+        setPaying(false);
+        setToast({ message: msg || 'Payment failed. Please try again.', type: 'error' });
+      },
     });
-    setPaying(false);
   };
 
   const paid = (bill.payments ?? [])
@@ -226,18 +238,28 @@ function BillDetail({ bill, onClose, onPaySuccess }) {
           </>
         )}
 
-        {payError && <p className={styles.error} role="alert">{payError}</p>}
-
         <div className={styles.detailActions}>
           {canPay && (
-            <button className={styles.payBtn} onClick={handlePay} disabled={paying}>
-              {paying ? 'Processing…' : `Pay ₹${fmt(outstanding)} via Razorpay`}
-            </button>
+            <>
+              <button className={styles.payBtn} onClick={handlePay} disabled={paying}>
+                {paying ? 'Processing…' : `💳 Pay ₹${fmt(outstanding)} via Card/UPI`}
+              </button>
+              <button className={styles.upiBtn}
+                onClick={() => {
+                  const upiId = 'hospital@upi';
+                  const url = `upi://pay?pa=${upiId}&pn=CityGeneralHospital&am=${fmt(outstanding)}&cu=INR&tn=Bill${bill.bill_number}`;
+                  window.open(url, '_blank');
+                }}>
+                📱 Pay via UPI App
+              </button>
+            </>
           )}
           <button className={styles.receiptBtn} onClick={() => printReceipt(bill)}>
             ⬇ Download Receipt
           </button>
         </div>
+
+        {toast && <Toast message={toast.message} type={toast.type} onDismiss={() => setToast(null)} />}
       </div>
     </div>
   );
@@ -246,22 +268,27 @@ function BillDetail({ bill, onClose, onPaySuccess }) {
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-export default function MyBills({ patientId }) {
+export default function MyBills({ patientId: propPatientId }) {
+  const [patientId, setPatientId] = useState(propPatientId ?? null);
   const [bills, setBills]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [error, setError]     = useState(null);
 
+  // Resolve own patient ID if not passed as prop
+  useEffect(() => {
+    if (propPatientId) { setPatientId(propPatientId); return; }
+    apiFetch(`${API}/patients/my`)
+      .then(d => setPatientId(d?.data?.id))
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [propPatientId]);
+
   const fetchBills = useCallback(async () => {
     if (!patientId) return;
     setLoading(true);
     try {
-      const r = await fetch(`${API}/bills/patient/${patientId}`, {
-        headers: { Authorization: `Bearer ${token()}` },
-      });
-      const json = await r.json();
-      if (!r.ok) throw new Error(json.error ?? 'Failed to load bills');
-      setBills(json.data ?? []);
+      const json = await apiFetch(`${API}/bills/patient/${patientId}`);
+      setBills(json?.data ?? []);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -271,8 +298,7 @@ export default function MyBills({ patientId }) {
 
   useEffect(() => { fetchBills(); }, [fetchBills]);
 
-  const handlePaySuccess = (data) => {
-    // Refresh bills after payment
+  const handlePaySuccess = () => {
     fetchBills();
     setSelected(null);
   };

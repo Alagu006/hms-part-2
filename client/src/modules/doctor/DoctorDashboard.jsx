@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
+import LabTestsPanel from './LabTestsPanel.jsx';
+import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './DoctorDashboard.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
-
-function authHeader() {
-  return { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` };
-}
 
 function today() {
   return new Date().toISOString().split('T')[0];
@@ -19,25 +18,19 @@ function today() {
 async function fetchAppointments(date, status) {
   const params = new URLSearchParams({ doctorId: 'me', date, limit: 50 });
   if (status) params.set('status', status);
-  const res = await fetch(`${API_BASE}/appointments?${params}`, { headers: authHeader() });
-  if (!res.ok) throw new Error('Failed to fetch appointments');
-  const json = await res.json();
+  const json = await apiFetch(`${API_BASE}/appointments?${params}`);
   return json.appointments ?? [];
 }
 
 async function fetchPendingCount() {
   const params = new URLSearchParams({ status: 'PENDING', limit: 1 });
-  const res = await fetch(`${API_BASE}/prescriptions/count?${params}`, { headers: authHeader() });
-  if (!res.ok) return 0;
-  const json = await res.json();
-  return json.count ?? 0;
+  const json = await apiFetch(`${API_BASE}/prescriptions/count?${params}`);
+  return json?.count ?? 0;
 }
 
 async function fetchRecentPatients() {
   const params = new URLSearchParams({ doctorId: 'me', limit: 5 });
-  const res = await fetch(`${API_BASE}/patients?${params}`, { headers: authHeader() });
-  if (!res.ok) throw new Error('Failed to fetch patients');
-  const json = await res.json();
+  const json = await apiFetch(`${API_BASE}/patients?${params}`);
   return json.patients ?? [];
 }
 
@@ -102,7 +95,7 @@ function StatusBadge({ status }) {
 }
 
 // ---------------------------------------------------------------------------
-// Appointment row
+// Appointment row (desktop table)
 // ---------------------------------------------------------------------------
 function AppointmentRow({ appt, onStartConsultation }) {
   const time = new Date(appt.scheduled_at).toLocaleTimeString('en-US', {
@@ -125,10 +118,10 @@ function AppointmentRow({ appt, onStartConsultation }) {
       <td>
         {['SCHEDULED', 'CONFIRMED'].includes(appt.status) && (
           <button
-            className={styles.startBtn}
+            className={`${styles.startBtn} ${appt.type === 'TELEMEDICINE' ? styles.startBtnTele : ''}`}
             onClick={() => onStartConsultation(appt)}
           >
-            Start Consultation
+            {appt.type === 'TELEMEDICINE' ? '📹 Join Call' : 'Start Consultation'}
           </button>
         )}
       </td>
@@ -137,9 +130,42 @@ function AppointmentRow({ appt, onStartConsultation }) {
 }
 
 // ---------------------------------------------------------------------------
+// Appointment card (mobile)
+// ---------------------------------------------------------------------------
+function AppointmentCard({ appt, onStartConsultation }) {
+  const time = new Date(appt.scheduled_at).toLocaleTimeString('en-US', {
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  });
+  return (
+    <div className={styles.apptCard}>
+      <div className={styles.apptCardRow}>
+        <span className={styles.apptCardName}>{appt.patient_first_name} {appt.patient_last_name}</span>
+        <span className={styles.time}>{time}</span>
+      </div>
+      <div className={styles.apptCardRow}>
+        <TypeBadge type={appt.type} />
+        <StatusBadge status={appt.status} />
+      </div>
+      {appt.mrn && <span className={styles.mrn}>{appt.mrn}</span>}
+      {['SCHEDULED', 'CONFIRMED'].includes(appt.status) && (
+        <div className={styles.apptCardActions}>
+          <button
+            className={`${styles.startBtn} ${appt.type === 'TELEMEDICINE' ? styles.startBtnTele : ''}`}
+            onClick={() => onStartConsultation(appt)}
+          >
+            {appt.type === 'TELEMEDICINE' ? '📹 Join Call' : 'Start Consultation'}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Recent patient row
 // ---------------------------------------------------------------------------
 function PatientRow({ patient }) {
+  const navigate = useNavigate();
   return (
     <tr className={styles.patientRow}>
       <td>
@@ -153,6 +179,12 @@ function PatientRow({ patient }) {
         </span>
       </td>
       <td>{patient.room_number ? `${patient.room_number} — Bed ${patient.bed_number}` : '—'}</td>
+      <td>
+        <button className={styles.vitalsBtn}
+          onClick={() => navigate('/doctor/patient-vitals', { state: { patientId: patient.id, patientName: `${patient.first_name} ${patient.last_name}` } })}>
+          📊 Vitals
+        </button>
+      </td>
     </tr>
   );
 }
@@ -206,14 +238,41 @@ export default function DoctorDashboard() {
     queryFn: fetchRecentPatients,
   });
 
+  const teleSessionMutation = useMutation({
+    mutationFn: async (appt) => {
+      // Try to find an existing session for this appointment first
+      const existing = await apiFetch(`${API_BASE}/telemedicine/sessions/my?limit=50`);
+      const sessions = existing?.data?.sessions ?? [];
+      const found = sessions.find(s => s.appointment_id === appt.id && ['SCHEDULED','ACTIVE'].includes(s.status));
+      if (found) return found;
+      // Create a new session
+      const created = await apiFetch(`${API_BASE}/telemedicine/sessions`, {
+        method: 'POST',
+        body: JSON.stringify({
+          patientId    : appt.patient_id,
+          doctorId     : appt.doctor_id,
+          appointmentId: appt.id,
+        }),
+      });
+      return created?.data;
+    },
+    onSuccess: (session) => {
+      navigate(`/doctor/telemedicine/${session.room_id}`);
+    },
+  });
+
   function startConsultation(appt) {
-    navigate(`/doctor/prescriptions`, {
-      state: {
-        patientId  : appt.patient_id,
-        patientName: `${appt.patient_first_name} ${appt.patient_last_name}`,
-        appointmentId: appt.id,
-      },
-    });
+    if (appt.type === 'TELEMEDICINE') {
+      teleSessionMutation.mutate(appt);
+    } else {
+      navigate(`/doctor/prescriptions`, {
+        state: {
+          patientId    : appt.patient_id,
+          patientName  : `${appt.patient_first_name} ${appt.patient_last_name}`,
+          appointmentId: appt.id,
+        },
+      });
+    }
   }
 
   const todayCount  = appointments.filter(a => new Date(a.scheduled_at).toDateString() === new Date().toDateString()).length;
@@ -251,6 +310,22 @@ export default function DoctorDashboard() {
         </div>
       </div>
 
+      {/* Quick actions */}
+      <div className={styles.quickActions}>
+        <button className={styles.qaBtn} onClick={() => navigate('/doctor/prescriptions')}>
+          💊 New Prescription <kbd className={styles.qaKey}>P</kbd>
+        </button>
+        <button className={styles.qaBtn} onClick={() => navigate('/doctor/patient-vitals')}>
+          📊 Patient Vitals <kbd className={styles.qaKey}>V</kbd>
+        </button>
+        <button className={styles.qaBtn} onClick={() => navigate('/doctor/discharge')}>
+          📋 Discharge <kbd className={styles.qaKey}>D</kbd>
+        </button>
+        <button className={styles.qaBtn} onClick={() => navigate('/doctor/telemedicine')}>
+          📹 Telemedicine <kbd className={styles.qaKey}>T</kbd>
+        </button>
+      </div>
+
       {/* Today's appointments */}
       <SectionCard title="Today's Appointments">
         {apptLoading ? (
@@ -268,26 +343,41 @@ export default function DoctorDashboard() {
             No appointments scheduled for today.
           </div>
         ) : (
-          <table className={styles.table} aria-label="Today's appointments">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Patient</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            {/* Desktop table */}
+            <div className={styles.tableWrap}>
+              <table className={styles.table} aria-label="Today's appointments">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Patient</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appointments.map((appt) => (
+                    <AppointmentRow
+                      key={appt.id}
+                      appt={appt}
+                      onStartConsultation={startConsultation}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {/* Mobile cards */}
+            <div className={styles.mobileCards}>
               {appointments.map((appt) => (
-                <AppointmentRow
+                <AppointmentCard
                   key={appt.id}
                   appt={appt}
                   onStartConsultation={startConsultation}
                 />
               ))}
-            </tbody>
-          </table>
+            </div>
+          </>
         )}
       </SectionCard>
 
@@ -312,6 +402,7 @@ export default function DoctorDashboard() {
                 <th>DOB</th>
                 <th>Status</th>
                 <th>Room</th>
+                <th>Vitals</th>
               </tr>
             </thead>
             <tbody>
@@ -321,6 +412,11 @@ export default function DoctorDashboard() {
             </tbody>
           </table>
         )}
+      </SectionCard>
+
+      {/* Lab Tests */}
+      <SectionCard title="Lab Tests">
+        <LabTestsPanel />
       </SectionCard>
     </div>
   );

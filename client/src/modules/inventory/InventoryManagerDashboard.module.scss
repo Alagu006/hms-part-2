@@ -1,0 +1,429 @@
+.page {
+  padding: 24px;
+  max-width: 1600px;
+}
+
+// ── Stats row ────────────────────────────────────────────────────────────────
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.statValue {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.statAlert {
+  border-color: #fca5a5;
+  background: #fef2f2;
+
+  .statLabel { color: #dc2626; }
+  .statValue { color: #dc2626; }
+}
+
+// ── Three-column layout ─────────────────────────────────────────────────────
+.threeCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr 350px;
+  gap: 24px;
+  align-items: start;
+
+  @media (max-width: 1400px) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  @media (max-width: 1000px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.leftCol,
+.middleCol,
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+// ── Section ────────────────────────────────────────────────────────────────
+.section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badgeCritical {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+// ── Table wrapper ──────────────────────────────────────────────────────────
+.tableWrapper {
+  overflow-x: auto;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.tableLoading {
+  padding: 14px;
+}
+
+.bedLoading {
+  padding: 14px;
+}
+
+// ── Stock Alert Table ──────────────────────────────────────────────────────
+.alertTable,
+.maintenanceTable,
+.transactionTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th {
+    position: sticky;
+    top: 0;
+    text-align: left;
+    padding: 10px 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+    z-index: 1;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+  }
+}
+
+.alertRow {
+  &:hover {
+    background: #fafafa;
+  }
+}
+
+.criticalRow {
+  background: #fef2f2;
+
+  &:hover {
+    background: #fee2e2;
+  }
+}
+
+.lowRow {
+  background: #fffbeb;
+
+  &:hover {
+    background: #fef3c7;
+  }
+}
+
+.itemName {
+  display: block;
+  font-weight: 500;
+  color: #111827;
+}
+
+.itemSku {
+  display: block;
+  font-size: 0.6875rem;
+  color: #9ca3af;
+  font-family: monospace;
+}
+
+.categoryBadge {
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.catMEDICINE { background: #dbeafe; color: #1e40af; }
+.catEQUIPMENT { background: #f3e8ff; color: #6b21a8; }
+.catCONSUMABLE { background: #d1fae5; color: #065f46; }
+.catLINEN { background: #fce7f3; color: #9d174d; }
+.catCHEMICAL { background: #fef3c7; color: #92400e; }
+.catOTHER { background: #e5e7eb; color: #374151; }
+
+.qtyCritical {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.outOfStockBadge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.reorderAction {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reorderBtn {
+  padding: 4px 12px;
+  border: 1px solid #1a56db;
+  border-radius: 4px;
+  background: #fff;
+  color: #1a56db;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #eff6ff;
+  }
+}
+
+.reorderInput {
+  width: 60px;
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.75rem;
+
+  &:focus {
+    outline: none;
+    border-color: #1a56db;
+  }
+}
+
+.confirmReorderBtn {
+  padding: 4px 8px;
+  border: 1px solid #059669;
+  border-radius: 4px;
+  background: #059669;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:hover {
+    background: #047857;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.cancelReorderBtn {
+  padding: 4px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:hover {
+    background: #f9fafb;
+  }
+}
+
+// ── Equipment Maintenance Table ──────────────────────────────────────────────
+.maintenanceRow {
+  &:hover {
+    background: #fafafa;
+  }
+}
+
+.serialNum {
+  font-size: 0.75rem;
+  background: #f3f4f6;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.daysGreen { color: #059669; font-weight: 600; }
+.daysAmber { color: #d97706; font-weight: 600; }
+.daysRed { color: #dc2626; font-weight: 600; }
+
+// ── Transaction Table ──────────────────────────────────────────────────────
+.transactionRow {
+  &:hover {
+    background: #fafafa;
+  }
+}
+
+.typeBadge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.typeAdd { background: #d1fae5; color: #065f46; }
+.typeRemove { background: #fee2e2; color: #991b1b; }
+.typeAdjust { background: #fef3c7; color: #92400e; }
+
+.qtyChange {
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.timeCell {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+// ── Ward Occupancy ─────────────────────────────────────────────────────────
+.wardGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 18px;
+}
+
+.wardCard {
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f9fafb;
+}
+
+.wardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.wardName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.wardCount {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #6b7280;
+}
+
+.occupancyTrack {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.occupancyBar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.occupancyBarGreen { background: #059669; }
+.occupancyBarAmber { background: #d97706; }
+.occupancyBarRed { background: #dc2626; }
+
+.occupancyPercent {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+// ── States ─────────────────────────────────────────────────────────────────
+.emptyState,
+.errorState {
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.errorState {
+  color: #ef4444;
+}
+
+// ── Skeleton ───────────────────────────────────────────────────────────────
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

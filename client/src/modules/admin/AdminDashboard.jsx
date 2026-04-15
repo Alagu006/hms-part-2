@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import api from '../../shared/utils/api.js';
+import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './AdminDashboard.module.scss';
 
 const ROLES = [
@@ -28,16 +31,14 @@ export default function AdminDashboard() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [sRes, lRes, sessRes] = await Promise.all([
-        fetch('/api/admin/stats',    { credentials: 'include' }),
-        fetch('/api/admin/audit-logs?limit=20', { credentials: 'include' }),
-        fetch('/api/admin/sessions', { credentials: 'include' }),
+      const [s, l, sess] = await Promise.all([
+        api.get('/admin/stats'),
+        api.get('/admin/audit-logs', { params: { limit: 20 } }),
+        api.get('/admin/sessions'),
       ]);
-      if (!sRes.ok || !lRes.ok || !sessRes.ok) throw new Error('Failed to load admin data');
-      const [s, l, sess] = await Promise.all([sRes.json(), lRes.json(), sessRes.json()]);
-      setStats(s);
-      setLogs(l.rows ?? []);
-      setSessions(sess);
+      setStats(s.data);
+      setLogs(l.data.rows ?? []);
+      setSessions(sess.data);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -48,23 +49,27 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAll();
 
-    // Live audit log updates via socket
-    const socket = io({ path: '/socket.io', withCredentials: true });
+    const socket = io({
+      path: '/socket.io',
+      withCredentials: true,
+      transports: ['websocket'],
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: 10,
+    });
     socket.on('audit:new', (entry) => {
       setLogs((prev) => [entry, ...prev].slice(0, 20));
     });
+    socket.on('connect_error', () => { /* backend not reachable — silent in dev */ });
     return () => socket.disconnect();
   }, [fetchAll]);
 
   const forceLogout = async (sessionId) => {
-    await fetch(`/api/admin/sessions/${sessionId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    });
+    await api.delete(`/admin/sessions/${sessionId}`);
     setSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
   };
 
-  if (loading) return <div className={styles.loading}>Loading dashboard…</div>;
+  if (loading) return <SkeletonLoader variant="page" />;
   if (error)   return <div className={styles.error}>{error}</div>;
 
   const occupancyPct = stats.bedOccupancy.total
@@ -96,6 +101,42 @@ export default function AdminDashboard() {
           value={stats.failedLogins24h}
           accent={stats.failedLogins24h > 20 ? 'accentRed' : undefined}
         />
+      </div>
+
+      {/* Quick charts */}
+      <div className={styles.chartsRow}>
+        <section className={styles.chartPanel}>
+          <div className={styles.panelHeader}><span>Bed Occupancy</span></div>
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={[
+              { name: 'Occupied', value: stats.bedOccupancy.occupied },
+              { name: 'Available', value: stats.bedOccupancy.total - stats.bedOccupancy.occupied },
+            ]} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill={occupancyPct > 85 ? '#dc2626' : '#16a34a'} radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
+
+        <section className={styles.chartPanel}>
+          <div className={styles.panelHeader}><span>Security Overview</span></div>
+          <ResponsiveContainer width="100%" height={120}>
+            <BarChart data={[
+              { name: 'Active Users', value: stats.activeUsers },
+              { name: 'Failed Logins', value: stats.failedLogins24h },
+              { name: 'Pending Bills', value: stats.pendingBills },
+            ]} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="value" fill="#6366f1" radius={[4,4,0,0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </section>
       </div>
 
       <div className={styles.grid}>

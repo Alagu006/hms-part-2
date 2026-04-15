@@ -1,0 +1,302 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+/* ── CSS custom properties (light theme) ─────────────────────────────── */
+:root {
+  --bg-page    : #f8fafc;
+  --bg-card    : #ffffff;
+  --bg-subtle  : #f3f4f6;
+  --border     : #e5e7eb;
+  --text-primary  : #111827;
+  --text-secondary: #374151;
+  --text-muted    : #6b7280;
+  --skeleton-base : #e5e7eb;
+  --skeleton-shine: #f3f4f6;
+  --accent-blue   : #1d4ed8;
+  --accent-teal   : #00a896;
+}
+
+/* ── Dark theme ───────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-page    : #0f172a;
+  --bg-card    : #1e293b;
+  --bg-subtle  : #162032;
+  --border     : #334155;
+  --text-primary  : #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted    : #64748b;
+  --skeleton-base : #1e293b;
+  --skeleton-shine: #334155;
+  --accent-blue   : #60a5fa;
+  --accent-teal   : #2dd4bf;
+}
+
+/* Dark: page & layout backgrounds */
+[data-theme="dark"] body,
+[data-theme="dark"] #root,
+[data-theme="dark"] [class*="layout"],
+[data-theme="dark"] [class*="main"],
+[data-theme="dark"] [class*="page"] {
+  background-color: #0f172a !important;
+  color: #f1f5f9 !important;
+}
+
+/* Dark: all white/light backgrounds → card color */
+[data-theme="dark"] [class*="card"],
+[data-theme="dark"] [class*="Card"],
+[data-theme="dark"] [class*="panel"],
+[data-theme="dark"] [class*="Panel"],
+[data-theme="dark"] [class*="section"],
+[data-theme="dark"] [class*="Section"],
+[data-theme="dark"] [class*="statCard"],
+[data-theme="dark"] [class*="noteCard"],
+[data-theme="dark"] [class*="patientCard"],
+[data-theme="dark"] [class*="apptCard"],
+[data-theme="dark"] [class*="chartCard"],
+[data-theme="dark"] [class*="chartPanel"],
+[data-theme="dark"] [class*="detail"],
+[data-theme="dark"] [class*="container"] {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Dark: text colors */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6,
+[data-theme="dark"] [class*="title"],
+[data-theme="dark"] [class*="Title"],
+[data-theme="dark"] [class*="statValue"],
+[data-theme="dark"] [class*="patientName"],
+[data-theme="dark"] [class*="userName"],
+[data-theme="dark"] [class*="sectionTitle"] {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] [class*="statLabel"],
+[data-theme="dark"] [class*="statSub"],
+[data-theme="dark"] [class*="label"],
+[data-theme="dark"] [class*="meta"],
+[data-theme="dark"] [class*="sub"],
+[data-theme="dark"] [class*="hint"],
+[data-theme="dark"] [class*="mrn"],
+[data-theme="dark"] [class*="userRole"] {
+  color: #64748b !important;
+}
+
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] td,
+[data-theme="dark"] li {
+  color: #cbd5e1;
+}
+
+/* Dark: table */
+[data-theme="dark"] th {
+  background-color: #0f172a !important;
+  color: #64748b !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] td {
+  border-color: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+[data-theme="dark"] tr:hover td {
+  background-color: #162032 !important;
+}
+
+/* Dark: inputs */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: #0f172a !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: #475569 !important;
+}
+
+/* Dark: buttons (non-primary) */
+[data-theme="dark"] [class*="pageBtn"],
+[data-theme="dark"] [class*="backBtn"],
+[data-theme="dark"] [class*="changePatientBtn"],
+[data-theme="dark"] [class*="tab"]:not([class*="active"]) {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+/* Dark: borders everywhere */
+[data-theme="dark"] [class*="header"],
+[data-theme="dark"] [class*="Header"],
+[data-theme="dark"] [class*="footer"],
+[data-theme="dark"] [class*="Footer"],
+[data-theme="dark"] [class*="panelHeader"],
+[data-theme="dark"] [class*="cardHeader"],
+[data-theme="dark"] [class*="sectionHeader"] {
+  background-color: #162032 !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Dark: list items / rows */
+[data-theme="dark"] [class*="sessionRow"],
+[data-theme="dark"] [class*="resultItem"],
+[data-theme="dark"] [class*="patientItem"],
+[data-theme="dark"] [class*="navItem"]:not([class*="active"]) {
+  color: #94a3b8 !important;
+}
+[data-theme="dark"] [class*="sessionRow"]:hover,
+[data-theme="dark"] [class*="patientItem"]:hover {
+  background-color: #162032 !important;
+}
+
+/* Dark: search / modal panels */
+[data-theme="dark"] [class*="overlay"] > [class*="panel"],
+[data-theme="dark"] [class*="modal"] {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+/* Dark: badges — keep their accent colors, just adjust bg */
+[data-theme="dark"] [class*="badge"]:not([class*="badgeAlert"]):not([class*="overdueBadge"]) {
+  filter: brightness(0.85);
+}
+
+/* Dark: skeleton shimmer */
+[data-theme="dark"] [class*="bone"] {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%) !important;
+  background-size: 800px 100% !important;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  /* Smooth scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent horizontal scroll */
+body { overflow-x: hidden; }
+
+/* Responsive images */
+img { max-width: 100%; height: auto; display: block; }
+
+/* ── Scrollable table wrapper utility ─────────────────────────────────── */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Focus visible (keyboard + mobile accessibility) ─────────────────── */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ── Mobile-first global overrides (≤ 768px) ──────────────────────────── */
+@media (max-width: 768px) {
+  /* Page containers */
+  [class*="page"] {
+    padding: clamp(0.75rem, 3vw, 1.25rem) !important;
+    max-width: 100% !important;
+  }
+
+  /* Tables scroll horizontally instead of breaking layout */
+  [class*="tableWrap"],
+  [class*="table-wrap"],
+  [class*="tableWrapper"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Cards never exceed viewport */
+  [class*="card"],
+  [class*="Card"] {
+    max-width: 100% !important;
+  }
+
+  /* Two-column grids → single column */
+  [class*="twoCol"],
+  [class*="two-col"],
+  [class*="chartsGrid"],
+  [class*="chartGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stats grids → 2 per row */
+  [class*="statsRow"],
+  [class*="statsGrid"],
+  [class*="statGrid"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Modals → full screen bottom sheet */
+  [class*="modal"],
+  [class*="Modal"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92dvh !important;
+    border-radius: 16px 16px 0 0 !important;
+    margin: 0 !important;
+  }
+
+  [class*="overlay"],
+  [class*="Overlay"] {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+
+  /* Form rows → single column */
+  [class*="row"],
+  [class*="Row"],
+  [class*="dateRow"],
+  [class*="formRow"] {
+    grid-template-columns: 1fr !important;
+    flex-wrap: wrap !important;
+  }
+
+  /* Inputs full-width + prevent iOS zoom (font-size ≥ 16px) */
+  input, select, textarea {
+    width: 100%;
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+
+  /* Hide desktop-only collapse button */
+  [class*="collapseBtn"] {
+    display: none !important;
+  }
+
+  /* Toolbar wraps on small screens */
+  [class*="toolbar"],
+  [class*="Toolbar"] {
+    flex-wrap: wrap !important;
+  }
+}
+
+/* ── Extra-small phones (≤ 480px) ─────────────────────────────────────── */
+@media (max-width: 480px) {
+  [class*="statsRow"],
+  [class*="statsGrid"],
+  [class*="statGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  [class*="tabs"],
+  [class*="Tabs"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+}

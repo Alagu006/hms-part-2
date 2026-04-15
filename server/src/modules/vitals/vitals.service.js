@@ -191,7 +191,10 @@ export async function getVitalsHistory(patientId, requestingUser, { days, page, 
     if (!rows[0]) return 'FORBIDDEN';
   }
 
-  const offset = (page - 1) * limit;
+  const p      = parseInt(page, 10)  || 1;
+  const l      = parseInt(limit, 10) || 50;
+  const d      = parseInt(days, 10)  || 7;
+  const offset = (p - 1) * l;
 
   const { rows } = await query(
     `SELECT
@@ -204,15 +207,15 @@ export async function getVitalsHistory(patientId, requestingUser, { days, page, 
        AND v.recorded_at >= NOW() - ($2 || ' days')::interval
      ORDER BY v.recorded_at DESC
      LIMIT $3 OFFSET $4`,
-    [patientId, days, limit, offset]
+    [patientId, d, l, offset]
   );
 
   const total = rows[0]?.total_count ?? 0;
   return {
     vitals: rows.map(({ total_count, ...r }) => r),
     total : parseInt(total, 10),
-    page,
-    limit,
-    days,
+    page  : p,
+    limit : l,
+    days  : d,
   };
 }

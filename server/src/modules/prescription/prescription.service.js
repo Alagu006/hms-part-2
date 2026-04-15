@@ -7,9 +7,6 @@ import { checkInteractions, checkAllergies } from './interactions.js';
 
 const MEDICINE_CACHE_TTL = 60 * 60; // 1 hour
 
-// ---------------------------------------------------------------------------
-// Frequency → doses per day map (for quantity calculation)
-// ---------------------------------------------------------------------------
 const DOSES_PER_DAY = { '1x': 1, '2x': 2, '3x': 3, 'SOS': 1 };
 
 function calcQuantity(frequency, durationDays) {
@@ -17,7 +14,57 @@ function calcQuantity(frequency, durationDays) {
 }
 
 // ---------------------------------------------------------------------------
-// Medicine search — Redis-cached
+// OpenFDA helpers
+// ---------------------------------------------------------------------------
+function mapOpenFdaResult(item) {
+  const openfda  = item.openfda ?? {};
+  const brand    = (openfda.brand_name ?? [])[0] ?? null;
+  const generic  = (openfda.generic_name ?? [])[0] ?? null;
+  const routes  = (openfda.route ?? [])[0] ?? null;
+
+  if (!brand && !generic) return null;
+
+  return {
+    id        : null,
+    name      : brand ?? generic,
+    genericName: generic ?? null,
+    form      : routes ?? null,
+    source    : 'openfda',
+  };
+}
+
+async function fetchFromOpenFda(q) {
+  try {
+    const url     = `https://api.fda.gov/drug/label.json?search=openfda.brand_name:"${encodeURIComponent(q)}"&limit=5`;
+    const controller = new AbortController();
+    const timer    = setTimeout(() => controller.abort(), 5000);
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      console.error(`[openfda] Non-200 response: ${res.status} for query "${q}"`);
+      return [];
+    }
+
+    const data = await res.json();
+    const results = (data.results ?? [])
+      .map(mapOpenFdaResult)
+      .filter(Boolean);
+
+    return results;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.warn(`[openfda] Timeout fetching results for "${q}"`);
+    } else {
+      console.error(`[openfda] Error fetching results for "${q}":`, err.message);
+    }
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Medicine search — local DB + OpenFDA merge, Redis-cached
 // ---------------------------------------------------------------------------
 export async function searchMedicines(q) {
   const cacheKey = `medicine:search:${q.toLowerCase()}`;
@@ -26,26 +73,91 @@ export async function searchMedicines(q) {
     try { return JSON.parse(cached); } catch { /* fall through */ }
   }
 
-  const { rows } = await query(
-    `SELECT id, name, generic_name, form, strength, category, is_controlled
-     FROM medicines
-     WHERE deleted_at IS NULL
-       AND is_active = TRUE
-       AND (name ILIKE $1 OR generic_name ILIKE $1)
-     ORDER BY name
-     LIMIT 10`,
-    [`%${q}%`]
-  );
+  const [localRows, openfdaResults] = await Promise.all([
+    query(
+      `SELECT id, name, generic_name AS "genericName", form, strength, category, is_controlled
+       FROM medicines
+       WHERE deleted_at IS NULL
+         AND is_active = TRUE
+         AND (name ILIKE $1 OR generic_name ILIKE $1)
+       ORDER BY name
+       LIMIT 10`,
+      [`%${q}%`]
+    ),
+    fetchFromOpenFda(q),
+  ]);
 
-  await redis.setex(cacheKey, MEDICINE_CACHE_TTL, JSON.stringify(rows));
-  return rows;
+  const local = localRows.rows.map((r) => ({ ...r, source: 'local' }));
+
+  const seen = new Set(local.map((r) => r.name.toLowerCase()));
+  const merged = [...local];
+  for (const item of openfdaResults) {
+    if (!seen.has(item.name.toLowerCase())) {
+      seen.add(item.name.toLowerCase());
+      merged.push(item);
+      if (merged.length >= 10) break;
+    }
+  }
+
+  const result = merged.slice(0, 10);
+  await redis.setex(cacheKey, MEDICINE_CACHE_TTL, JSON.stringify(result));
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Import medicines from OpenFDA into local DB (ADMIN only)
+// ---------------------------------------------------------------------------
+export async function importOpenFdaMedicines(queryStr) {
+  let openfdaResults;
+  try {
+    const url      = `https://api.fda.gov/drug/label.json?search=openfda.brand_name:"${encodeURIComponent(queryStr)}"&limit=20`;
+    const controller = new AbortController();
+    const timer    = setTimeout(() => controller.abort(), 8000);
+
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+
+    if (!res.ok) throw new Error(`OpenFDA returned ${res.status}`);
+    const data = await res.json();
+    openfdaResults = (data.results ?? []).map(mapOpenFdaResult).filter(Boolean);
+  } catch (err) {
+    console.error(`[openfda] Import failed for "${queryStr}":`, err.message);
+    throw Object.assign(new Error(`OpenFDA import failed: ${err.message}`), { status: 502 });
+  }
+
+  if (!openfdaResults.length) return { imported: 0, skipped: 0 };
+
+  let imported = 0;
+  let skipped  = 0;
+
+  for (const med of openfdaResults) {
+    try {
+      const { rows: [existing] } = await query(
+        `SELECT id FROM medicines WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+        [med.name]
+      );
+      if (existing) { skipped++; continue; }
+
+      await query(
+        `INSERT INTO medicines (name, generic_name, form, category, is_active, created_at, updated_at)
+         VALUES ($1, $2, $3, 'GENERAL', TRUE, NOW(), NOW())`,
+        [med.name, med.genericName ?? med.name, med.form ?? 'ORAL']
+      );
+      imported++;
+    } catch (err) {
+      console.warn(`[openfda] Skipped "${med.name}":`, err.message);
+      skipped++;
+    }
+  }
+
+  return { imported, skipped };
 }
 
 // ---------------------------------------------------------------------------
 // Create prescription
 // ---------------------------------------------------------------------------
 export async function createPrescription(data, doctorId, ip, userAgent) {
-  const { patientId, diagnosisCodes, notes, items } = data;
+  const { patientId, diagnosisCodes, notes, items, nurseId, nurseInstructions } = data;
 
   // 1. Fetch patient (need allergies for check)
   const { rows: patRows } = await query(
@@ -76,13 +188,13 @@ export async function createPrescription(data, doctorId, ip, userAgent) {
     // Insert prescription header
     const { rows: pRows } = await client.query(
       `INSERT INTO prescriptions
-         (id, medical_record_id, patient_id, prescribed_by, status, notes, created_at, updated_at)
+         (id, medical_record_id, patient_id, prescribed_by, nurse_id, nurse_instructions, status, notes, created_at, updated_at)
        VALUES
          (gen_random_uuid(),
           (SELECT id FROM medical_records WHERE patient_id = $1 ORDER BY created_at DESC LIMIT 1),
-          $1, $2, 'ISSUED', $3, NOW(), NOW())
+          $1, $2, $3, $4, 'PENDING', $5, NOW(), NOW())
        RETURNING *`,
-      [patientId, doctorId, encryptedNotes]
+      [patientId, doctorId, nurseId ?? null, nurseInstructions ? await pgEncrypt(nurseInstructions) : null, encryptedNotes]
     );
     const presc = pRows[0];
 
@@ -148,6 +260,17 @@ export async function createPrescription(data, doctorId, ip, userAgent) {
       type    : 'PRESCRIPTION',
       title   : 'New prescription',
       body    : 'Your doctor has issued a new prescription. Visit the pharmacy to collect your medicines.',
+      entityId: prescription.id,
+    });
+  }
+
+  // 8. Notify assigned nurse
+  if (nurseId) {
+    await notificationQueue.add('push', {
+      userId  : nurseId,
+      type    : 'PRESCRIPTION',
+      title   : 'Nurse medication assignment',
+      body    : `You have been assigned to administer medication for ${patient.first_name} ${patient.last_name}.${nurseInstructions ? ' Instructions: ' + nurseInstructions : ''}`,
       entityId: prescription.id,
     });
   }

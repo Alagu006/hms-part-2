@@ -347,3 +347,54 @@
   &:disabled { opacity: 0.5; cursor: default; }
   &:hover:not(:disabled) { background: #1e40af; }
 }
+
+// ---------------------------------------------------------------------------
+// Add Room / Add Bed controls
+// ---------------------------------------------------------------------------
+.topBarRight {
+  display    : flex;
+  align-items: center;
+  gap        : 10px;
+  flex-wrap  : wrap;
+}
+
+.addRoomBtn {
+  background   : #1d4ed8;
+  color        : #fff;
+  border       : none;
+  border-radius: 8px;
+  padding      : 6px 14px;
+  font-size    : 0.8125rem;
+  font-weight  : 600;
+  cursor       : pointer;
+  white-space  : nowrap;
+  &:hover { background: #1e40af; }
+}
+
+.addBedBtn {
+  margin-left  : auto;
+  background   : #f0fdf4;
+  color        : #15803d;
+  border       : 1px solid #86efac;
+  border-radius: 6px;
+  padding      : 2px 10px;
+  font-size    : 0.75rem;
+  font-weight  : 600;
+  cursor       : pointer;
+  &:hover { background: #dcfce7; }
+}
+
+.input {
+  display      : block;
+  width        : 100%;
+  margin-top   : 4px;
+  margin-bottom: 12px;
+  border       : 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding      : 8px 12px;
+  font-size    : 0.875rem;
+  box-sizing   : border-box;
+  font-family  : inherit;
+  outline      : none;
+  &:focus { border-color: #93c5fd; }
+}

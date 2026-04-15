@@ -5,7 +5,7 @@ const uuid = z.string().regex(uuidV4Regex, 'Invalid UUID');
 
 export const listAppointmentsSchema = z.object({
   query: z.object({
-    doctorId : z.enum(['me']).optional(),
+    doctorId : z.enum(['me']).or(uuid).optional(),
     patientId: z.enum(['me']).or(uuid).optional(),
     date     : z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
     status   : z.enum(['SCHEDULED', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']).optional(),
@@ -23,6 +23,17 @@ export const updateAppointmentStatusSchema = z.object({
   body: z.object({
     status: z.enum(['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW']),
     notes : z.string().max(500).optional(),
+  }),
+});
+
+export const patientUpdateAppointmentSchema = z.object({
+  params: z.object({ id: uuid }),
+  body: z.object({
+    action          : z.enum(['cancel', 'update']),
+    cancellationReason: z.string().max(500).optional(),
+    scheduledAt     : z.string().datetime().optional(),
+    type            : z.enum(['IN_PERSON', 'TELEMEDICINE', 'FOLLOW_UP', 'EMERGENCY']).optional(),
+    reason          : z.string().min(5).max(500).optional(),
   }),
 });
 

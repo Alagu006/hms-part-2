@@ -19,7 +19,7 @@ export async function getMyLeaves(req, res, next) {
 
 export async function getAllLeaves(req, res, next) {
   try {
-    const leaves = await leaveService.getAllLeaves(req.query);
+    const leaves = await leaveService.getAllLeaves((req.parsedQuery ?? req.query));
     res.json(leaves);
   } catch (err) { next(err); }
 }
@@ -56,7 +56,7 @@ export async function getBalances(req, res, next) {
 
 export async function getLeaveCalendar(req, res, next) {
   try {
-    const rows = await leaveService.getLeaveCalendar(req.query);
+    const rows = await leaveService.getLeaveCalendar((req.parsedQuery ?? req.query));
     res.json(rows);
   } catch (err) { next(err); }
 }

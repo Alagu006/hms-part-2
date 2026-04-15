@@ -2,15 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import BedMatrix    from './BedMatrix.jsx';
 import QRScanner    from './QRScanner.jsx';
 import GenerateQR   from './GenerateQR.jsx';
+import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
 import styles       from './InventoryDashboard.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 const TABS     = ['Medicines', 'Equipment', 'Beds', 'Rooms'];
 const CATEGORIES = ['MEDICINE', 'EQUIPMENT', 'CONSUMABLE', 'LINEN', 'CHEMICAL', 'OTHER'];
-
-function authHeaders() {
-  return { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` };
-}
 
 // ---------------------------------------------------------------------------
 // Stat card
@@ -82,17 +79,15 @@ function ItemModal({ item, onSave, onClose }) {
     try {
       const url    = isEdit ? `${API_BASE}/inventory/${item.id}` : `${API_BASE}/inventory`;
       const method = isEdit ? 'PATCH' : 'POST';
-      const res    = await fetch(url, {
+      const json    = await apiFetch(url, {
         method,
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({
           ...form,
           unitCost  : form.unitCost   ? parseFloat(form.unitCost)   : undefined,
           expiryDate: form.expiryDate || undefined,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Save failed');
       onSave(json.data);
     } catch (e) {
       setError(e.message);
@@ -154,13 +149,11 @@ function CsvImport({ onDone }) {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res  = await fetch(`${API_BASE}/inventory/import`, {
+      const json  = await apiFetch(`${API_BASE}/inventory/import`, {
         method : 'POST',
         headers: authHeaders(),
         body   : fd,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Import failed');
       setResult(json.data);
       onDone?.();
     } catch (e) {
@@ -220,9 +213,8 @@ export default function InventoryDashboard({ currentUser }) {
   const categoryForTab = { Medicines: 'MEDICINE', Equipment: 'EQUIPMENT' };
 
   const fetchStats = useCallback(async () => {
-    const res  = await fetch(`${API_BASE}/inventory/stats`, { headers: authHeaders() });
-    const json = await res.json();
-    if (res.ok) setStats(json.data);
+    const json = await apiFetch(`${API_BASE}/inventory/stats`);
+    if (json) setStats(json.data);
   }, []);
 
   const fetchItems = useCallback(async () => {
@@ -235,9 +227,8 @@ export default function InventoryDashboard({ currentUser }) {
       ...(search && { search }),
       ...(lowOnly && { lowStock: 'true' }),
     });
-    const res  = await fetch(`${API_BASE}/inventory?${params}`, { headers: authHeaders() });
-    const json = await res.json();
-    if (res.ok) { setItems(json.data.items); setTotal(json.data.total); }
+    const json = await apiFetch(`${API_BASE}/inventory?${params}`);
+    if (json) { setItems(json.data.items); setTotal(json.data.total); }
     setLoading(false);
   }, [activeTab, page, search, lowOnly]);
 
@@ -247,7 +238,7 @@ export default function InventoryDashboard({ currentUser }) {
 
   async function handleDelete(id) {
     if (!confirm('Delete this item?')) return;
-    await fetch(`${API_BASE}/inventory/${id}`, { method: 'DELETE', headers: authHeaders() });
+    await apiFetch(`${API_BASE}/inventory/${id}`, { method: 'DELETE' });
     fetchItems();
     fetchStats();
   }
@@ -303,7 +294,7 @@ export default function InventoryDashboard({ currentUser }) {
       {/* Beds tab */}
       {activeTab === 'Beds' && <BedMatrix />}
 
-      {/* Rooms tab — simple room list */}
+      {/* rooms tab — simple room list */}
       {activeTab === 'Rooms' && <BedMatrix roomsOnly />}
 
       {/* Medicines / Equipment tabs */}

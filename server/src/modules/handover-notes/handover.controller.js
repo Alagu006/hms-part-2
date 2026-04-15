@@ -2,7 +2,7 @@ import * as svc from './handover.service.js';
 
 export async function listHandover(req, res, next) {
   try {
-    const result = await svc.listHandoverNotes(req.query);
+    const result = await svc.listHandoverNotes((req.parsedQuery ?? req.query));
     return res.status(200).json(result);
   } catch (err) {
     next(err);

@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Fragment } from 'react';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
 import styles from './OTCalendar.module.scss';
 
 const API      = import.meta.env.VITE_API_URL ?? '/api';
-const auth     = () => ({ Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` });
 const THEATRES = ['OT-1', 'OT-2', 'OT-3'];
 const STATUSES = ['SCHEDULED','IN_PROGRESS','COMPLETED','CANCELLED','POSTPONED'];
 
@@ -37,9 +37,8 @@ export default function OTCalendar() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/ot-schedules?date=${d}`, { headers: auth() });
-      if (!res.ok) throw new Error('Failed to load OT schedules');
-      setSchedules(await res.json());
+      const json = await apiFetch(`${API}/ot-schedules?date=${d}`);
+      setSchedules(Array.isArray(json) ? json : (json?.schedules ?? []));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -106,12 +105,12 @@ export default function OTCalendar() {
                 ? `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
                 : '';
               return (
-                <>
-                  <div key={`t-${i}`} className={styles.timeCell}>{label}</div>
+                <Fragment key={i}>
+                  <div className={styles.timeCell}>{label}</div>
                   {THEATRES.map(theatre => (
                     <div key={`${theatre}-${i}`} className={styles.slotCell} />
                   ))}
-                </>
+                </Fragment>
               );
             })}
           </div>

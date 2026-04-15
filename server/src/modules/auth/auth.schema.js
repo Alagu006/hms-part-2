@@ -40,3 +40,19 @@ export const changePasswordSchema = z.object({
     path: ['confirmPassword'],
   }),
 });
+
+// ---------------------------------------------------------------------------
+// 2FA schemas
+// ---------------------------------------------------------------------------
+export const twoFaVerifySchema = z.object({
+  body: z.object({
+    userId: z.string().uuid(),
+    otp   : z.string().length(6).regex(/^\d{6}$/, 'OTP must be 6 digits'),
+  }),
+});
+
+export const twoFaDisableSchema = z.object({
+  body: z.object({
+    otp: z.string().length(6).regex(/^\d{6}$/, 'OTP must be 6 digits'),
+  }),
+});

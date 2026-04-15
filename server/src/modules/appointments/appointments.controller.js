@@ -3,11 +3,11 @@ import { query } from '../../shared/db/pool.js';
 
 export async function listAppointments(req, res, next) {
   try {
-    const filters = { ...req.query };
-    if (req.query.doctorId === 'me') {
+    const filters = { ...(req.parsedQuery ?? req.query) };
+    if (filters.doctorId === 'me') {
       filters.doctorId = req.user.id;
     }
-    if (req.query.patientId === 'me') {
+    if (filters.patientId === 'me') {
       const { rows } = await query(
         `SELECT id FROM patients WHERE user_id = $1 AND deleted_at IS NULL`,
         [req.user.id]
@@ -42,6 +42,20 @@ export async function updateAppointmentStatus(req, res, next) {
       req.body.status === 'CANCELLED' ? req.user.id : null
     );
     if (!appt) return res.status(404).json({ error: 'Appointment not found' });
+    return res.status(200).json({ data: appt });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function patientUpdateAppointment(req, res, next) {
+  try {
+    const appt = await apptService.patientUpdateAppointment(
+      req.params.id,
+      req.user.id,
+      req.body
+    );
+    if (!appt) return res.status(404).json({ error: 'Appointment not found or not modifiable' });
     return res.status(200).json({ data: appt });
   } catch (err) {
     next(err);

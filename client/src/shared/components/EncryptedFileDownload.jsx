@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { importKey, base64ToBuffer } from '../utils/crypto.js';
+import { authHeaders } from '../utils/authHeaders.js';
+import { getFileKey } from '../utils/keyStore.js';
 import styles from './EncryptedFileDownload.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
@@ -38,16 +40,12 @@ function triggerDownload(buffer, fileName, mimeType) {
 }
 
 /**
- * Retrieve the AES key for a file from sessionStorage.
- * Returns null if not found (file was uploaded in a different session).
+ * Retrieve the AES key for a file from IndexedDB (with sessionStorage fast path).
+ * Returns null if not found.
  */
-function getStoredKey(fileId) {
-  try {
-    const store = JSON.parse(sessionStorage.getItem('fileKeys') ?? '{}');
-    return store[fileId] ?? null;
-  } catch {
-    return null;
-  }
+async function getStoredKey(fileId) {
+  const record = await getFileKey(fileId);
+  return record?.keyB64 ?? null;
 }
 
 export default function EncryptedFileDownload({ fileId, fileName, mimeType }) {
@@ -61,7 +59,7 @@ export default function EncryptedFileDownload({ fileId, fileName, mimeType }) {
     try {
       // ── Step 1: Fetch encrypted file from server ──────────────────────────
       const res = await fetch(`${API_BASE}/files/${fileId}/download`, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
+        headers: authHeaders(),
       });
 
       if (!res.ok) {
@@ -86,7 +84,7 @@ export default function EncryptedFileDownload({ fileId, fileName, mimeType }) {
 
       setStatus('decrypting');
 
-      const keyB64 = getStoredKey(fileId);
+      const keyB64 = await getStoredKey(fileId);
       if (!keyB64) {
         throw new Error(
           'Decryption key not found in this session. ' +

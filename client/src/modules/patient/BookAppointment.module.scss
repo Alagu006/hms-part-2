@@ -167,6 +167,17 @@
   font-family: monospace;
 }
 
+.deptDoctorCount {
+  margin-top   : 6px;
+  font-size    : 0.75rem;
+  font-weight  : 600;
+  color        : #1d4ed8;
+  background   : #eff6ff;
+  border-radius: 12px;
+  padding      : 2px 8px;
+  align-self   : flex-start;
+}
+
 // ── Doctor list ────────────────────────────────────────────────────────────
 .doctorList {
   display: flex;
@@ -342,6 +353,16 @@
     border-color: #1a56db;
     color: #fff;
     font-weight: 600;
+  }
+
+  &.slotTaken {
+    background: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #d1d5db;
+    cursor: not-allowed;
+    text-decoration: line-through;
+
+    &:hover { border-color: #e5e7eb; color: #d1d5db; }
   }
 }
 

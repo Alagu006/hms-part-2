@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
 import styles from './GenerateBill.module.scss';
 
 const API = import.meta.env.VITE_API_URL ?? '/api';
-const token = () => sessionStorage.getItem('accessToken');
 
 const CATEGORIES = ['CONSULTATION','PROCEDURE','MEDICINE','LAB','ROOM','EQUIPMENT','OTHER'];
 
@@ -23,11 +23,8 @@ function PatientSearch({ onSelect }) {
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const r = await fetch(`${API}/patients?search=${encodeURIComponent(q)}&limit=8`, {
-          headers: { Authorization: `Bearer ${token()}` },
-        });
-        const json = await r.json();
-        setResults(json.data ?? json.rows ?? []);
+        const json = await apiFetch(`${API}/patients?search=${encodeURIComponent(q)}&limit=8`);
+        setResults(json?.patients ?? json?.data ?? []);
       } finally { setLoading(false); }
     }, 300);
     return () => clearTimeout(t);
@@ -110,12 +107,72 @@ function LineItem({ item, idx, onChange, onRemove, userRole }) {
 function PrintPreview({ bill, patient, items, subtotal, taxAmount, netAmount, taxPercent, onClose }) {
   const printRef = useRef();
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    const content = printRef.current?.innerHTML;
+    if (!content) return;
+    const win = window.open('', '_blank', 'width=800,height=600');
+    win.document.write(`<!DOCTYPE html><html><head>
+      <title>Bill - ${patient.first_name} ${patient.last_name}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 32px; color: #111; }
+        h1 { font-size: 1.5rem; margin: 0 0 4px; }
+        h2 { font-size: 1.1rem; margin: 8px 0; }
+        p  { margin: 2px 0; font-size: 0.875rem; }
+        hr { border: none; border-top: 1px solid #ccc; margin: 12px 0; }
+        .meta { display: flex; justify-content: space-between; margin: 16px 0; font-size: 0.875rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.875rem; }
+        th { background: #f3f4f6; padding: 8px; text-align: left; border-bottom: 2px solid #e5e7eb; }
+        td { padding: 7px 8px; border-bottom: 1px solid #f3f4f6; }
+        tfoot td { font-weight: 600; border-top: 2px solid #e5e7eb; }
+        .total-row td { font-size: 1rem; font-weight: 700; }
+        .footer { margin-top: 32px; text-align: center; font-size: 0.8rem; color: #6b7280; }
+        .addr { font-size: 0.8rem; color: #6b7280; }
+        @media print { body { padding: 16px; } }
+      </style>
+    </head><body>
+      <h1>City General Hospital</h1>
+      <p class="addr">123 Medical Lane, Healthcare City · Tel: +91-XXXXXXXXXX</p>
+      <hr/>
+      <h2>TAX INVOICE</h2>
+      <div class="meta">
+        <div>
+          <p><strong>Patient:</strong> ${patient.first_name} ${patient.last_name}</p>
+          <p><strong>MRN:</strong> ${patient.mrn}</p>
+        </div>
+        <div>
+          <p><strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}</p>
+          <p><strong>Bill #:</strong> ${bill?.bill_number ?? 'PREVIEW'}</p>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>Description</th><th>Category</th><th>Qty</th><th>Unit Price</th><th>Disc%</th><th>Total</th></tr></thead>
+        <tbody>
+          ${items.map(item => `<tr>
+            <td>${item.description}</td>
+            <td>${item.category}</td>
+            <td>${item.quantity}</td>
+            <td>₹${fmt(item.unitPrice)}</td>
+            <td>${item.discount ?? 0}%</td>
+            <td>₹${fmt(item.unitPrice * item.quantity * (1 - (item.discount ?? 0) / 100))}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr><td colspan="5">Subtotal</td><td>₹${fmt(subtotal)}</td></tr>
+          <tr><td colspan="5">Tax (${taxPercent}%)</td><td>₹${fmt(taxAmount)}</td></tr>
+          <tr class="total-row"><td colspan="5"><strong>Net Amount</strong></td><td><strong>₹${fmt(netAmount)}</strong></td></tr>
+        </tfoot>
+      </table>
+      <p class="footer">Thank you for choosing City General Hospital.</p>
+    </body></html>`);
+    win.document.close();
+    win.focus();
+    win.print();
+    win.close();
+  };
 
   return (
     <div className={styles.previewOverlay} role="dialog" aria-modal="true" aria-label="Bill preview">
       <div className={styles.previewBox} ref={printRef}>
-        {/* Letterhead */}
         <div className={styles.letterhead}>
           <h1 className={styles.hospitalName}>City General Hospital</h1>
           <p className={styles.hospitalAddr}>123 Medical Lane, Healthcare City · Tel: +91-XXXXXXXXXX</p>
@@ -185,13 +242,9 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
   const [createdBill, setCreatedBill] = useState(null);
   const [error, setError]           = useState(null);
 
-  // Load pending services when patient selected
   useEffect(() => {
     if (!patient) return;
-    fetch(`${API}/bills/pending-services/${patient.id}`, {
-      headers: { Authorization: `Bearer ${token()}` },
-    })
-      .then((r) => r.json())
+    apiFetch(`${API}/bills/pending-services/${patient.id}`)
       .then((json) => setPending(json.data))
       .catch(console.error);
   }, [patient]);
@@ -207,7 +260,6 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
     }]);
   }, []);
 
-  // Auto-load pending services as line items
   const loadPending = useCallback(() => {
     if (!pending) return;
     const newItems = [];
@@ -236,7 +288,6 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
 
   const removeItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
 
-  // Totals
   const subtotal  = items.reduce((s, it) => s + it.unitPrice * it.quantity * (1 - (it.discount ?? 0) / 100), 0);
   const taxAmount = subtotal * (taxPercent / 100);
   const netAmount = subtotal + taxAmount;
@@ -247,13 +298,10 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
     setError(null);
     setSubmitting(true);
     try {
-      const r = await fetch(`${API}/bills`, {
+      const json = await apiFetch(`${API}/bills`, {
         method : 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
         body   : JSON.stringify({ patientId: patient.id, items, taxPercent, notes }),
       });
-      const json = await r.json();
-      if (!r.ok) throw new Error(json.error ?? 'Failed to create bill');
       setCreatedBill(json.data);
       setPreview(true);
     } catch (e) {
@@ -267,7 +315,6 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
     <div className={styles.page}>
       <h1 className={styles.title}>Generate Bill</h1>
 
-      {/* Patient search */}
       <section className={styles.section}>
         <label className={styles.label}>Patient</label>
         {patient ? (
@@ -282,7 +329,6 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
         )}
       </section>
 
-      {/* Auto-load pending */}
       {pending && (
         <div className={styles.pendingBar}>
           <span>
@@ -293,7 +339,6 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
         </div>
       )}
 
-      {/* Line items */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <label className={styles.label}>Line Items</label>
@@ -321,7 +366,6 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
         )}
       </section>
 
-      {/* Tax & totals */}
       <section className={styles.totalsSection}>
         <div className={styles.taxRow}>
           <label className={styles.label}>Tax %</label>
@@ -338,7 +382,6 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
         </div>
       </section>
 
-      {/* Notes */}
       <section className={styles.section}>
         <label className={styles.label}>Notes</label>
         <textarea className={styles.textarea} value={notes}

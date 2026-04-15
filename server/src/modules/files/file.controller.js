@@ -19,10 +19,12 @@ export async function uploadFile(req, res, next) {
 
     const result = await svc.uploadFile(
       {
-        buffer      : req.file.buffer,
-        originalName: req.file.originalname,
+        buffer        : req.file.buffer,
+        originalName  : req.file.originalname,
         entityType,
         entityId,
+        clientEncrypted: req.headers['x-client-encrypted'] === 'true',
+        declaredMime  : req.headers['x-original-mime'] ?? null,
       },
       req.user.id,
       req.ip,
@@ -39,6 +41,18 @@ export async function updateIv(req, res, next) {
     if (!iv) return res.status(422).json({ error: 'iv is required' });
 
     const result = await svc.updateFileIv(req.params.id, iv, req.user.id);
+    if (!result) return res.status(404).json({ error: 'File not found' });
+    return res.status(200).json({ data: result });
+  } catch (err) { next(err); }
+}
+
+export async function updateEntity(req, res, next) {
+  try {
+    const { entityType, entityId } = req.body;
+    if (!entityType || !entityId) {
+      return res.status(422).json({ error: 'entityType and entityId are required' });
+    }
+    const result = await svc.updateFileEntity(req.params.id, entityType, entityId, req.user.id);
     if (!result) return res.status(404).json({ error: 'File not found' });
     return res.status(200).json({ data: result });
   } catch (err) { next(err); }

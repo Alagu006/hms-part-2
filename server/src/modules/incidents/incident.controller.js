@@ -9,7 +9,7 @@ export async function createIncident(req, res, next) {
 
 export async function getIncidents(req, res, next) {
   try {
-    const rows = await svc.getIncidents(req.query);
+    const rows = await svc.getIncidents((req.parsedQuery ?? req.query));
     res.json(rows);
   } catch (err) { next(err); }
 }

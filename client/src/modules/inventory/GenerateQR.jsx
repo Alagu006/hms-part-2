@@ -4,13 +4,10 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
+import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
 import styles from './GenerateQR.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
-
-function authHeaders() {
-  return { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` };
-}
 
 export default function GenerateQR({ onClose }) {
   const [search,   setSearch]   = useState('');
@@ -29,19 +26,17 @@ export default function GenerateQR({ onClose }) {
     if (search.length < 2) { setItems([]); return; }
     const timer = setTimeout(async () => {
       try {
-        const res  = await fetch(
-          `${API_BASE}/inventory?search=${encodeURIComponent(search)}&limit=10`,
-          { headers: authHeaders() }
+        const json = await apiFetch(
+          `${API_BASE}/inventory?search=${encodeURIComponent(search)}&limit=10`
         );
-        const json = await res.json();
-        if (res.ok) setItems(json.data?.items ?? []);
+        if (json) setItems(json.data?.items ?? []);
       } catch { /* ignore */ }
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
   // ---------------------------------------------------------------------------
-  // Generate QR from server, then render with qrcode lib
+  // Generate QR from server, then Render with qrcode lib
   // ---------------------------------------------------------------------------
   async function handleGenerate() {
     if (!selected) return;
@@ -51,13 +46,11 @@ export default function GenerateQR({ onClose }) {
     setQrImage('');
 
     try {
-      const res  = await fetch(`${API_BASE}/inventory/qr/generate`, {
+      const json = await apiFetch(`${API_BASE}/inventory/qr/generate`, {
         method : 'POST',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({ itemId: selected.id }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Failed to generate QR');
 
       setQrData(json.data);
 

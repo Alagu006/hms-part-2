@@ -3,8 +3,9 @@ import {
   generateKey,
   exportKey,
   bufferToBase64,
-  base64ToBuffer,
 } from '../utils/crypto.js';
+import { authHeaders, apiFetch, getCsrfToken } from '../utils/authHeaders.js';
+import { storeFileKey } from '../utils/keyStore.js';
 import styles from './EncryptedFileUpload.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
@@ -49,6 +50,7 @@ export default function EncryptedFileUpload({
       return;
     }
 
+    const originalMime = file.type || 'application/octet-stream';
     setFileName(file.name);
     setErrorMsg('');
     setProgress(0);
@@ -75,7 +77,8 @@ export default function EncryptedFileUpload({
       formData.append('entityId',   entityId);
 
       // XHR for progress tracking
-      const fileId = await new Promise((resolve, reject) => {
+      const fileId = await new Promise(async (resolve, reject) => {
+        const csrfToken = await getCsrfToken();
         const xhr = new XMLHttpRequest();
 
         xhr.upload.addEventListener('progress', (e) => {
@@ -101,33 +104,25 @@ export default function EncryptedFileUpload({
         xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
 
         xhr.open('POST', `${API_BASE}/files/upload`);
-        xhr.setRequestHeader(
-          'Authorization',
-          `Bearer ${sessionStorage.getItem('accessToken')}`
-        );
+        xhr.withCredentials = true;
+        xhr.setRequestHeader('Authorization', authHeaders().Authorization);
+        xhr.setRequestHeader('x-csrf-token', csrfToken);
+        xhr.setRequestHeader('x-client-encrypted', 'true');
+        xhr.setRequestHeader('x-original-mime', originalMime);
         xhr.send(formData);
       });
 
       // ── Step 4: Send IV to server (PATCH /files/:id/iv) ───────────────────
-      const ivRes = await fetch(`${API_BASE}/files/${fileId}/iv`, {
+      await apiFetch(`${API_BASE}/files/${fileId}/iv`, {
         method : 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization : `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
         body: JSON.stringify({ iv: ivB64 }),
       });
-      if (!ivRes.ok) throw new Error('Failed to store encryption IV');
 
       setProgress(100);
       setStatus('done');
 
-      // ── Step 5: Store key in sessionStorage keyed by fileId ───────────────
-      // In production, use a proper key management strategy.
-      // For this project, the session key is stored client-side only.
-      const keyStore = JSON.parse(sessionStorage.getItem('fileKeys') ?? '{}');
-      keyStore[fileId] = keyB64;
-      sessionStorage.setItem('fileKeys', JSON.stringify(keyStore));
+      // ── Step 5: Persist key to IndexedDB (survives session/tab close) ──────
+      await storeFileKey(fileId, keyB64, ivB64, file.name);
 
       onSuccess?.({ fileId, fileName: file.name, ivB64, keyB64 });
     } catch (err) {

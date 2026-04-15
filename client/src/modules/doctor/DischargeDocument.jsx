@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
 import styles from './DischargeDocument.module.scss';
 
 const API = import.meta.env.VITE_API_URL ?? '/api';
@@ -11,11 +12,8 @@ export default function DischargeDocument({ patientId, summaryId }) {
 
   useEffect(() => {
     if (!patientId) return;
-    fetch(`${API}/discharge-summaries/${patientId}`, {
-      headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-    })
-      .then(r => { if (!r.ok) throw new Error('Failed to load'); return r.json(); })
-      .then(data => setSummaries(data))
+    apiFetch(`${API}/discharge-summaries/${patientId}`)
+      .then((data) => setSummaries(data))
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [patientId]);

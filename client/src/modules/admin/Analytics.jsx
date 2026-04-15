@@ -4,10 +4,11 @@ import {
   ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
+import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './Analytics.module.scss';
 
 const API  = import.meta.env.VITE_API_URL ?? '/api';
-const auth = () => ({ Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` });
 
 const PERIODS = [
   { value: '7d',  label: '7 days' },
@@ -362,9 +363,7 @@ export default function Analytics() {
     setError(null);
     try {
       const endpoint = endpointMap[tab];
-      const res = await fetch(`${API}/analytics/${endpoint}?period=${p}`, { headers: auth() });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to load');
-      const json = await res.json();
+      const json = await apiFetch(`${API}/analytics/${endpoint}?period=${p}`);
       setData(prev => ({ ...prev, [`${tab}_${p}`]: json }));
     } catch (e) {
       setError(e.message);
@@ -412,7 +411,7 @@ export default function Analytics() {
       {error && <div className={styles.error}>{error}</div>}
 
       {loading ? (
-        <div className={styles.loading}>Loading analytics…</div>
+        <SkeletonLoader variant="page" />
       ) : (
         <>
           {activeTab === 'Patient'     && <PatientTab     data={currentData} />}

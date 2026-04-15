@@ -1,16 +1,19 @@
+@use '../../shared/styles/mixins' as *;
+
 .page {
-  padding: 2rem;
+  @include responsive-padding;
   max-width: 1400px;
   margin: 0 auto;
 }
 
 .title {
-  font-size: 1.4rem;
+  font-size: clamp(1.25rem, 4vw, 1.4rem);
   font-weight: 700;
   color: #111;
   margin-bottom: 1.25rem;
 }
 
+/* ── Filters ───────────────────────────────────────────────────────────── */
 .filters {
   display: flex;
   gap: 0.75rem;
@@ -18,10 +21,11 @@
   flex-wrap: wrap;
 
   select {
-    padding: 0.45rem 0.75rem;
+    padding: 10px 0.75rem;
+    min-height: 44px;
     border: 1px solid #d1d5db;
     border-radius: 8px;
-    font-size: 0.85rem;
+    font-size: 1rem;
     background: #fff;
     color: #374151;
     outline: none;
@@ -30,22 +34,23 @@
   }
 }
 
+/* ── Layout: table + side panel ────────────────────────────────────────── */
 .layout {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 1.5rem;
   align-items: start;
 
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-  }
+  @include desktop { grid-template-columns: 1fr; }
 }
 
-/* Table */
+/* ── Desktop table ─────────────────────────────────────────────────────── */
 .tableWrap {
-  overflow-x: auto;
+  @include table-scroll;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
+
+  @include tablet { display: none; }
 }
 
 .table {
@@ -63,6 +68,7 @@
     font-size: 0.72rem;
     letter-spacing: 0.04em;
     border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
   }
 
   td {
@@ -80,6 +86,51 @@
 
 .selectedRow td { background: #f0f4ff !important; }
 
+/* ── Mobile user cards ─────────────────────────────────────────────────── */
+.mobileList {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  @include tablet { display: flex; }
+}
+
+.userCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  cursor: pointer;
+  @include tap-feedback;
+
+  &.selectedCard { border-color: #6366f1; background: #f0f4ff; }
+}
+
+.userCardTop {
+  @include flex-between;
+  gap: 0.5rem;
+}
+
+.userCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.userCardActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+/* ── Shared cell styles ────────────────────────────────────────────────── */
 .nameCell {
   display: flex;
   align-items: center;
@@ -93,13 +144,20 @@
   border-radius: 50%;
   background: #e0e7ff;
   color: #4338ca;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include flex-center;
   font-size: 0.75rem;
   font-weight: 700;
   flex-shrink: 0;
   text-transform: uppercase;
+}
+
+.avatarImg {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #e0e7ff;
+  flex-shrink: 0;
 }
 
 .roleList {
@@ -122,14 +180,16 @@
 .mono { font-family: monospace; font-size: 0.78rem; }
 .empty { text-align: center; color: #9ca3af; padding: 1.5rem; }
 
+/* ── Action buttons ────────────────────────────────────────────────────── */
 .deactivateBtn, .activateBtn {
-  padding: 0.3rem 0.7rem;
+  @include touch-target;
+  @include tap-feedback;
+  padding: 0.4rem 0.75rem;
   border-radius: 6px;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: opacity 0.15s;
 
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
@@ -146,7 +206,7 @@
   &:hover:not(:disabled) { background: #bbf7d0; }
 }
 
-/* Side panel */
+/* ── Side panel ────────────────────────────────────────────────────────── */
 .panel {
   background: #fff;
   border: 1px solid #e5e7eb;
@@ -154,6 +214,8 @@
   overflow: hidden;
   position: sticky;
   top: 1rem;
+
+  @include desktop { position: static; }
 }
 
 .panelHeader {
@@ -171,37 +233,36 @@
   border-radius: 50%;
   background: #e0e7ff;
   color: #4338ca;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @include flex-center;
   font-size: 1rem;
   font-weight: 700;
   text-transform: uppercase;
   flex-shrink: 0;
 }
 
-.panelName {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: #111;
+.profileImg {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e0e7ff;
+  flex-shrink: 0;
 }
 
-.panelId {
-  font-size: 0.78rem;
-  color: #9ca3af;
-  font-family: monospace;
-}
+.panelName { font-weight: 700; font-size: 0.95rem; color: #111; }
+.panelId   { font-size: 0.78rem; color: #9ca3af; font-family: monospace; }
 
 .closeBtn {
+  @include touch-target;
+  @include tap-feedback;
   margin-left: auto;
   background: none;
   border: none;
   cursor: pointer;
   color: #9ca3af;
   font-size: 1rem;
-  padding: 0.25rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 4px;
-
   &:hover { background: #f3f4f6; color: #374151; }
 }
 
@@ -213,12 +274,12 @@
 }
 
 .detailRow {
-  display: flex;
-  justify-content: space-between;
+  @include flex-between;
   font-size: 0.85rem;
+  gap: 0.5rem;
 
   span:first-child { color: #6b7280; }
-  span:last-child  { color: #111; font-weight: 500; }
+  span:last-child  { color: #111; font-weight: 500; word-break: break-word; }
 }
 
 .sectionLabel {
@@ -237,25 +298,31 @@
 }
 
 .sessionRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  @include flex-between;
   padding: 0.5rem 0;
   border-bottom: 1px solid #f3f4f6;
   font-size: 0.8rem;
+  gap: 0.5rem;
 
   &:last-child { border-bottom: none; }
+
+  @include mobile {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 
 .logoutBtn {
-  padding: 0.25rem 0.6rem;
+  @include touch-target;
+  @include tap-feedback;
+  padding: 0.3rem 0.7rem;
   border: 1px solid #fca5a5;
   border-radius: 5px;
   background: #fff;
   color: #dc2626;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
-
+  white-space: nowrap;
   &:hover { background: #fee2e2; }
 }

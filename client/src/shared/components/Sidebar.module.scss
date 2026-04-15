@@ -1,0 +1,295 @@
+@use '../styles/mixins' as *;
+
+// ── Hamburger (mobile only) ────────────────────────────────────────────────
+.hamburger {
+  display: none;
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 500;
+  width: 44px;
+  height: 44px;
+  background: #0f172a;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 8px;
+  @include tap-feedback;
+
+  span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+
+  // Animate to X when open
+  &.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  &.open span:nth-child(2) { opacity: 0; }
+  &.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  @include tablet { display: flex; }
+}
+
+// ── Overlay (mobile) ───────────────────────────────────────────────────────
+.overlay {
+  display: none;
+  @include tablet {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 399;
+    // fade handled by Framer Motion in JSX
+  }
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────────
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 220px;
+  min-height: 100vh;
+  background: #0f172a;
+  color: #e2e8f0;
+  transition: width 0.2s ease;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+  z-index: 400;
+
+  @include tablet {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    width: 280px !important;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+    // transform handled by Framer Motion
+  }
+}
+
+.sidebar.collapsed { width: 56px; }
+
+// ── Mobile close button ────────────────────────────────────────────────────
+.mobileCloseBtn {
+  display: none;
+  @include tablet {
+    @include flex-center;
+    @include touch-target;
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 4px;
+    @include tap-feedback;
+    &:hover { color: #e2e8f0; background: #1e293b; }
+  }
+}
+
+// ── Header ─────────────────────────────────────────────────────────────────
+.header {
+  @include flex-between;
+  padding: 16px 12px;
+  border-bottom: 1px solid #1e293b;
+  min-height: 56px;
+  flex-shrink: 0;
+}
+
+.brand { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.brandIcon { font-size: 1.25rem; }
+.brandName {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f8fafc;
+  white-space: nowrap;
+}
+
+.collapseBtn {
+  @include touch-target;
+  @include flex-center;
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-left: auto;
+  @include tap-feedback;
+  &:hover { color: #e2e8f0; background: #1e293b; }
+
+  @include tablet { display: none; }
+}
+
+// ── User info ──────────────────────────────────────────────────────────────
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+  text-decoration: none;
+  cursor: pointer;
+  @include tap-feedback;
+  &:hover { background: rgba(255, 255, 255, 0.06); }
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1d4ed8;
+  color: #fff;
+  @include flex-center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  text-transform: uppercase;
+}
+
+.userDetails { display: flex; flex-direction: column; overflow: hidden; }
+.userName {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.userRole {
+  font-size: 0.7rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+// ── Nav ────────────────────────────────────────────────────────────────────
+.nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  gap: 2px;
+  // smooth scroll on long nav lists
+  overflow-y: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  min-height: 44px; // touch target
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 0.8125rem;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover { background: #1e293b; color: #f1f5f9; }
+
+  &.active {
+    background: #1e3a5f;
+    color: #60a5fa;
+    border-left: 3px solid #3b82f6;
+    padding-left: 11px;
+  }
+
+  @include tablet {
+    padding: 13px 16px;
+    font-size: 0.9375rem;
+  }
+}
+
+.navIcon { display: flex; align-items: center; flex-shrink: 0; }
+.navLabel { overflow: hidden; text-overflow: ellipsis; }
+
+// ── Bottom toolbar ─────────────────────────────────────────────────────────
+.bottomBar {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid #1e293b;
+  padding: 4px 0;
+}
+
+.toolBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  @include tap-feedback;
+  &:hover { background: #1e293b; color: #e2e8f0; }
+
+  @include tablet { padding: 13px 16px; font-size: 0.9375rem; }
+}
+
+.shortcutHint {
+  margin-left: auto;
+  font-size: 0.68rem;
+  background: #1e293b;
+  color: #475569;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #334155;
+  font-family: monospace;
+}
+
+// ── Logout ─────────────────────────────────────────────────────────────────
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  border-top: 1px solid #1e293b;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  width: 100%;
+  text-align: left;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  @include tap-feedback;
+  &:hover { background: #1e293b; color: #f87171; }
+
+  @include tablet { padding: 14px 16px; font-size: 0.9375rem; }
+}
+
+// ── Collapsed state ────────────────────────────────────────────────────────
+.collapsed .header { justify-content: center; padding: 16px 8px; }
+.collapsed .navItem { justify-content: center; padding: 10px; }
+.collapsed .logoutBtn { justify-content: center; padding: 12px; }

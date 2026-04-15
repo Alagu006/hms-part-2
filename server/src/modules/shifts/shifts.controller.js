@@ -2,7 +2,7 @@ import * as shiftService from './shifts.service.js';
 
 export async function listShifts(req, res, next) {
   try {
-    const result = await shiftService.listShifts(req.query);
+    const result = await shiftService.listShifts((req.parsedQuery ?? req.query));
     return res.status(200).json(result);
   } catch (err) {
     next(err);

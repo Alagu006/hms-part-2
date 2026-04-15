@@ -6,22 +6,13 @@ import { createNotification } from '../../shared/services/notification.service.j
 const DEFAULT_BALANCES = {
   ANNUAL      : 15,
   SICK        : 12,
-  CASUAL      : 12,
   EMERGENCY   : 5,
   MATERNITY   : 90,
   PATERNITY   : 7,
-  COMPENSATORY: 0,   // accrued, not pre-allocated
+  UNPAID      : 0,
+  COMPENSATORY: 0,
 };
 
-// Map schema CHECK values — schema uses COMPENSATORY not CASUAL
-// Schema leave_type: ANNUAL|SICK|MATERNITY|PATERNITY|UNPAID|EMERGENCY|COMPENSATORY
-// We add CASUAL as alias → stored as CASUAL (schema allows it via the CHECK list)
-// NOTE: schema CHECK list includes COMPENSATORY but not CASUAL — we'll treat CASUAL
-// as a valid type by ensuring the schema is extended, or map it. Looking at schema:
-// CHECK (leave_type IN ('ANNUAL','SICK','MATERNITY','PATERNITY','UNPAID','EMERGENCY','COMPENSATORY'))
-// CASUAL is not in the schema CHECK. We'll use the types the schema supports and
-// expose CASUAL on the client mapped to ANNUAL for display, OR we add it to the
-// seed only for types the schema supports. We'll use the 7 schema types.
 const LEAVE_TYPES = ['ANNUAL','SICK','MATERNITY','PATERNITY','UNPAID','EMERGENCY','COMPENSATORY'];
 
 // ---------------------------------------------------------------------------
@@ -288,14 +279,13 @@ export async function approveLeave(leaveId, reviewerId, ip) {
     await client.query('COMMIT');
 
     // Notify applicant
-    await createNotification({
-      userId    : leave.user_id,
-      type      : 'LEAVE',
-      title     : 'Leave Approved',
-      body      : `Your ${leave.leave_type} leave (${leave.start_date} – ${leave.end_date}) has been approved.`,
-      entityType: 'leaves',
-      entityId  : leaveId,
-    });
+    await createNotification(
+      leave.user_id,
+      'LEAVE',
+      'Leave Approved',
+      `Your ${leave.leave_type} leave (${leave.start_date} – ${leave.end_date}) has been approved.`,
+      { entityType: 'leaves', entityId: leaveId }
+    );
 
     await auditLog({
       userId  : reviewerId,
@@ -357,14 +347,13 @@ export async function rejectLeave(leaveId, reviewerId, reviewNote, ip) {
 
     await client.query('COMMIT');
 
-    await createNotification({
-      userId    : leave.user_id,
-      type      : 'LEAVE',
-      title     : 'Leave Rejected',
-      body      : `Your ${leave.leave_type} leave request was rejected.${reviewNote ? ` Reason: ${reviewNote}` : ''}`,
-      entityType: 'leaves',
-      entityId  : leaveId,
-    });
+    await createNotification(
+      leave.user_id,
+      'LEAVE',
+      'Leave Rejected',
+      `Your ${leave.leave_type} leave request was rejected.${reviewNote ? ` Reason: ${reviewNote}` : ''}`,
+      { entityType: 'leaves', entityId: leaveId }
+    );
 
     await auditLog({
       userId  : reviewerId,

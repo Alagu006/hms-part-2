@@ -1,5 +1,7 @@
+import { createHmac } from 'crypto';
 import { pool } from '../../shared/db/pool.js';
 import { auditLog } from '../../shared/middleware/audit.js';
+import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -121,6 +123,28 @@ export async function createBill({ patientId, items, taxPercent, notes, dueDate,
     }
 
     await client.query('COMMIT');
+    await auditLog(issuedBy, 'CREATE', 'bills', bill.id, null, bill);
+
+    // Notify patient
+    setImmediate(async () => {
+      try {
+        const { rows: patRows } = await pool.query(
+          'SELECT user_id FROM patients WHERE id = $1', [patientId]
+        );
+        if (patRows[0]) {
+          await createNotification(
+            patRows[0].user_id,
+            NotificationType.BILL_GENERATED,
+            'New bill generated',
+            `Bill ${billNumber} for ₹${netAmount} has been issued. View and pay from My Bills.`,
+            { entityType: 'BILL', entityId: bill.id, priority: 'MEDIUM' }
+          );
+        }
+      } catch (err) {
+        console.error('[billing] Notification failed:', err.message);
+      }
+    });
+
     return bill;
   } catch (err) {
     await client.query('ROLLBACK');
@@ -234,6 +258,8 @@ export async function recordPayment({ billId, amount, paymentMethod, referenceNo
     );
 
     await client.query('COMMIT');
+    await auditLog(processedBy, 'CREATE', 'payments', payment.id, null, payment);
+    await auditLog(processedBy, 'UPDATE', 'bills', billId, { status: bill.status }, { status: newStatus });
     return { payment, billStatus: newStatus };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -276,6 +302,8 @@ export async function refundBill({ billId, reason, amount, processedBy }) {
     );
 
     await client.query('COMMIT');
+    await auditLog(processedBy, 'CREATE', 'payments', null, null, { billId, refundAmount, reason });
+    await auditLog(processedBy, 'UPDATE', 'bills', billId, { status: bill.status }, { status: 'REFUNDED', refundAmount, reason });
     return { refunded: true, amount: refundAmount };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -307,6 +335,7 @@ export async function attachInsuranceClaim({ billId, insurancePolicyId, claimAmo
     [insurancePolicyId, claimReference ?? null, claimAmount, notes ?? null, billId]
   );
   if (!bill) { const e = new Error('Bill not found'); e.status = 404; throw e; }
+  await auditLog(processedBy, 'UPDATE', 'bills', bill.id, null, bill);
   return bill;
 }
 
@@ -324,6 +353,7 @@ export async function createInsurance({ patientId, provider, policyNumber, group
     [patientId, provider, policyNumber, groupNumber ?? null, coverageType,
      coverageAmount, validFrom, validUntil, copayPct ?? 0, isPrimary ?? true]
   );
+  await auditLog(patientId, 'CREATE', 'insurance_policies', policy.id, null, policy);
   return policy;
 }
 
@@ -354,20 +384,30 @@ export async function updateInsurance(id, updates) {
   fields.push(`updated_at = NOW()`);
   vals.push(id);
 
+  const { rows: [prev] } = await pool.query(
+    `SELECT * FROM insurance_policies WHERE id = $1 AND deleted_at IS NULL`,
+    [id]
+  );
   const { rows: [policy] } = await pool.query(
     `UPDATE insurance_policies SET ${fields.join(', ')} WHERE id = $${idx} AND deleted_at IS NULL RETURNING *`,
     vals
   );
   if (!policy) { const e = new Error('Insurance policy not found'); e.status = 404; throw e; }
+  await auditLog(id, 'UPDATE', 'insurance_policies', policy.id, prev, policy);
   return policy;
 }
 
 export async function deleteInsurance(id) {
+  const { rows: [prev] } = await pool.query(
+    `SELECT * FROM insurance_policies WHERE id = $1 AND deleted_at IS NULL`,
+    [id]
+  );
   const { rows: [policy] } = await pool.query(
     `UPDATE insurance_policies SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING id`,
     [id]
   );
   if (!policy) { const e = new Error('Insurance policy not found'); e.status = 404; throw e; }
+  await auditLog(id, 'UPDATE', 'insurance_policies', policy[0].id, prev, { deleted: true });
   return { deleted: true };
 }
 
@@ -379,6 +419,7 @@ export async function flagForDiscountApproval(billId) {
     `UPDATE bills SET discount_approved = FALSE, updated_at = NOW() WHERE id = $1`,
     [billId]
   );
+  await auditLog(billId, 'UPDATE', 'bills', billId, null, { discount_approved: false });
 }
 
 // ---------------------------------------------------------------------------
@@ -432,6 +473,118 @@ export async function getFinancialSummary({ date }) {
 }
 
 // ---------------------------------------------------------------------------
+// Razorpay helpers (server-side only — uses Node native fetch)
+// ---------------------------------------------------------------------------
+async function razorpayFetch(method, path, body) {
+  const keyId     = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    throw Object.assign(new Error('Razorpay credentials not configured'), { status: 503 });
+  }
+
+  const credentials = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+  const res = await fetch(`https://api.razorpay.com/v1${path}`, {
+    method,
+    headers: {
+      'Content-Type' : 'application/json',
+      'Authorization': `Basic ${credentials}`,
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    const err = new Error(data.error?.description ?? 'Razorpay API error');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+function generateSignature(orderId, paymentId) {
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keySecret) throw new Error('RAZORPAY_KEY_SECRET not set');
+  return createHmac('sha256', keySecret)
+    .update(`${orderId}|${paymentId}`)
+    .digest('hex');
+}
+
+// ---------------------------------------------------------------------------
+// Create Razorpay order for a bill
+// ---------------------------------------------------------------------------
+export async function createRazorpayOrder(billId) {
+  const bill = await getBillById(billId);
+  if (!bill) { const e = new Error('Bill not found'); e.status = 404; throw e; }
+  if (!['ISSUED', 'PARTIALLY_PAID'].includes(bill.status)) {
+    const e = new Error(`Cannot pay bill with status '${bill.status}'`);
+    e.status = 400;
+    throw e;
+  }
+
+  const paid = (bill.payments ?? [])
+    .filter((p) => p.status === 'COMPLETED' && p.method !== 'REFUND')
+    .reduce((s, p) => s + +p.amount, 0);
+  const outstanding = Math.max(0, +bill.net_amount - paid);
+
+  if (outstanding <= 0) {
+    const e = new Error('Bill is already fully paid');
+    e.status = 400;
+    throw e;
+  }
+
+  const amountPaise = Math.round(outstanding * 100);
+  if (amountPaise < 100) {
+    const e = new Error('Payment amount must be at least ₹1.00');
+    e.status = 400;
+    throw e;
+  }
+
+  const order = await razorpayFetch('POST', '/orders', {
+    amount       : amountPaise,
+    currency     : 'INR',
+    receipt      : `bill_${billId}`,
+    notes        : { bill_id: billId, bill_number: bill.bill_number },
+    partial_payment: false,
+  });
+
+  return {
+    orderId  : order.id,
+    amount   : order.amount,
+    currency : order.currency,
+    key      : process.env.RAZORPAY_KEY_ID,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Verify Razorpay payment and record it
+// ---------------------------------------------------------------------------
+export async function verifyAndRecordRazorpayPayment({ billId, razorpayOrderId, razorpayPaymentId, razorpaySignature }) {
+  const expectedSig = generateSignature(razorpayOrderId, razorpayPaymentId);
+  if (expectedSig !== razorpayPaymentId) {
+    const e = new Error('Payment verification failed');
+    e.status = 400;
+    throw e;
+  }
+
+  const bill = await getBillById(billId);
+  if (!bill) { const e = new Error('Bill not found'); e.status = 404; throw e; }
+
+  const paid = (bill.payments ?? [])
+    .filter((p) => p.status === 'COMPLETED' && p.method !== 'REFUND')
+    .reduce((s, p) => s + +p.amount, 0);
+  const outstanding = Math.max(0, +bill.net_amount - paid);
+
+  return recordPayment({
+    billId,
+    amount      : outstanding,
+    paymentMethod: 'ONLINE',
+    referenceNo : razorpayPaymentId,
+    processedBy : bill.patient_id,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Discount approval (admin)
 // ---------------------------------------------------------------------------
 export async function approveDiscount({ billId, approved, note, adminId }) {
@@ -446,5 +599,6 @@ export async function approveDiscount({ billId, approved, note, adminId }) {
     [approved, adminId, note ?? null, billId]
   );
   if (!bill) { const e = new Error('Bill not found'); e.status = 404; throw e; }
+  await auditLog(adminId, 'UPDATE', 'bills', bill.id, null, bill);
   return bill;
 }

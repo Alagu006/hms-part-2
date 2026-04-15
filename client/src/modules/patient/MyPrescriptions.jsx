@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
+import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './MyPrescriptions.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
@@ -34,11 +36,8 @@ function PrescriptionDetail({ id, onBack }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/prescriptions/${id}`, {
-      headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-    })
-      .then((r) => r.json())
-      .then((json) => setData(json.data))
+    apiFetch(`${API_BASE}/prescriptions/${id}`)
+      .then((data) => setData(data.data))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [id]);
@@ -60,6 +59,24 @@ function PrescriptionDetail({ id, onBack }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <StatusBadge status={data.status} />
+          <button
+            className={styles.reminderBtn}
+            onClick={() => {
+              if ('Notification' in window) {
+                Notification.requestPermission().then(perm => {
+                  if (perm === 'granted') {
+                    new Notification('💊 Medication Reminder Set', {
+                      body: `Reminders enabled for your prescription from Dr. ${data.doctor_first} ${data.doctor_last}`,
+                      icon: '/icon-192.png',
+                    });
+                  }
+                });
+              }
+            }}
+            title="Set medication reminder"
+          >
+            🔔 Remind Me
+          </button>
           <button className={styles.backBtn} onClick={onBack}>← Back</button>
         </div>
       </div>
@@ -132,19 +149,15 @@ export default function MyPrescriptions({ patientId }) {
   // Determine endpoint: if patientId provided use history route, else use /my
   const endpoint = patientId
     ? `${API_BASE}/prescriptions/patient/${patientId}`
-    : `${API_BASE}/patients/my/prescriptions`;
+    : `${API_BASE}/prescriptions/my`;
 
   const fetchList = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, limit });
-      const res = await fetch(`${endpoint}?${params}`, {
-        headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-      });
-      if (!res.ok) throw new Error('Failed to load prescriptions');
-      const json = await res.json();
-      setPrescriptions(json.prescriptions ?? []);
-      setTotal(json.total ?? 0);
+      const data = await apiFetch(`${endpoint}?${params}`);
+      setPrescriptions(data?.prescriptions ?? []);
+      setTotal(data?.total ?? 0);
     } catch (err) {
       console.error(err);
     } finally {
@@ -167,7 +180,7 @@ export default function MyPrescriptions({ patientId }) {
       </div>
 
       {loading ? (
-        <div className={styles.loading} aria-live="polite">Loading…</div>
+        <SkeletonLoader variant="table" rows={4} />
       ) : prescriptions.length === 0 ? (
         <div className={styles.empty}>No prescriptions found.</div>
       ) : (

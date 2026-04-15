@@ -9,7 +9,7 @@ export async function createItem(req, res) {
 }
 
 export async function listItems(req, res) {
-  try { ok(res, await svc.listItems(req.query)); }
+  try { ok(res, await svc.listItems((req.parsedQuery ?? req.query))); }
   catch (e) { err(res, e); }
 }
 
@@ -52,6 +52,24 @@ export async function adjustQuantity(req, res) {
 export async function getBeds(req, res) {
   try { ok(res, await svc.getBedMatrix()); }
   catch (e) { err(res, e); }
+}
+
+export async function createRoom(req, res) {
+  try {
+    const room = await svc.createRoom(req.body, req.user.id, req.ip, req.headers['user-agent']);
+    ok(res, room, 201);
+  } catch (e) { err(res, e); }
+}
+
+export async function createBed(req, res) {
+  try {
+    const bed = await svc.createBed(
+      { roomId: req.params.roomId, bedNumber: req.body.bedNumber },
+      req.user.id, req.ip, req.headers['user-agent']
+    );
+    if (!bed) return res.status(404).json({ error: 'Room not found' });
+    ok(res, bed, 201);
+  } catch (e) { err(res, e); }
 }
 
 export async function updateBed(req, res) {

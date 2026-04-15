@@ -1,0 +1,85 @@
+@use '../styles/mixins' as *;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: min(400px, 96vw);
+  background: var(--bg-card, #fff);
+  border-radius: 16px;
+  padding: 32px 28px;
+  text-align: center;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border, #e5e7eb);
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  margin: 0 0 10px;
+}
+
+.body {
+  font-size: 0.9rem;
+  color: var(--text-secondary, #374151);
+  margin: 0 0 24px;
+  line-height: 1.5;
+
+  strong {
+    color: #dc2626;
+    font-variant-numeric: tabular-nums;
+    font-size: 1.05rem;
+  }
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.extendBtn {
+  @include touch-target;
+  padding: 0 24px;
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  @include tap-feedback;
+  &:hover { background: #1e40af; }
+}
+
+.logoutBtn {
+  @include touch-target;
+  padding: 0 20px;
+  background: transparent;
+  color: var(--text-muted, #6b7280);
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  @include tap-feedback;
+  &:hover { background: var(--bg-subtle, #f3f4f6); }
+}

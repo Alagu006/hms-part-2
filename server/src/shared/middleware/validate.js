@@ -21,9 +21,9 @@ export function validate(schema) {
     }
 
     // Replace req fields with parsed (coerced/stripped) values
-    if (result.data.body)   req.body   = result.data.body;
-    if (result.data.query)  req.query  = result.data.query;
-    if (result.data.params) req.params = result.data.params;
+    if (result.data.body)   req.body        = result.data.body;
+    if (result.data.params) req.params      = result.data.params;
+    if (result.data.query)  req.parsedQuery = result.data.query;
 
     next();
   };

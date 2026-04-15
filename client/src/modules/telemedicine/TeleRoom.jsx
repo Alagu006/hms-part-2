@@ -1,65 +1,50 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { io }   from 'socket.io-client';
-import { encryptMessage, decryptMessage, generateKey, exportKey, importKey }
-  from '../../shared/utils/crypto.js';
+import { useState, useEffect, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { io } from 'socket.io-client';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { useAuth } from '../../shared/store/index.js';
 import styles from './TeleRoom.module.scss';
 
 const API_BASE   = import.meta.env.VITE_API_URL    ?? '/api';
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? '';
-// PeerJS loaded via CDN — window.Peer
-const PEERJS_HOST = import.meta.env.VITE_PEERJS_HOST || '0.peerjs.com';
-const PEERJS_PORT = parseInt(import.meta.env.VITE_PEERJS_PORT || '443', 10);
+import { getSocketUrl } from '../../shared/utils/socketUrl.js';
+const SOCKET_URL = getSocketUrl();
+
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+];
 
 // ---------------------------------------------------------------------------
 // Consultation note modal
 // ---------------------------------------------------------------------------
 function ConsultationNoteModal({ sessionId, onSaved, onSkip }) {
-  const [note, setNote]       = useState('');
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState('');
+  const [note, setNote]     = useState('');
+  const [saving, setSaving] = useState(false);
+  const [err, setErr]       = useState('');
 
   async function handleSave() {
     setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/telemedicine/sessions/${sessionId}/end`, {
-        method : 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization : `Bearer ${sessionStorage.getItem('accessToken')}`,
-        },
+      await apiFetch(`${API_BASE}/telemedicine/sessions/${sessionId}/end`, {
+        method: 'PATCH',
         body: JSON.stringify({ consultationNote: note }),
       });
-      if (!res.ok) throw new Error('Failed to save note');
       onSaved();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
   }
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="note-title">
+    <div className={styles.overlay} role="dialog" aria-modal="true">
       <div className={styles.noteModal}>
-        <h3 id="note-title">Add Consultation Note</h3>
-        <p className={styles.noteHint}>
-          This note will be saved to the patient's medical records.
-        </p>
-        <textarea
-          className={styles.noteTextarea}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Diagnosis, treatment plan, follow-up instructions…"
-          rows={8}
-          maxLength={5000}
-          autoFocus
-        />
+        <h3>Add Consultation Note</h3>
+        <p className={styles.noteHint}>This note will be saved to the patient's medical records.</p>
+        <textarea className={styles.noteTextarea} value={note} onChange={e => setNote(e.target.value)}
+          placeholder="Diagnosis, treatment plan, follow-up instructions…" rows={8} maxLength={5000} autoFocus />
         <span className={styles.charCount}>{note.length} / 5000</span>
-        {error && <div className={styles.error}>{error}</div>}
+        {err && <div className={styles.error}>{err}</div>}
         <div className={styles.noteActions}>
-          <button className={styles.skipBtn} onClick={onSkip} disabled={saving}>
-            Skip
-          </button>
+          <button className={styles.skipBtn} onClick={onSkip} disabled={saving}>Skip</button>
           <button className={styles.saveNoteBtn} onClick={handleSave} disabled={saving || !note.trim()}>
             {saving ? 'Saving…' : 'Save note'}
           </button>
@@ -73,12 +58,9 @@ function ConsultationNoteModal({ sessionId, onSaved, onSkip }) {
 // Chat sidebar
 // ---------------------------------------------------------------------------
 function ChatSidebar({ messages, onSend, onClose }) {
-  const [text, setText]   = useState('');
-  const bottomRef         = useRef(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+  const [text, setText] = useState('');
+  const bottomRef = useRef(null);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
   function handleSend(e) {
     e.preventDefault();
@@ -98,414 +80,352 @@ function ChatSidebar({ messages, onSend, onClose }) {
           <div key={i} className={`${styles.chatMsg} ${m.own ? styles.own : ''}`}>
             {!m.own && <div className={styles.chatSender}>{m.firstName}</div>}
             <div className={styles.chatBubble}>{m.text}</div>
-            <div className={styles.chatTime}>
-              {new Date(m.timestamp).toLocaleTimeString('en-GB', { timeStyle: 'short' })}
-            </div>
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
       <form className={styles.chatInput} onSubmit={handleSend}>
-        <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Type a message…"
-          aria-label="Chat message"
-        />
-        <button type="submit" disabled={!text.trim()} aria-label="Send">➤</button>
+        <input value={text} onChange={e => setText(e.target.value)} placeholder="Type a message…" aria-label="Chat message" />
+        <button type="submit" disabled={!text.trim()}>➤</button>
       </form>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Main TeleRoom component
+// Main TeleRoom
 // ---------------------------------------------------------------------------
-export default function TeleRoom({ sessionId, currentUser }) {
-  const [tokenData, setTokenData]     = useState(null);
-  const [status, setStatus]           = useState('loading'); // loading|waiting|admitted|ended|error
-  const [error, setError]             = useState('');
-  const [peers, setPeers]             = useState([]);        // [{ socketId, userId, firstName, role }]
-  const [muted, setMuted]             = useState(false);
-  const [camOff, setCamOff]           = useState(false);
-  const [sharing, setSharing]         = useState(false);
-  const [showChat, setShowChat]       = useState(false);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [showNoteModal, setNoteModal] = useState(false);
-  const [callEnded, setCallEnded]     = useState(false);
+export default function TeleRoom({ sessionId: sessionIdProp }) {
+  const { roomId: roomToken } = useParams();
+  const { user } = useAuth();
 
-  const socketRef      = useRef(null);
-  const peerRef        = useRef(null);       // PeerJS instance
-  const localStreamRef = useRef(null);
+  const [sessionId, setSessionId]   = useState(sessionIdProp ?? null);
+  const [tokenData, setTokenData]   = useState(null);
+  const [status, setStatus]         = useState('loading');
+  const [error, setError]           = useState('');
+  const [peers, setPeers]           = useState([]);   // { socketId, userId, firstName, lastName, role }
+  const [muted, setMuted]           = useState(false);
+  const [camOff, setCamOff]         = useState(false);
+  const [sharing, setSharing]       = useState(false);
+  const [showChat, setShowChat]     = useState(false);
+  const [chatMessages, setChat]     = useState([]);
+  const [showNote, setShowNote]     = useState(false);
+
+  const socketRef       = useRef(null);
+  const localStreamRef  = useRef(null);
   const screenStreamRef = useRef(null);
-  const localVideoRef  = useRef(null);
-  const remoteVideosRef = useRef({});        // socketId → <video> element
-  const callsRef       = useRef({});         // socketId → PeerJS call
-  const chatKeyRef     = useRef(null);       // AES-256-GCM key for chat
+  const localVideoRef   = useRef(null);
+  const pcsRef          = useRef({});   // socketId → RTCPeerConnection
+  const remoteVidsRef   = useRef({});   // socketId → <video> el
 
-  // ── Fetch room token ──────────────────────────────────────────────────────
+  // ── 1. Resolve session UUID from room token ───────────────────────────────
   useEffect(() => {
-    async function fetchToken() {
-      try {
-        const res  = await fetch(`${API_BASE}/telemedicine/sessions/${sessionId}/token`, {
-          headers: { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` },
-        });
-        const json = await res.json();
-        if (!res.ok) {
-          setError(json.error ?? 'Cannot join session');
-          setStatus(json.code === 'TOO_EARLY' ? 'too-early' : 'error');
-          return;
-        }
-        setTokenData(json.data);
-      } catch (err) {
-        setError(err.message);
-        setStatus('error');
-      }
-    }
-    fetchToken();
+    if (sessionId || !roomToken) return;
+    apiFetch(`${API_BASE}/telemedicine/sessions/my?limit=50`)
+      .then(d => {
+        const s = (d?.data?.sessions ?? []).find(s => s.room_id === roomToken || s.room_token === roomToken);
+        if (s) setSessionId(s.id);
+        else { setError('Session not found'); setStatus('error'); }
+      })
+      .catch(e => { setError(e.message); setStatus('error'); });
+  }, [roomToken, sessionId]);
+
+  // ── 2. Fetch token once session ID is known ───────────────────────────────
+  useEffect(() => {
+    if (!sessionId) return;
+    apiFetch(`${API_BASE}/telemedicine/sessions/${sessionId}/token`)
+      .then(d => setTokenData(d?.data))
+      .catch(e => {
+        setError(e.message);
+        setStatus(e.message?.includes('TOO_EARLY') ? 'too-early' : 'error');
+      });
   }, [sessionId]);
 
-  // ── Init media + PeerJS + Socket once token is ready ─────────────────────
+  // ── 3. Media + Socket + WebRTC once token ready ───────────────────────────
   useEffect(() => {
     if (!tokenData) return;
-
     let cancelled = false;
 
+    // "Polite peer" = patient. Doctor is impolite (won't rollback offers).
+    const isPolite = tokenData.role === 'patient';
+    const makingOfferRef = { current: false };
+
     async function init() {
-      // 1. Get local media
+      // Get local media
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         localStreamRef.current = stream;
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-      } catch (err) {
-        console.warn('[tele] Media access denied:', err.message);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      } catch (e) {
+        console.warn('[tele] Media denied:', e.message);
+        // Continue without media — text chat still works
       }
-
-      // 2. Generate chat encryption key (derive from sessionId + user secret)
-      const rawKey = await generateKey();
-      chatKeyRef.current = rawKey;
-      // In production: exchange key via server-side key agreement.
-      // For this project: key is derived from sessionId (both parties share it).
-      // Simple approach: use sessionId as passphrase with deriveKey.
-      // We'll store the exported key in sessionStorage keyed by sessionId.
-      const exportedKey = await exportKey(rawKey);
-      sessionStorage.setItem(`chatKey:${sessionId}`, exportedKey);
 
       if (cancelled) return;
 
-      // 3. Connect Socket.io /telemedicine namespace
+      // Connect socket
       const socket = io(`${SOCKET_URL}/telemedicine`, {
-        auth      : { token: sessionStorage.getItem('accessToken') },
+        auth: { token: sessionStorage.getItem('accessToken') },
         transports: ['websocket'],
       });
       socketRef.current = socket;
 
       socket.on('connect', () => {
-        socket.emit('tele:join', { roomId: tokenData.roomId }, (res) => {
+        socket.emit('tele:join', { roomId: tokenData.roomId }, async (res) => {
           if (res?.error) { setError(res.error); setStatus('error'); return; }
-
-          const role = res.role;
-          // Doctor goes straight to admitted; patient waits
-          setStatus(role === 'doctor' ? 'admitted' : 'waiting');
-
-          // Call existing peers
-          if (res.peers?.length) {
-            for (const peer of res.peers) {
-              callPeer(peer.socketId);
-            }
+          setStatus('admitted');
+          // Send offer to each existing peer
+          for (const peer of (res.peers ?? [])) {
+            setPeers(prev => prev.find(p => p.socketId === peer.socketId) ? prev : [...prev, peer]);
+            await sendOffer(peer.socketId);
           }
         });
       });
 
-      // 4. Init PeerJS
-      if (window.Peer) {
-        const peer = new window.Peer(undefined, {
-          host  : PEERJS_HOST,
-          port  : PEERJS_PORT,
-          secure: PEERJS_PORT === 443,
-          path  : '/peerjs',
-          config: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
-            ],
-          },
-        });
-        peerRef.current = peer;
+      // New peer joined — add to list; they will send us an offer
+      socket.on('tele:peer-joined', ({ socketId, userId, firstName, lastName, role }) => {
+        setPeers(prev => prev.find(p => p.socketId === socketId) ? prev : [...prev, { socketId, userId, firstName, lastName, role }]);
+        // The joining peer sends the offer; we just wait
+      });
 
-        // Answer incoming calls
-        peer.on('call', (call) => {
-          call.answer(localStreamRef.current);
-          callsRef.current[call.peer] = call;
-          call.on('stream', (remoteStream) => {
-            attachRemoteStream(call.peer, remoteStream);
-          });
-          call.on('close', () => removeRemoteVideo(call.peer));
-        });
+      // Receive signal
+      socket.on('tele:signal', async ({ signal, fromSocketId, fromUserId, firstName, lastName, role }) => {
+        // Ensure peer exists in list
+        setPeers(prev => prev.find(p => p.socketId === fromSocketId) ? prev : [...prev, { socketId: fromSocketId, userId: fromUserId, firstName, lastName, role }]);
 
-        peer.on('error', (err) => console.error('[peerjs]', err));
-      }
+        const pc = getOrCreatePC(fromSocketId);
 
-      // ── Socket events ───────────────────────────────────────────────────
-      socket.on('tele:peer-joined', ({ socketId, firstName, lastName, role, peerId }) => {
-        setPeers((prev) => [...prev, { socketId, firstName, lastName, role }]);
-        // Call the new peer via PeerJS
-        if (peerId && peerRef.current && localStreamRef.current) {
-          const call = peerRef.current.call(peerId, localStreamRef.current);
-          callsRef.current[socketId] = call;
-          call.on('stream', (remoteStream) => attachRemoteStream(socketId, remoteStream));
-          call.on('close', () => removeRemoteVideo(socketId));
+        try {
+          if (signal.type === 'offer') {
+            // Collision: we already sent an offer and we're the impolite peer → ignore
+            const collision = makingOfferRef.current || pc.signalingState !== 'stable';
+            if (collision && !isPolite) return;
+            // Polite peer rolls back
+            if (collision) {
+              await pc.setLocalDescription({ type: 'rollback' });
+            }
+            await pc.setRemoteDescription(new RTCSessionDescription(signal));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            socket.emit('tele:signal', {
+              roomId: tokenData.roomId,
+              targetSocketId: fromSocketId,
+              signal: pc.localDescription,
+              role: tokenData.role,
+            });
+          } else if (signal.type === 'answer') {
+            if (pc.signalingState === 'have-local-offer') {
+              await pc.setRemoteDescription(new RTCSessionDescription(signal));
+            }
+          } else if (signal.candidate !== undefined) {
+            try {
+              await pc.addIceCandidate(signal.candidate ? new RTCIceCandidate(signal) : null);
+            } catch (e) {
+              if (!isPolite) console.warn('[tele] ICE candidate error:', e.message);
+            }
+          }
+        } catch (e) {
+          console.error('[tele] signal handling error:', e.message);
         }
       });
 
       socket.on('tele:peer-left', ({ userId: leftId }) => {
-        setPeers((prev) => prev.filter((p) => p.userId !== leftId));
+        setPeers(prev => {
+          const leaving = prev.find(p => p.userId === leftId);
+          if (leaving) {
+            pcsRef.current[leaving.socketId]?.close();
+            delete pcsRef.current[leaving.socketId];
+            delete remoteVidsRef.current[leaving.socketId];
+          }
+          return prev.filter(p => p.userId !== leftId);
+        });
       });
 
-      socket.on('tele:admitted', ({ targetUserId }) => {
-        if (targetUserId === currentUser?.id || !targetUserId) {
-          setStatus('admitted');
-        }
-      });
-
-      // Relay WebRTC signals
-      socket.on('tele:signal', ({ signal, fromSocketId }) => {
-        // PeerJS handles its own signaling; this is for raw RTCPeerConnection fallback
-        // In PeerJS mode, signals are handled internally — this is a no-op
-        console.debug('[tele] signal from', fromSocketId, signal?.type);
-      });
-
-      // In-call chat
-      socket.on('tele:chat', async ({ fromUserId, firstName, ciphertext, iv, timestamp }) => {
-        try {
-          const key  = chatKeyRef.current;
-          const text = key ? await decryptMessage(ciphertext, iv, key) : '[encrypted]';
-          setChatMessages((prev) => [
-            ...prev,
-            { text, firstName, timestamp, own: false },
-          ]);
-        } catch {
-          setChatMessages((prev) => [
-            ...prev,
-            { text: '[encrypted message]', firstName, timestamp, own: false },
-          ]);
-        }
+      socket.on('tele:chat', ({ firstName, ciphertext }) => {
+        setChat(prev => [...prev, { text: ciphertext, firstName, own: false }]);
       });
     }
 
-    init().catch((err) => {
-      console.error('[tele] Init error:', err);
-      setError(err.message);
-      setStatus('error');
-    });
+    async function sendOffer(targetSocketId) {
+      const pc = getOrCreatePC(targetSocketId);
+      try {
+        makingOfferRef.current = true;
+        const offer = await pc.createOffer();
+        if (pc.signalingState !== 'stable') return; // aborted
+        await pc.setLocalDescription(offer);
+        socketRef.current?.emit('tele:signal', {
+          roomId: tokenData.roomId,
+          targetSocketId,
+          signal: pc.localDescription,
+          role: tokenData.role,
+        });
+      } catch (e) {
+        console.error('[tele] createOffer error:', e.message);
+      } finally {
+        makingOfferRef.current = false;
+      }
+    }
+
+    function getOrCreatePC(targetSocketId) {
+      if (pcsRef.current[targetSocketId]) return pcsRef.current[targetSocketId];
+
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      pcsRef.current[targetSocketId] = pc;
+
+      // Add local tracks
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(t => pc.addTrack(t, localStreamRef.current));
+      }
+
+      pc.onicecandidate = ({ candidate }) => {
+        socketRef.current?.emit('tele:signal', {
+          roomId: tokenData.roomId,
+          targetSocketId,
+          signal: candidate ?? { candidate: null },
+          role: tokenData.role,
+        });
+      };
+
+      pc.ontrack = ({ streams }) => {
+        const stream = streams[0];
+        if (!stream) return;
+        setPeers(prev => prev.map(p => p.socketId === targetSocketId ? { ...p, stream } : p));
+        const el = remoteVidsRef.current[targetSocketId];
+        if (el) el.srcObject = stream;
+      };
+
+      pc.onnegotiationneeded = async () => {
+        await sendOffer(targetSocketId);
+      };
+
+      pc.onconnectionstatechange = () => {
+        if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+          setPeers(prev => prev.filter(p => p.socketId !== targetSocketId));
+          delete pcsRef.current[targetSocketId];
+        }
+      };
+
+      return pc;
+    }
+
+    init().catch(e => { console.error('[tele] init error:', e); setError(e.message); setStatus('error'); });
 
     return () => {
       cancelled = true;
-      cleanup();
+      localStreamRef.current?.getTracks().forEach(t => t.stop());
+      screenStreamRef.current?.getTracks().forEach(t => t.stop());
+      Object.values(pcsRef.current).forEach(pc => pc.close());
+      pcsRef.current = {};
+      socketRef.current?.disconnect();
     };
   }, [tokenData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function attachRemoteStream(peerId, stream) {
-    setPeers((prev) => {
-      const exists = prev.find((p) => p.socketId === peerId || p.peerId === peerId);
-      if (!exists) return [...prev, { socketId: peerId, stream }];
-      return prev.map((p) =>
-        p.socketId === peerId || p.peerId === peerId ? { ...p, stream } : p
-      );
-    });
-    // Attach to video element if already mounted
-    const el = remoteVideosRef.current[peerId];
-    if (el) el.srcObject = stream;
-  }
-
-  function removeRemoteVideo(peerId) {
-    setPeers((prev) => prev.filter((p) => p.socketId !== peerId));
-    delete remoteVideosRef.current[peerId];
-    delete callsRef.current[peerId];
-  }
-
-  function callPeer(targetSocketId) {
-    if (!peerRef.current || !localStreamRef.current) return;
-    const call = peerRef.current.call(targetSocketId, localStreamRef.current);
-    if (!call) return;
-    callsRef.current[targetSocketId] = call;
-    call.on('stream', (remoteStream) => attachRemoteStream(targetSocketId, remoteStream));
-    call.on('close', () => removeRemoteVideo(targetSocketId));
-  }
-
-  function cleanup() {
-    localStreamRef.current?.getTracks().forEach((t) => t.stop());
-    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
-    Object.values(callsRef.current).forEach((c) => c.close?.());
-    peerRef.current?.destroy();
-    socketRef.current?.disconnect();
-  }
-
   // ── Controls ──────────────────────────────────────────────────────────────
   function toggleMute() {
-    const track = localStreamRef.current?.getAudioTracks()[0];
-    if (!track) return;
-    track.enabled = muted;
-    setMuted((v) => !v);
+    const t = localStreamRef.current?.getAudioTracks()[0];
+    if (!t) return;
+    t.enabled = muted;
+    setMuted(v => !v);
   }
 
   function toggleCamera() {
-    const track = localStreamRef.current?.getVideoTracks()[0];
-    if (!track) return;
-    track.enabled = camOff;
-    setCamOff((v) => !v);
+    const t = localStreamRef.current?.getVideoTracks()[0];
+    if (!t) return;
+    t.enabled = camOff;
+    setCamOff(v => !v);
   }
 
   async function toggleScreenShare() {
     if (sharing) {
-      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+      screenStreamRef.current?.getTracks().forEach(t => t.stop());
       screenStreamRef.current = null;
-      // Restore camera track in all calls
       const camTrack = localStreamRef.current?.getVideoTracks()[0];
       if (camTrack) {
-        Object.values(callsRef.current).forEach((call) => {
-          const sender = call.peerConnection
-            ?.getSenders()
-            .find((s) => s.track?.kind === 'video');
+        Object.values(pcsRef.current).forEach(pc => {
+          const sender = pc.getSenders().find(s => s.track?.kind === 'video');
           sender?.replaceTrack(camTrack);
         });
+        if (localVideoRef.current) localVideoRef.current.srcObject = localStreamRef.current;
       }
       setSharing(false);
     } else {
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        screenStreamRef.current = screenStream;
-        const screenTrack = screenStream.getVideoTracks()[0];
-
-        // Replace video track in all active calls
-        Object.values(callsRef.current).forEach((call) => {
-          const sender = call.peerConnection
-            ?.getSenders()
-            .find((s) => s.track?.kind === 'video');
-          sender?.replaceTrack(screenTrack);
+        const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        screenStreamRef.current = screen;
+        const track = screen.getVideoTracks()[0];
+        Object.values(pcsRef.current).forEach(pc => {
+          const sender = pc.getSenders().find(s => s.track?.kind === 'video');
+          sender?.replaceTrack(track);
         });
-
-        // Also update local preview
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = screenStream;
-        }
-
-        screenTrack.onended = () => toggleScreenShare();
+        if (localVideoRef.current) localVideoRef.current.srcObject = screen;
+        track.onended = () => toggleScreenShare();
         setSharing(true);
-      } catch (err) {
-        console.warn('[tele] Screen share denied:', err.message);
-      }
+      } catch (e) { console.warn('[tele] screen share denied:', e.message); }
     }
   }
 
   function handleEndCall() {
     socketRef.current?.emit('tele:leave', { roomId: tokenData?.roomId });
-    cleanup();
-    setCallEnded(true);
-    if (tokenData?.role === 'doctor') {
-      setNoteModal(true);
-    } else {
-      setStatus('ended');
-    }
+    localStreamRef.current?.getTracks().forEach(t => t.stop());
+    Object.values(pcsRef.current).forEach(pc => pc.close());
+    socketRef.current?.disconnect();
+    if (tokenData?.role === 'doctor') setShowNote(true);
+    else setStatus('ended');
   }
 
-  async function handleSendChat(text) {
-    const key = chatKeyRef.current;
-    if (!key || !socketRef.current) return;
-    try {
-      const { ciphertext, iv } = await encryptMessage(text, key);
-      socketRef.current.emit('tele:chat', {
-        roomId: tokenData.roomId,
-        ciphertext,
-        iv,
-      });
-      setChatMessages((prev) => [
-        ...prev,
-        { text, firstName: currentUser?.firstName, timestamp: new Date().toISOString(), own: true },
-      ]);
-    } catch (err) {
-      console.error('[tele] Chat encrypt error:', err);
-    }
+  function handleSendChat(text) {
+    socketRef.current?.emit('tele:chat', { roomId: tokenData.roomId, ciphertext: text, iv: '' });
+    setChat(prev => [...prev, { text, firstName: user?.firstName, own: true }]);
   }
 
-  function handleAdmitPatient(targetUserId) {
-    socketRef.current?.emit('tele:admit', {
-      roomId: tokenData?.roomId,
-      targetUserId,
-    });
-  }
+  // ── Render ────────────────────────────────────────────────────────────────
+  if (status === 'loading') return (
+    <div className={styles.centerState}>
+      <div className={styles.spinner} aria-label="Loading" />
+      <p>Connecting to session…</p>
+    </div>
+  );
 
-  // ── Render states ─────────────────────────────────────────────────────────
-  if (status === 'loading') {
-    return (
-      <div className={styles.centerState}>
-        <div className={styles.spinner} aria-label="Loading" />
-        <p>Connecting to session…</p>
-      </div>
-    );
-  }
+  if (status === 'too-early') return (
+    <div className={styles.centerState}>
+      <div className={styles.stateIcon}>🕐</div>
+      <h2>Session not started yet</h2>
+      <p>You can join 5 minutes before the scheduled time.</p>
+    </div>
+  );
 
-  if (status === 'too-early') {
-    return (
-      <div className={styles.centerState}>
-        <div className={styles.stateIcon}>🕐</div>
-        <h2>Session not started yet</h2>
-        <p>You can join 5 minutes before the scheduled time.</p>
-      </div>
-    );
-  }
+  if (status === 'error') return (
+    <div className={styles.centerState}>
+      <div className={styles.stateIcon}>⚠️</div>
+      <h2>Cannot join session</h2>
+      <p className={styles.errorText}>{error}</p>
+    </div>
+  );
 
-  if (status === 'error') {
-    return (
-      <div className={styles.centerState}>
-        <div className={styles.stateIcon}>⚠️</div>
-        <h2>Cannot join session</h2>
-        <p className={styles.errorText}>{error}</p>
-      </div>
-    );
-  }
-
-  if (status === 'ended' && !showNoteModal) {
-    return (
-      <div className={styles.centerState}>
-        <div className={styles.stateIcon}>✅</div>
-        <h2>Session ended</h2>
-        <p>The video consultation has ended.</p>
-      </div>
-    );
-  }
+  if (status === 'ended' && !showNote) return (
+    <div className={styles.centerState}>
+      <div className={styles.stateIcon}>✅</div>
+      <h2>Session ended</h2>
+      <p>The video consultation has ended.</p>
+    </div>
+  );
 
   return (
     <div className={styles.room}>
-      {/* Video grid */}
       <div className={`${styles.videoGrid} ${peers.length > 0 ? styles.hasRemote : ''}`}>
-        {/* Local video */}
+        {/* Local */}
         <div className={styles.videoTile}>
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            playsInline
-            className={styles.video}
-          />
-          <div className={styles.videoLabel}>
-            You {muted && <span className={styles.mutedTag}>🔇</span>}
-          </div>
+          <video ref={localVideoRef} autoPlay muted playsInline className={styles.video} />
+          <div className={styles.videoLabel}>You {muted && <span className={styles.mutedTag}>🔇</span>}</div>
         </div>
 
-        {/* Remote videos */}
-        {peers.map((peer) => (
+        {/* Remote */}
+        {peers.filter(p => p.socketId).map(peer => (
           <div key={peer.socketId} className={styles.videoTile}>
-            <video
-              autoPlay
-              playsInline
-              className={styles.video}
-              ref={(el) => {
+            <video autoPlay playsInline className={styles.video}
+              ref={el => {
                 if (el) {
-                  remoteVideosRef.current[peer.socketId] = el;
+                  remoteVidsRef.current[peer.socketId] = el;
                   if (peer.stream) el.srcObject = peer.stream;
                 }
               }}
@@ -516,106 +436,38 @@ export default function TeleRoom({ sessionId, currentUser }) {
             </div>
           </div>
         ))}
-
-        {/* Waiting room overlay for patient */}
-        {status === 'waiting' && (
-          <div className={styles.waitingOverlay}>
-            <div className={styles.waitingSpinner} />
-            <p>Waiting for the doctor to admit you…</p>
-          </div>
-        )}
       </div>
-
-      {/* Doctor: admit patient button */}
-      {tokenData?.role === 'doctor' && peers.some((p) => p.role === 'patient') && (
-        <div className={styles.admitBar}>
-          {peers
-            .filter((p) => p.role === 'patient')
-            .map((p) => (
-              <button
-                key={p.socketId}
-                className={styles.admitBtn}
-                onClick={() => handleAdmitPatient(p.userId)}
-              >
-                Admit {p.firstName} {p.lastName}
-              </button>
-            ))}
-        </div>
-      )}
 
       {/* Controls */}
       <div className={styles.controls} role="toolbar" aria-label="Call controls">
-        <button
-          className={`${styles.ctrlBtn} ${muted ? styles.active : ''}`}
-          onClick={toggleMute}
-          aria-label={muted ? 'Unmute' : 'Mute'}
-          title={muted ? 'Unmute' : 'Mute'}
-        >
+        <button className={`${styles.ctrlBtn} ${muted ? styles.active : ''}`} onClick={toggleMute} title={muted ? 'Unmute' : 'Mute'}>
           {muted ? '🔇' : '🎙️'}
         </button>
-
-        <button
-          className={`${styles.ctrlBtn} ${camOff ? styles.active : ''}`}
-          onClick={toggleCamera}
-          aria-label={camOff ? 'Enable camera' : 'Disable camera'}
-          title={camOff ? 'Enable camera' : 'Disable camera'}
-        >
+        <button className={`${styles.ctrlBtn} ${camOff ? styles.active : ''}`} onClick={toggleCamera} title={camOff ? 'Enable camera' : 'Disable camera'}>
           {camOff ? '📷' : '📹'}
         </button>
-
-        <button
-          className={`${styles.ctrlBtn} ${sharing ? styles.active : ''}`}
-          onClick={toggleScreenShare}
-          aria-label={sharing ? 'Stop sharing' : 'Share screen'}
-          title={sharing ? 'Stop sharing' : 'Share screen'}
-        >
+        <button className={`${styles.ctrlBtn} ${sharing ? styles.active : ''}`} onClick={toggleScreenShare} title={sharing ? 'Stop sharing' : 'Share screen'}>
           🖥️
         </button>
-
-        <button
-          className={`${styles.ctrlBtn} ${showChat ? styles.active : ''}`}
-          onClick={() => setShowChat((v) => !v)}
-          aria-label="Toggle chat"
-          title="Chat"
-        >
+        <button className={`${styles.ctrlBtn} ${showChat ? styles.active : ''}`} onClick={() => setShowChat(v => !v)} title="Chat">
           💬
         </button>
-
-        <button
-          className={`${styles.ctrlBtn} ${styles.endBtn}`}
-          onClick={handleEndCall}
-          aria-label="End call"
-          title="End call"
-        >
+        <button className={`${styles.ctrlBtn} ${styles.endBtn}`} onClick={handleEndCall} title="End call">
           📵
         </button>
       </div>
 
-      {/* Chat sidebar */}
-      {showChat && (
-        <ChatSidebar
-          messages={chatMessages}
-          onSend={handleSendChat}
-          onClose={() => setShowChat(false)}
-        />
-      )}
+      {showChat && <ChatSidebar messages={chatMessages} onSend={handleSendChat} onClose={() => setShowChat(false)} />}
 
-      {/* Consultation note modal (doctor only, after end) */}
-      {showNoteModal && (
+      {showNote && (
         <ConsultationNoteModal
           sessionId={sessionId}
-          onSaved={() => { setNoteModal(false); setStatus('ended'); }}
+          onSaved={() => { setShowNote(false); setStatus('ended'); }}
           onSkip={async () => {
-            // Still mark session ended on server
-            await fetch(`${API_BASE}/telemedicine/sessions/${sessionId}/end`, {
-              method : 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization : `Bearer ${sessionStorage.getItem('accessToken')}`,
-              },
-              body: JSON.stringify({}),
+            await apiFetch(`${API_BASE}/telemedicine/sessions/${sessionId}/end`, {
+              method: 'PATCH', body: JSON.stringify({}),
             }).catch(console.error);
-            setNoteModal(false);
+            setShowNote(false);
             setStatus('ended');
           }}
         />

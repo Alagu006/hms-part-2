@@ -3,6 +3,10 @@ import { z } from 'zod';
 const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const uuid = z.string().regex(uuidV4Regex, 'Invalid UUID');
 
+export const lookupPatientByMrnSchema = z.object({
+  query: z.object({ mrn: z.string().min(1).max(50) }),
+});
+
 export const createPatientSchema = z.object({
   body: z.object({
     firstName       : z.string().min(1).max(100),
@@ -54,4 +58,8 @@ export const timelineSchema = z.object({
     page : z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(50).default(20),
   }),
+});
+
+export const getMedicalRecordSchema = z.object({
+  params: z.object({ id: uuid }),
 });

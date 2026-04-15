@@ -1,5 +1,5 @@
 import { pool }  from '../../shared/db/pool.js';
-import { redis } from '../../shared/db/redis.js';
+import { redis } from '../../shared/services/redis.service.js';
 
 const CACHE_TTL = 5 * 60; // 5 minutes
 

@@ -1,206 +1,207 @@
-# Hospital Management System (HMS)
+# City General Hospital Hospital Management System (HMS)
 
-Full-stack HMS built with Node.js / Express, PostgreSQL, Redis, React, and Socket.io.
-
----
-
-## Prerequisites
-
-- Docker & Docker Compose v2
-- Node.js 20+ (for local dev without Docker)
-- An RSA-256 key pair for JWT signing
+A full-stack, role-based hospital management system built as a college project. It covers patient registration, appointments, telemedicine, electronic health records, billing, pharmacy, lab management, inventory, and more — all backed by a fine-grained RBAC system with 19 roles.
 
 ---
 
-## 1. Generate JWT Keys
+## Tech Stack
+
+| Layer      | Technology                                              |
+|------------|---------------------------------------------------------|
+| Frontend   | React 18 + Vite, React Router 6, TanStack Query v5     |
+| Backend    | Node.js + Express (ES Modules)                          |
+| Database   | PostgreSQL 16 + pgcrypto (field-level encryption)       |
+| Cache/Queue| Redis 7 + BullMQ                                        |
+| Auth       | JWT RS256 (asymmetric), Argon2id, CSRF tokens           |
+| Realtime   | Socket.io (WebSocket)                                   |
+| Payments   | Razorpay (test mode)                                    |
+| Email      | Nodemailer (SMTP, Mailhog in dev)                       |
+| File Store | Local filesystem with AES-256-GCM client-side encrypt  |
+| AI         | Gemini / OpenAI / Ollama (configurable per request)     |
+
+---
+
+## How to Run Locally
+
+### Prerequisites
+
+- **Node.js** 18 or higher
+- **Docker** and **Docker Compose**
+
+### 1. Environment setup
 
 ```bash
-mkdir -p secrets
-openssl genrsa -out secrets/jwt_private.pem 4096
-openssl rsa -in secrets/jwt_private.pem -pubout -out secrets/jwt_public.pem
+cp server/.env.example server/.env
 ```
 
----
+In `server/.env`, fill in the required secrets:
+- `PG_CRYPTO_KEY` — any 32-character string for PostgreSQL field-level encryption
+- `DB_ENCRYPTION_KEY` — any 32-character string for database field encryption
 
-## 2. Environment Variables
-
-Copy `.env.example` to `.env` and fill in the values.
-
-| Variable | Required | Description |
-|---|---|---|
-| `DB_NAME` | yes | PostgreSQL database name (default: `hms`) |
-| `DB_USER` | yes | PostgreSQL user (default: `hms_user`) |
-| `DB_PASSWORD` | yes | PostgreSQL password |
-| `DB_HOST` | yes | DB host (default: `localhost`) |
-| `DB_PORT` | no | DB port (default: `5432`) |
-| `DB_POOL_MAX` | no | Max PG pool connections (default: `20`) |
-| `DB_SSL` | no | `true` to enable SSL |
-| `REDIS_HOST` | yes | Redis host (default: `localhost`) |
-| `REDIS_PORT` | no | Redis port (default: `6379`) |
-| `REDIS_PASSWORD` | yes | Redis password |
-| `JWT_PRIVATE_KEY_PATH` | yes | Path to RSA private key PEM |
-| `JWT_PUBLIC_KEY_PATH` | yes | Path to RSA public key PEM |
-| `JWT_ISSUER` | no | JWT issuer claim (default: `hms`) |
-| `JWT_AUDIENCE` | no | JWT audience claim (default: `hms-client`) |
-| `DB_ENCRYPTION_KEY` | yes | 32-byte hex key for pgcrypto field encryption |
-| `VAPID_PUBLIC_KEY` | yes | Web Push VAPID public key |
-| `VAPID_PRIVATE_KEY` | yes | Web Push VAPID private key |
-| `VAPID_SUBJECT` | yes | VAPID contact email (`mailto:...`) |
-| `CLIENT_ORIGIN` | yes | React app origin for CORS (e.g. `http://localhost:5173`) |
-| `PORT` | no | API server port (default: `4000`) |
-| `FILE_STORAGE_PATH` | no | Disk path for encrypted file uploads (default: `./uploads`) |
-| `MAX_FILE_SIZE_BYTES` | no | Max upload size in bytes (default: `20971520` = 20 MB) |
-| `OPENAI_API_KEY` | yes | OpenAI key for patient chatbot |
-| `AWS_REGION` | no | AWS region for S3 report storage |
-| `AWS_S3_BUCKET` | no | S3 bucket name for reports |
-| `SEED_ADMIN_PASSWORD` | no | Override default SUPER_ADMIN password during seeding |
-| `SLOW_QUERY_THRESHOLD_MS` | no | Log queries slower than this (default: `500`) |
-
-### Generate VAPID keys
-
-```bash
-npx web-push generate-vapid-keys
-```
-
-### Generate DB encryption key
-
+Generate a 32-byte hex key:
 ```bash
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
----
+### 2. JWT key generation
 
-## 3. Run with Docker Compose
+The server uses RS256 (asymmetric) JWT signing. Generate a key pair:
 
 ```bash
-# Start all services (Postgres, Redis, API server, React dev server)
-docker compose up --build
-
-# Run in background
-docker compose up -d --build
-
-# View logs
-docker compose logs -f server
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -pubout -out public.pem
 ```
 
-The API will be available at `http://localhost:4000` and the React app at `http://localhost:5173`.
-
----
-
-## 4. Database Setup & Seeding
-
-The schema is applied automatically by Docker on first run via `docker-entrypoint-initdb.d`.
-
-To seed default data (departments, SUPER_ADMIN, message groups, medicines):
+Move the keys into `server/secrets/`:
 
 ```bash
-# Inside Docker
-docker compose exec server node src/db/seed.js
+mkdir -p server/secrets
+mv private.pem server/secrets/jwt_private.pem
+mv public.pem  server/secrets/jwt_public.pem
+```
 
-# Or locally (with .env loaded)
+### 3. Start infrastructure services
+
+```bash
+docker-compose up -d
+```
+
+This starts PostgreSQL (port 5555), Redis (port 6379), and Mailhog (port 1025 for SMTP, port 8025 for web UI).
+
+### 4. Start the server
+
+```bash
+cd server && npm install && npm run dev
+```
+
+The API runs on **http://localhost:4000**.
+
+### 5. Start the client
+
+```bash
+cd client && npm install && npm run dev
+```
+
+Open **http://localhost:5173** in your browser.
+
+### 6. Seed the database
+
+On first run, seed the database with departments and the super admin account:
+
+```bash
 node server/src/db/seed.js
 ```
 
-Default SUPER_ADMIN credentials:
-- Employee ID: `SA001`
-- Password: value of `SEED_ADMIN_PASSWORD` env var (default: `Admin@12345!`)
+### Default Super Admin credentials
 
-**Change this password immediately after first login.**
+| Field    | Value                  |
+|----------|------------------------|
+| Email    | `admin@hospital.local` |
+| Password | `ChangeMe123!`         |
 
----
+> Change this password after first login.
 
-## 5. Local Development (without Docker)
+### Email testing
 
-```bash
-# Install server dependencies
-cd server && npm install
+All outgoing emails (appointment confirmations, OTPs, billing receipts, etc.) are captured by Mailhog. View them at:
 
-# Install client dependencies
-cd client && npm install
+**http://localhost:8025**
 
-# Start API server (watches for changes)
-cd server && npm run dev
+For local SMTP delivery, configure in `server/.env`:
 
-# Start React dev server
-cd client && npm run dev
+```
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
 ```
 
 ---
 
-## 6. Running Migrations
+## All 19 RBAC Roles
 
-Migration files in `server/src/db/migrations/` are applied in filename order. To apply manually:
-
-```bash
-psql -U $DB_USER -d $DB_NAME -f server/src/db/migrations/004_clinical_modules.sql
-psql -U $DB_USER -d $DB_NAME -f server/src/db/migrations/005_billing_module.sql
-psql -U $DB_USER -d $DB_NAME -f server/src/db/migrations/005_report_jobs.sql
-```
-
----
-
-## 7. Architecture Overview
-
-```
-client/          React + Vite SPA
-  src/
-    App.jsx              React Router + role-based guards
-    modules/             Feature modules (admin, doctor, nurse, …)
-    shared/
-      store/index.js     Zustand store (auth, notifications, messaging)
-      hooks/             useNotifications, etc.
-      components/        Encrypted file upload/download
-      utils/             crypto, inactivity helpers
-
-server/
-  src/
-    app.js               Express app + middleware stack
-    socket.js            Socket.io init + namespace registration
-    modules/             20 feature modules (routes, controllers, services)
-    shared/
-      middleware/        auth, rbac, rateLimiter, audit, validate
-      db/                pool.js, redis.js
-      services/          notification, webpush, redis
-    db/
-      schema.sql         Full PostgreSQL schema
-      migrations/        Incremental migration files
-      seed.js            Seed script
-```
+| #  | Role             | Code             |
+|----|------------------|------------------|
+| 1  | Super Admin      | `SUPER_ADMIN`    |
+| 2  | Admin            | `ADMIN`          |
+| 3  | Doctor           | `DOCTOR`         |
+| 4  | Nurse            | `NURSE`          |
+| 5  | Receptionist     | `RECEPTIONIST`   |
+| 6  | Lab Technician   | `LAB_TECH`       |
+| 7  | Pharmacist       | `PHARMACIST`     |
+| 8  | Inventory Manager| `INVENTORY`      |
+| 9  | Radiologist      | `RADIOLOGIST`    |
+| 10 | Billing Staff    | `BILLING`        |
+| 11 | HR Manager       | `HR`             |
+| 12 | Dietitian        | `DIETITIAN`      |
+| 13 | Physiotherapist   | `PHYSIO`         |
+| 14 | Anaesthetist     | `ANESTHETIST`    |
+| 15 | Social Worker    | `SOCIAL_WORKER`  |
+| 16 | IT Admin         | `IT_ADMIN`       |
+| 17 | Security Officer | `SECURITY_OFC`   |
+| 18 | Orderly          | `ORDERLY`        |
+| 19 | Patient          | `PATIENT`        |
 
 ---
 
-## 8. API Base URL
+## Architecture
 
-All REST endpoints are prefixed with `/api`:
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                        Browser (React SPA)                        │
+│   ┌──────────────┐   ┌──────────────┐   ┌────────────────────┐  │
+│   │ React Router │   │ TanStack Q  │   │ Socket.io Client   │  │
+│   │  (routing)   │   │  (queries)  │   │  (realtime events) │  │
+│   └──────────────┘   └──────────────┘   └────────────────────┘  │
+│   Auth state: Zustand store + sessionStorage JWT                 │
+└─────────────────────────────┬────────────────────────────────────┘
+                              │ HTTP + WebSocket
+                              ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                         API Server (Express)                     │
+│  ┌────────────┐ ┌─────────────┐ ┌────────────┐ ┌────────────┐  │
+│  │  Routers  │ │ Middleware  │ │  Services  │ │  Workers   │  │
+│  │ (19 RBAC) │ │ (JWT/CORS)  │ │  (domain)  │ │ (BullMQ/Q) │  │
+│  └────────────┘ └─────────────┘ └────────────┘ └────────────┘  │
+│  ┌────────────┐ ┌─────────────┐ ┌────────────┐                  │
+│  │ Web Push   │ │ Socket.io  │ │  Email     │                  │
+│  │ (VAPID)    │ │  (server)  │ │(Nodemailer)│                  │
+│  └────────────┘ └─────────────┘ └────────────┘                  │
+│  File encryption: AES-256-GCM (client-side)                      │
+│  DB encryption:   pgcrypto (server-side fields)                 │
+└──────┬─────────────────────┬───────────────────────┬────────────┘
+       │                     │                       │
+       ▼                     ▼                       ▼
+┌──────────────┐    ┌──────────────┐       ┌──────────────┐
+│  PostgreSQL   │    │    Redis     │       │   SMTP /     │
+│  (primary DB) │    │(cache/queue) │       │  Mailhog     │
+│  Port 5555   │    │  Port 6379   │       │  Port 1025   │
+└──────────────┘    └──────────────┘       └──────────────┘
+```
 
-| Prefix | Module |
-|---|---|
-| `/api/auth` | Login, refresh, logout, OTP |
-| `/api/patients` | Patient CRUD + timeline |
-| `/api/prescriptions` | Prescriptions + dispense |
-| `/api/vitals` | Vitals recording |
-| `/api/discharge-summaries` | Discharge summaries |
-| `/api/bills` | Billing + insurance |
-| `/api/inventory` | Inventory + beds + QR |
-| `/api/blood-bank` | Blood bank |
-| `/api/ot-schedules` | OT scheduling |
-| `/api/telemedicine` | Telemedicine sessions |
-| `/api/messaging` | Group messaging REST |
-| `/api/notifications` | Notifications + Web Push |
-| `/api/broadcasts` | Admin broadcasts |
-| `/api/leaves` | Leave management |
-| `/api/incidents` | Incident reports |
-| `/api/analytics` | Analytics + reports |
-| `/api/files` | Encrypted file upload/download |
-| `/api/chatbot` | Patient AI chatbot |
-| `/api/admin` | Admin panel (users, audit, sessions) |
+### Request flow
 
-## 9. Socket.io Namespaces
+1. Browser loads React SPA → `TanStack Query` fetches initial data
+2. JWT stored in `sessionStorage` → sent as `Authorization: Bearer <token>` header
+3. Express middleware validates JWT RS256 signature using public key
+4. RBAC middleware checks role permissions against route guard config
+5. Service layer handles business logic, reads/writes PostgreSQL
+6. Async jobs (email, push notifications, report generation) are enqueued to BullMQ → processed by Redis-backed workers
+7. Socket.io broadcasts real-time events (telemedicine, messaging, notifications)
+8. File uploads are AES-256-GCM encrypted client-side before transmission; decryption keys stored in browser `sessionStorage`
 
-| Namespace | Purpose |
-|---|---|
-| `/notifications` | Real-time notification push |
-| `/messaging` | Group chat, typing indicators, presence |
-| `/telemedicine` | WebRTC signaling, in-call chat |
+### Key domain modules
 
-All namespaces require a valid JWT passed as `socket.handshake.auth.token`.
+- **Patient** — registration, appointments, prescriptions, billing, timeline
+- **Doctor** — scheduling, prescriptions, discharge, EHR, OPD
+- **Nurse** — vitals recording, ward assignments, handover notes
+- **Pharmacy** — dispensing, stock management
+- **Lab** — sample tracking, result reporting
+- **Billing** — generate bills, Razorpay payments, financial reports
+- **Inventory** — bed management, QR codes, stock tracking
+- **Telemedicine** — WebRTC via PeerJS + Socket.io, end-to-end encrypted chat
+- **Messaging** — encrypted group messaging across roles
+- **Notifications** — browser Web Push + in-app bell
+- **AI Chatbot** — Gemini / OpenAI / Ollama-powered patient assistant
+- **File Storage** — client-side encrypted uploads, PDF downloads

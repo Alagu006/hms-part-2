@@ -1,0 +1,581 @@
+.page {
+  padding: 24px;
+  max-width: 1600px;
+}
+
+// ── Stats row ────────────────────────────────────────────────────────────────
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.statCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 18px 20px;
+}
+
+.statLabel {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.statValue {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.statAlert {
+  border-color: #fca5a5;
+  background: #fef2f2;
+
+  .statLabel { color: #d97706; }
+  .statValue { color: #d97706; }
+}
+
+// ── Two-column layout ───────────────────────────────────────────────────────
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+  align-items: start;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.leftCol,
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+// ── Section ────────────────────────────────────────────────────────────────
+.section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #f9fafb;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badgeAlert {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+// ── Table styles ────────────────────────────────────────────────────────────
+.tableWrapper {
+  overflow-x: auto;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.tableLoading {
+  padding: 14px;
+}
+
+.shiftLoading {
+  padding: 14px;
+}
+
+.leaveTable,
+.balanceTable,
+.absentTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  th {
+    position: sticky;
+    top: 0;
+    text-align: left;
+    padding: 10px 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+    z-index: 1;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+    vertical-align: top;
+  }
+}
+
+.leaveRow {
+  &:hover {
+    background: #fafafa;
+  }
+}
+
+.absentRow {
+  &:hover {
+    background: #fafafa;
+  }
+}
+
+.balanceRow {
+  &:hover {
+    background: #fafafa;
+  }
+}
+
+// ── Leave Row Cells ─────────────────────────────────────────────────────────
+.nameCell {
+  min-width: 150px;
+}
+
+.employeeName {
+  display: block;
+  font-weight: 500;
+  color: #111827;
+}
+
+.employeeId {
+  display: block;
+  font-size: 0.6875rem;
+  color: #9ca3af;
+  font-family: monospace;
+}
+
+.dateCell {
+  white-space: nowrap;
+}
+
+.dateSeparator {
+  margin: 0 6px;
+  color: #9ca3af;
+}
+
+.daysCell {
+  text-align: center;
+  font-weight: 600;
+  min-width: 60px;
+}
+
+.returnCell {
+  font-size: 0.75rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+// ── Badges ──────────────────────────────────────────────────────────────────
+.roleBadge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.typeBadge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.typeANNUAL { background: #dbeafe; color: #1e40af; }
+.typeSICK { background: #fce7f3; color: #9d174d; }
+.typeMATERNITY { background: #f3e8ff; color: #6b21a8; }
+.typePATERNITY { background: #e0e7ff; color: #3730a3; }
+.typeUNPAID { background: #f3f4f6; color: #6b7280; }
+.typeEMERGENCY { background: #fee2e2; color: #991b1b; }
+.typeCOMPENSATORY { background: #d1fae5; color: #065f46; }
+
+// ── Reason cell ─────────────────────────────────────────────────────────────
+.reasonCell {
+  max-width: 200px;
+}
+
+.reasonText {
+  font-size: 0.8125rem;
+  color: #374151;
+  cursor: pointer;
+  line-height: 1.4;
+  word-break: break-word;
+
+  &:hover {
+    color: #1a56db;
+  }
+}
+
+.expandToggle {
+  color: #9ca3af;
+  font-size: 0.6875rem;
+}
+
+.noReason {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+// ── Action buttons ──────────────────────────────────────────────────────────
+.actionCell {
+  min-width: 140px;
+}
+
+.actionBtns {
+  display: flex;
+  gap: 8px;
+}
+
+.approveBtn,
+.rejectBtn {
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.approveBtn {
+  border: 1px solid #059669;
+  background: #fff;
+  color: #059669;
+
+  &:hover:not(:disabled) {
+    background: #ecfdf5;
+  }
+}
+
+.rejectBtn {
+  border: 1px solid #dc2626;
+  background: #fff;
+  color: #dc2626;
+
+  &:hover:not(:disabled) {
+    background: #fef2f2;
+  }
+}
+
+// ── Reject form ─────────────────────────────────────────────────────────────
+.rejectRow {
+  td {
+    padding: 0 12px 12px;
+    background: #fef2f2;
+  }
+}
+
+.rejectForm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.rejectInput {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  font-size: 0.875rem;
+
+  &:focus {
+    outline: none;
+    border-color: #dc2626;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+  }
+}
+
+.confirmRejectBtn,
+.cancelRejectBtn {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.confirmRejectBtn {
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #b91c1c;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.cancelRejectBtn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #6b7280;
+
+  &:hover {
+    background: #f9fafb;
+  }
+}
+
+// ── Balance Table ────────────────────────────────────────────────────────────
+.noBalance {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.hasBalance {
+  color: #059669;
+  font-weight: 600;
+}
+
+.usageBar {
+  width: 100px;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.usageFill {
+  height: 100%;
+  background: #1a56db;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+// ── Shift Groups ────────────────────────────────────────────────────────────
+.shiftGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 14px 18px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.shiftGroup {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.shiftGroupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.departmentName {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.editShiftBtn {
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: not-allowed;
+  opacity: 0.5;
+
+  &[disabled] {
+    cursor: not-allowed;
+  }
+}
+
+.shiftRows {
+  display: flex;
+  flex-direction: column;
+}
+
+.shiftRow {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f3f4f6;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.shiftLabel {
+  width: 80px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+}
+
+.staffPills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.staffPill {
+  display: inline-flex;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.noStaff {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+// ── Toast ───────────────────────────────────────────────────────────────────
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideIn 0.3s ease-out;
+  z-index: 1001;
+}
+
+.toastSuccess {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.toastError {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.toastClose {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  padding: 0;
+  line-height: 1;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+// ── States ─────────────────────────────────────────────────────────────────
+.emptyState,
+.errorState {
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.errorState {
+  color: #ef4444;
+}
+
+// ── Skeleton ───────────────────────────────────────────────────────────────
+.skeleton {
+  display: block;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

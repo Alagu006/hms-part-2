@@ -20,9 +20,9 @@ router.get('/availability', authorize('*'), ctrl.getAvailability);
 router.post('/request', authorize('DOCTOR'), validate(requestBloodSchema), ctrl.requestBlood);
 
 // CRUD — ADMIN, LAB_TECH
-router.get(  '/',    authorize('ADMIN','SUPER_ADMIN','LAB_TECH','DOCTOR','NURSE'), ctrl.getBloodUnits);
+router.get(  '/',    authorize('ADMIN','SUPER_ADMIN','LAB_TECH','DOCTOR','NURSE','INVENTORY'), ctrl.getBloodUnits);
 router.post( '/',    authorize('ADMIN','SUPER_ADMIN','LAB_TECH'), validate(createBloodUnitSchema), ctrl.createBloodUnit);
-router.get(  '/:id', authorize('ADMIN','SUPER_ADMIN','LAB_TECH','DOCTOR','NURSE'), validate(bloodUnitParamSchema), ctrl.getBloodUnit);
+router.get(  '/:id', authorize('ADMIN','SUPER_ADMIN','LAB_TECH','DOCTOR','NURSE','INVENTORY'), validate(bloodUnitParamSchema), ctrl.getBloodUnit);
 router.patch('/:id', authorize('ADMIN','SUPER_ADMIN','LAB_TECH'), validate(updateBloodUnitSchema), ctrl.updateBloodUnit);
 router.delete('/:id',authorize('ADMIN','SUPER_ADMIN'), validate(bloodUnitParamSchema), ctrl.deleteBloodUnit);
 

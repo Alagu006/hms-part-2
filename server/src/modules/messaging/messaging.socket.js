@@ -125,7 +125,7 @@ export function registerMessagingSocket(io) {
 
         const outbound = {
           ...message,
-          senderName: `${user.firstName} ${user.lastName}`,
+          sender_name: `${user.firstName} ${user.lastName}`,
           status    : 'sent',
         };
 

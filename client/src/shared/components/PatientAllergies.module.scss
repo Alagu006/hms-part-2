@@ -1,0 +1,338 @@
+@use '../styles/mixins' as *;
+
+.wrap {
+  position: relative;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.header {
+  @include flex-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  margin: 0;
+}
+
+.patientLabel {
+  font-weight: 400;
+  color: var(--text-muted, #6b7280);
+  font-size: 0.9rem;
+}
+
+.severeBanner {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #991b1b;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220,38,38,0); }
+  50%       { box-shadow: 0 0 0 4px rgba(220,38,38,0.15); }
+}
+
+.addBtn {
+  padding: 7px 16px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  &:hover { background: #1648c0; }
+}
+
+/* ── Allergy list ─────────────────────────────────────────────────────────── */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.allergyCard {
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-left: 4px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px 16px;
+  transition: box-shadow 0.15s;
+
+  &:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+
+  &.severe {
+    border-left-color: #dc2626;
+    background: #fff5f5;
+  }
+}
+
+.allergyTop {
+  @include flex-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.allergyMain {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.allergyName {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+}
+
+.allergyType {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #6b7280);
+  background: var(--bg-subtle, #f3f4f6);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.severityBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.allergyActions {
+  display: flex;
+  gap: 6px;
+}
+
+.editBtn {
+  padding: 4px 12px;
+  background: var(--bg-subtle, #f3f4f6);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 5px;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #374151);
+  cursor: pointer;
+  &:hover { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+}
+
+.deleteBtn {
+  padding: 4px 12px;
+  background: transparent;
+  border: 1px solid #fca5a5;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  color: #dc2626;
+  cursor: pointer;
+  &:hover { background: #fee2e2; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.allergyReaction {
+  font-size: 0.8125rem;
+  color: var(--text-secondary, #374151);
+  margin: 4px 0 0;
+}
+
+.allergyNotes {
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7280);
+  margin: 4px 0 0;
+  font-style: italic;
+}
+
+.allergyMeta {
+  font-size: 0.72rem;
+  color: var(--text-muted, #9ca3af);
+  margin: 6px 0 0;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-muted, #9ca3af);
+  font-size: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.emptyIcon { font-size: 2rem; }
+
+/* ── Add / Edit form ─────────────────────────────────────────────────────── */
+.formCard {
+  background: var(--bg-subtle, #f9fafb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+
+  @include mobile { grid-template-columns: 1fr; }
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary, #374151);
+  .req { color: #ef4444; margin-left: 2px; }
+}
+
+.input, .select, .textarea {
+  padding: 9px 12px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: var(--text-primary, #111827);
+  background: var(--bg-card, #fff);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:focus {
+    border-color: #1a56db;
+    box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+  }
+}
+
+.textarea { resize: vertical; min-height: 60px; }
+
+.severityGroup {
+  display: flex;
+  gap: 5px;
+}
+
+.severityBtn {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 5px;
+  background: var(--bg-card, #fff);
+  color: var(--text-muted, #6b7280);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  &:hover { border-color: #9ca3af; }
+}
+
+.severityActive { color: #fff !important; }
+
+.quickChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.quickChip {
+  padding: 3px 10px;
+  background: var(--bg-subtle, #f3f4f6);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #374151);
+  cursor: pointer;
+  transition: all 0.12s;
+  &:hover { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+}
+
+.quickChipActive {
+  background: #eff6ff !important;
+  border-color: #1a56db !important;
+  color: #1d4ed8 !important;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancelBtn {
+  padding: 8px 18px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  background: var(--bg-card, #fff);
+  color: var(--text-secondary, #374151);
+  font-size: 0.875rem;
+  cursor: pointer;
+  &:hover { background: var(--bg-subtle, #f3f4f6); }
+}
+
+.saveBtn {
+  padding: 8px 20px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover:not(:disabled) { background: #1648c0; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  z-index: 2000;
+  animation: slideUp 0.2s ease;
+
+  &.success { background: #15803d; }
+  &.error   { background: #b91c1c; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

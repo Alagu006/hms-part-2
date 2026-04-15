@@ -469,3 +469,44 @@ export async function importFromCsv(buffer, userId, ip, userAgent) {
 
   return results;
 }
+
+// ---------------------------------------------------------------------------
+// Rooms & Beds — create
+// ---------------------------------------------------------------------------
+export async function createRoom({ roomNumber, roomType, floor, departmentId }, userId, ip, userAgent) {
+  const { rows } = await query(
+    `INSERT INTO rooms (room_number, room_type, floor, department_id, is_active, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, TRUE, NOW(), NOW())
+     RETURNING *`,
+    [roomNumber, roomType, floor, departmentId ?? null]
+  );
+  await auditLog({
+    userId, action: 'CREATE', entity: 'rooms',
+    entityId: rows[0].id,
+    prevData: null, nextData: rows[0],
+    ip, userAgent,
+  });
+  return rows[0];
+}
+
+export async function createBed({ roomId, bedNumber }, userId, ip, userAgent) {
+  // verify room exists
+  const { rows: roomRows } = await query(
+    `SELECT id FROM rooms WHERE id = $1 AND deleted_at IS NULL`, [roomId]
+  );
+  if (!roomRows[0]) return null;
+
+  const { rows } = await query(
+    `INSERT INTO beds (room_id, bed_number, status, created_at, updated_at)
+     VALUES ($1, $2, 'AVAILABLE', NOW(), NOW())
+     RETURNING *`,
+    [roomId, bedNumber]
+  );
+  await auditLog({
+    userId, action: 'CREATE', entity: 'beds',
+    entityId: rows[0].id,
+    prevData: null, nextData: rows[0],
+    ip, userAgent,
+  });
+  return rows[0];
+}

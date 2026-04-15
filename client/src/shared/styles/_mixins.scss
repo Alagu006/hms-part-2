@@ -1,0 +1,66 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Breakpoints
+// ─────────────────────────────────────────────────────────────────────────────
+$bp-mobile  : 480px;
+$bp-tablet  : 768px;
+$bp-desktop : 1024px;
+
+@mixin mobile  { @media (max-width: $bp-mobile)  { @content; } }
+@mixin tablet  { @media (max-width: $bp-tablet)  { @content; } }
+@mixin desktop { @media (max-width: $bp-desktop) { @content; } }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layout helpers
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin flex-center($direction: row) {
+  display: flex;
+  flex-direction: $direction;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// Fluid padding: full on desktop → tighter on mobile
+@mixin responsive-padding {
+  padding: clamp(0.75rem, 3vw, 2rem);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Touch target — ensures minimum 44×44px tap area
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tap feedback (replaces hover-only interactions on mobile)
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin tap-feedback {
+  transition: opacity 0.15s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  &:active { opacity: 0.75; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scrollable table wrapper
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Card base
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}

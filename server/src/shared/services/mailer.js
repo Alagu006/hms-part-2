@@ -22,7 +22,7 @@ transporter.verify((err) => {
   else     console.log('[mailer] SMTP ready');
 });
 
-export const FROM = `"${process.env.HOSPITAL_NAME || 'HMS'}" <${process.env.SMTP_USER}>`;
+export const FROM = `"${process.env.HOSPITAL_NAME || 'HMS'}" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'hms@hospital.local'}>`;
 
 export async function sendMail({ to, subject, html }) {
   return transporter.sendMail({ from: FROM, to, subject, html });

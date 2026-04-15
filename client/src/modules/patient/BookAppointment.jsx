@@ -1,39 +1,33 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
 import styles from './BookAppointment.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
-function authHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-  };
-}
-
 async function fetchDepartments() {
-  const res = await fetch(`${API_BASE}/departments`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load departments');
-  const json = await res.json();
-  return json.departments ?? [];
+  const data = await apiFetch(`${API_BASE}/departments`);
+  return data?.departments ?? [];
 }
 
 async function fetchDoctors(departmentId) {
   const url = departmentId
     ? `${API_BASE}/doctors?departmentId=${departmentId}&limit=100`
     : `${API_BASE}/doctors?limit=100`;
-  const res = await fetch(url, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load doctors');
-  const json = await res.json();
-  return json.doctors ?? [];
+  const data = await apiFetch(url);
+  return data?.doctors ?? [];
 }
 
 async function fetchMyPatientId() {
-  const res = await fetch(`${API_BASE}/patients/my`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load patient info');
-  const json = await res.json();
-  return json.data?.id;
+  const data = await apiFetch(`${API_BASE}/patients/my`);
+  return data?.data?.id;
+}
+
+async function fetchTakenSlots(doctorId, date) {
+  const params = new URLSearchParams({ doctorId, date, limit: 100 });
+  const data = await apiFetch(`${API_BASE}/appointments?${params}`);
+  return data?.appointments ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -111,44 +105,47 @@ function MonthGrid({ selectedDate, onSelect }) {
 // ---------------------------------------------------------------------------
 // Time slot picker
 // ---------------------------------------------------------------------------
-const SLOT_START = 9;  // 9 AM
-const SLOT_END   = 17; // 5 PM
-const SLOT_STEP  = 30; // minutes
+const ALL_SLOTS = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 
-function generateSlots() {
-  const slots = [];
-  for (let h = SLOT_START; h < SLOT_END; h++) {
-    for (let m = 0; m < 60; m += SLOT_STEP) {
-      const hour   = h % 12 || 12;
-      const ampm   = h < 12 ? 'AM' : 'PM';
-      const minute = String(m).padStart(2, '0');
-      slots.push(`${String(hour).padStart(2,'0')}:${minute}`);
-    }
+function slotTaken(slot, takenAppointments) {
+  const [slotH, slotM] = slot.split(':').map(Number);
+  const slotMinutes = slotH * 60 + slotM;
+  for (const appt of takenAppointments) {
+    const d = new Date(appt.scheduled_at);
+    const apptH = d.getUTCHours();
+    const apptM = d.getUTCMinutes();
+    const apptMinutes = apptH * 60 + apptM;
+    const apptEnd = apptMinutes + (appt.duration_minutes ?? 30);
+    if (slotMinutes >= apptMinutes && slotMinutes < apptEnd) return true;
   }
-  return slots;
+  return false;
 }
 
-const ALL_SLOTS = generateSlots();
+function formatSlot(slot) {
+  const [h, m] = slot.split(':').map(Number);
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2,'0')} ${h < 12 ? 'AM' : 'PM'}`;
+}
 
-function TimeSlotPicker({ selectedTime, onSelect }) {
+function TimeSlotPicker({ selectedTime, onSelect, takenAppointments = [] }) {
   return (
     <div className={styles.slots}>
-      {ALL_SLOTS.map(slot => (
-        <button
-          key={slot}
-          type="button"
-          className={`${styles.slot} ${selectedTime === slot ? styles.slotSelected : ''}`}
-          onClick={() => onSelect(slot)}
-          aria-pressed={selectedTime === slot}
-        >
-          {(() => {
-            const [h, m] = slot.split(':').map(Number);
-            const hour = h % 12 || 12;
-            const ampm = h < 12 ? 'AM' : 'PM';
-            return `${hour}:${String(m).padStart(2,'0')} ${ampm}`;
-          })()}
-        </button>
-      ))}
+      {ALL_SLOTS.map(slot => {
+        const taken = slotTaken(slot, takenAppointments);
+        return (
+          <button
+            key={slot}
+            type="button"
+            className={`${styles.slot} ${selectedTime === slot ? styles.slotSelected : ''} ${taken ? styles.slotTaken : ''}`}
+            onClick={() => !taken && onSelect(slot)}
+            disabled={taken}
+            aria-pressed={selectedTime === slot}
+            aria-label={`${formatSlot(slot)}${taken ? ' (unavailable)' : ''}`}
+          >
+            {formatSlot(slot)}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -193,11 +190,29 @@ export default function BookAppointment() {
     queryFn: fetchDepartments,
   });
 
+  // Fetch all doctors once to show counts on department cards
+  const { data: allDoctors = [] } = useQuery({
+    queryKey: ['doctors', null],
+    queryFn: () => fetchDoctors(null),
+  });
+
+  const doctorCountByDept = allDoctors.reduce((acc, doc) => {
+    if (doc.department_id) acc[doc.department_id] = (acc[doc.department_id] ?? 0) + 1;
+    return acc;
+  }, {});
+
   // Step 2: doctors (refetch when dept changes)
   const { data: doctors = [], isLoading: docLoading } = useQuery({
     queryKey: ['doctors', departmentId],
     queryFn: () => fetchDoctors(departmentId || null),
     enabled: step >= 2,
+  });
+
+  // Fetch taken slots when doctor and date are both selected
+  const { data: takenAppointments = [] } = useQuery({
+    queryKey: ['taken-slots', doctorId, date],
+    queryFn: () => fetchTakenSlots(doctorId, date),
+    enabled: !!doctorId && !!date,
   });
 
   function field(name, value) {
@@ -207,6 +222,8 @@ export default function BookAppointment() {
       setDoctor('');
     }
     if (name === 'doctorId') setDoctor(value);
+    if (name === 'date') { setDate(value); setTime(''); }
+    if (name === 'time') setTime(value);
     if (name === 'type') setType(value);
   }
 
@@ -231,9 +248,8 @@ export default function BookAppointment() {
       const patientId = await fetchMyPatientId();
       const scheduledAt = `${date}T${time}:00.000Z`;
       const selectedDoctor = doctors.find(d => d.id === doctorId);
-      const res = await fetch(`${API_BASE}/appointments`, {
+      const data = await apiFetch(`${API_BASE}/appointments`, {
         method: 'POST',
-        headers: authHeaders(),
         body: JSON.stringify({
           patientId,
           doctorId,
@@ -244,9 +260,7 @@ export default function BookAppointment() {
           reason: reason.trim(),
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Booking failed');
-      return json.data;
+      return data?.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['patient-appointments'] });
@@ -315,6 +329,9 @@ export default function BookAppointment() {
                       >
                         <span className={styles.deptName}>{d.name}</span>
                         <span className={styles.deptCode}>{d.code}</span>
+                        <span className={styles.deptDoctorCount}>
+                          {doctorCountByDept[d.id] ?? 0} doctor{(doctorCountByDept[d.id] ?? 0) !== 1 ? 's' : ''}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -374,7 +391,11 @@ export default function BookAppointment() {
                   <>
                     <h3 className={styles.subTitle}>Available Time Slots</h3>
                     {errors.time && <p className={styles.fieldError}>{errors.time}</p>}
-                    <TimeSlotPicker selectedTime={time} onSelect={(t) => field('time', t)} />
+                    <TimeSlotPicker
+                      selectedTime={time}
+                      onSelect={(t) => field('time', t)}
+                      takenAppointments={takenAppointments}
+                    />
                   </>
                 )}
               </div>

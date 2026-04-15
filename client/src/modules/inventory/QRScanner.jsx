@@ -7,13 +7,10 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
+import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
 import styles from './QRScanner.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
-
-function authHeaders() {
-  return { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` };
-}
 
 export default function QRScanner({ onClose }) {
   const [cameras,    setCameras]    = useState([]);
@@ -87,11 +84,7 @@ export default function QRScanner({ onClose }) {
     setResult(null);
     setAdjMsg('');
     try {
-      const res  = await fetch(`${API_BASE}/inventory/qr/${encodeURIComponent(code)}`, {
-        headers: authHeaders(),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Item not found');
+      const json = await apiFetch(`${API_BASE}/inventory/qr/${encodeURIComponent(code)}`);
       setResult(json.data);
     } catch (e) {
       setError(e.message);
@@ -104,13 +97,11 @@ export default function QRScanner({ onClose }) {
     setAdjSaving(true);
     setAdjMsg('');
     try {
-      const res  = await fetch(`${API_BASE}/inventory/${result.id}/adjust`, {
+      const json = await apiFetch(`${API_BASE}/inventory/${result.id}/adjust`, {
         method : 'PATCH',
-        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({ adjustment: parseFloat(adjustment), reason: adjReason }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Adjustment failed');
       setResult(json.data);
       setAdjMsg(`✅ Updated. New stock: ${json.data.quantity_in_stock} ${json.data.unit}`);
       setAdjustment('');

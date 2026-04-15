@@ -1,36 +1,43 @@
+@use '../../shared/styles/mixins' as *;
+
 .page {
-  padding: 2rem;
+  @include responsive-padding;
   max-width: 1400px;
   margin: 0 auto;
 }
 
 .title {
-  font-size: 1.5rem;
+  font-size: clamp(1.25rem, 4vw, 1.5rem);
   font-weight: 700;
   margin-bottom: 1.5rem;
-  color: var(--color-text-primary, #111);
+  color: #111;
 }
 
 .loading, .error {
   padding: 3rem;
   text-align: center;
-  color: var(--color-text-secondary, #666);
+  color: #666;
 }
 .error { color: #dc2626; }
 
-/* Stats row */
+/* ── Stats row ─────────────────────────────────────────────────────────── */
 .statsRow {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+
+  @include mobile {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
 }
 
 .statCard {
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  padding: 1.25rem 1.5rem;
+  padding: clamp(0.875rem, 2vw, 1.25rem) clamp(1rem, 2.5vw, 1.5rem);
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -41,43 +48,47 @@
 .statCard.accentYellow { border-left-color: #d97706; }
 
 .statValue {
-  font-size: 1.75rem;
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
   font-weight: 700;
   color: #111;
 }
 .statLabel {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.statSub {
-  font-size: 0.75rem;
-  color: #9ca3af;
+.statSub { font-size: 0.72rem; color: #9ca3af; }
+
+/* ── Charts row ────────────────────────────────────────────────────────── */
+.chartsRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+
+  @include tablet { grid-template-columns: 1fr; }
 }
 
-/* Grid */
+.chartPanel {
+  @include card;
+}
+
+/* ── Two-panel grid ────────────────────────────────────────────────────── */
 .grid {
   display: grid;
   grid-template-columns: 1fr 360px;
   gap: 1.5rem;
 
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-  }
+  @include desktop { grid-template-columns: 1fr; }
 }
 
 .panel {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  overflow: hidden;
+  @include card;
 }
 
 .panelHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  @include flex-between;
   padding: 1rem 1.25rem;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
@@ -94,9 +105,9 @@
   50%       { opacity: 0.4; }
 }
 
-/* Table */
+/* ── Table ─────────────────────────────────────────────────────────────── */
 .tableWrap {
-  overflow-x: auto;
+  @include table-scroll;
 }
 
 .table {
@@ -114,6 +125,7 @@
     font-size: 0.72rem;
     letter-spacing: 0.04em;
     border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
   }
 
   td {
@@ -140,7 +152,7 @@
 .mono { font-family: monospace; font-size: 0.78rem; }
 .empty { text-align: center; color: #9ca3af; padding: 1.5rem; }
 
-/* Sessions */
+/* ── Sessions panel ────────────────────────────────────────────────────── */
 .sessionList {
   padding: 0.5rem 0;
   max-height: 420px;
@@ -148,14 +160,19 @@
 }
 
 .sessionRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  @include flex-between;
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid #f3f4f6;
+  gap: 0.5rem;
 
   &:last-child { border-bottom: none; }
   &:hover { background: #f9fafb; }
+
+  @include mobile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
 }
 
 .sessionInfo {
@@ -164,18 +181,12 @@
   gap: 0.15rem;
 }
 
-.sessionName {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: #111;
-}
-
-.sessionMeta {
-  font-size: 0.75rem;
-  color: #9ca3af;
-}
+.sessionName { font-weight: 600; font-size: 0.875rem; color: #111; }
+.sessionMeta { font-size: 0.75rem; color: #9ca3af; }
 
 .logoutBtn {
+  @include touch-target;
+  @include tap-feedback;
   padding: 0.3rem 0.75rem;
   border: 1px solid #fca5a5;
   border-radius: 6px;
@@ -184,7 +195,6 @@
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
-
+  white-space: nowrap;
   &:hover { background: #fee2e2; }
 }

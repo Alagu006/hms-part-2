@@ -344,3 +344,293 @@
   color: #ef4444;
   margin-top: 2px;
 }
+
+// ── Patient / nurse search ─────────────────────────────────────────────────
+.patientSearchWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hint {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 0 0 8px;
+}
+
+.patientList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.patientItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  outline: none;
+  &:last-child { border-bottom: none; }
+  &:hover, &:focus { background: #eff6ff; }
+}
+
+.patientName { font-size: 0.875rem; font-weight: 600; color: #111827; }
+.patientMrn  { font-size: 0.8rem; color: #1a56db; font-weight: 500; }
+
+// ── Patient chip ───────────────────────────────────────────────────────────
+.patientChip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e40af;
+}
+
+.changeBtn {
+  background: none;
+  border: none;
+  color: #1a56db;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+// ── Add medicine modal ─────────────────────────────────────────────────────
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modalTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.addMedLink {
+  background: none;
+  border: none;
+  color: #1a56db;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+// ── Nurse assignment ───────────────────────────────────────────────────────
+.nurseToggle {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.nurseToggleBtn {
+  padding: 8px 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { border-color: #1a56db; color: #1a56db; }
+  &.active { border-color: #1a56db; background: #eff6ff; color: #1e40af; }
+}
+
+// ── Symptoms section ───────────────────────────────────────────────────────
+.symptomInputRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+
+  .input { flex: 1; }
+}
+
+.addSymptomBtn {
+  padding: 9px 18px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  &:hover:not(:disabled) { background: #1648c0; }
+  &:disabled { opacity: 0.45; cursor: not-allowed; }
+}
+
+.quickChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.quickChip {
+  padding: 4px 11px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  &:hover { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+}
+
+.symptomList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.symptomRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.symptomName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+  min-width: 120px;
+}
+
+.symptomDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.symptomControls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.severityGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.severityBtn {
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  background: #fff;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  &:hover { border-color: #9ca3af; color: #374151; }
+}
+
+.severityActive {
+  color: #fff !important;
+}
+
+.durationInput {
+  padding: 5px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #374151;
+  background: #fff;
+  outline: none;
+  width: 140px;
+  &:focus { border-color: #1a56db; box-shadow: 0 0 0 2px rgba(26,86,219,0.1); }
+  &::placeholder { color: #9ca3af; }
+}
+
+.removeSymptomBtn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  transition: color 0.12s, background 0.12s;
+  &:hover { color: #ef4444; background: #fee2e2; }
+}
+
+.symptomEmpty {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+  text-align: center;
+  padding: 12px 0 4px;
+  margin: 0;
+}
+
+// ── Success symptoms summary ───────────────────────────────────────────────
+.successSymptoms {
+  margin-top: 10px;
+  font-size: 0.8125rem;
+  color: #166534;
+  background: #dcfce7;
+  border-radius: 6px;
+  padding: 8px 12px;
+  text-align: left;
+}

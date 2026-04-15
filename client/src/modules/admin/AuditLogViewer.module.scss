@@ -76,7 +76,7 @@
 }
 
 /* Verify banner */
-.verifyBanner {
+.verifyBannerGreen {
   padding: 0.75rem 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
@@ -85,6 +85,28 @@
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   color: #15803d;
+}
+
+.verifyBannerRed {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.verifyBannerAmber {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
 }
 
 /* Table */
@@ -226,4 +248,251 @@
     &:disabled { opacity: 0.4; cursor: not-allowed; }
     &:hover:not(:disabled) { background: #f3f4f6; }
   }
+}
+
+/* Flag / block actions */
+.flaggedRow td { background: #fff7ed !important; }
+
+.flagBtn {
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover { background: #fef3c7; }
+}
+
+.flaggedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.unflagBtn {
+  font-size: 0.65rem;
+  border: none;
+  background: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 0 2px;
+  &:hover { color: #ef4444; }
+}
+
+.flagInfo {
+  font-size: 0.8rem;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+}
+
+.ipCell {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.blockIpBtn {
+  font-size: 0.7rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  opacity: 0.4;
+  padding: 0;
+  &:hover { opacity: 1; }
+}
+
+/* Blocked IPs panel */
+.blockedPanel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.blockedHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.addBlockBtn {
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  &:hover { background: #b91c1c; }
+}
+
+.addBlockRow {
+  padding: 12px 18px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fef2f2;
+}
+
+.addBlockInput {
+  padding: 6px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  width: 220px;
+}
+
+.unblockBtn {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid #16a34a;
+  background: #f0fdf4;
+  color: #15803d;
+  border-radius: 4px;
+  cursor: pointer;
+  &:hover { background: #dcfce7; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.badgeBlocked   { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; background: #fee2e2; color: #991b1b; }
+.badgeUnblocked { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; background: #f3f4f6; color: #6b7280; }
+.rowUnblocked td { opacity: 0.55; }
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: 420px;
+  max-width: 95vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modalTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px;
+}
+
+.modalSub {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 14px;
+  font-family: monospace;
+}
+
+.modalLabel {
+  display: block;
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 8px 0 4px;
+}
+
+.modalTextarea, .modalInput {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  resize: vertical;
+  box-sizing: border-box;
+  &:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 2px #e0e7ff; }
+}
+
+.modalInput { resize: none; }
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.cancelBtn {
+  padding: 7px 16px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  &:hover { background: #f3f4f6; }
+}
+
+.flagSubmitBtn {
+  padding: 7px 16px;
+  background: #f59e0b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover:not(:disabled) { background: #d97706; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.blockSubmitBtn {
+  padding: 7px 16px;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover:not(:disabled) { background: #b91c1c; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.addBlockForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 18px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fef2f2;
+}
+
+/* Side-by-side layout */
+.splitLayout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 24px;
+  align-items: start;
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.logsCol {
+  min-width: 0; // prevent overflow in grid
+}
+
+.ipCol {
+  position: sticky;
+  top: 16px;
 }

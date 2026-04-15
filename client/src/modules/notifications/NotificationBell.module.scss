@@ -210,6 +210,27 @@
   &:hover { background: #eff6ff; }
 }
 
+// Sessions link
+.sessionsLink {
+  border-top: 1px solid #e5e7eb;
+  padding: 8px 12px;
+}
+
+.sessionsBtn {
+  width: 100%;
+  background: none;
+  border: none;
+  font-size: 0.8125rem;
+  color: #374151;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  text-align: left;
+  transition: background 0.1s;
+
+  &:hover { background: #f3f4f6; }
+}
+
 // Toast container
 .toastContainer {
   position: fixed;

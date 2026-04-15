@@ -9,12 +9,14 @@ import {
   getAppointmentSchema,
   updateAppointmentStatusSchema,
   createAppointmentSchema,
+  patientUpdateAppointmentSchema,
 } from './appointments.schema.js';
 import {
   listAppointments,
   getAppointment,
   updateAppointmentStatus,
   createAppointment,
+  patientUpdateAppointment,
 } from './appointments.controller.js';
 
 const router = Router();
@@ -25,14 +27,14 @@ router.use(auditMiddleware);
 
 router.get(
   '/',
-  authorize('DOCTOR', 'NURSE', 'RECEPTIONIST', 'ADMIN', 'SUPER_ADMIN', 'PATIENT'),
+  authorize('DOCTOR', 'NURSE', 'RECEPTIONIST', 'ADMIN', 'SUPER_ADMIN', 'PATIENT', 'PHYSIO'),
   validate(listAppointmentsSchema),
   listAppointments
 );
 
 router.get(
   '/:id',
-  authorize('DOCTOR', 'NURSE', 'RECEPTIONIST', 'ADMIN', 'SUPER_ADMIN', 'PATIENT'),
+  authorize('DOCTOR', 'NURSE', 'RECEPTIONIST', 'ADMIN', 'SUPER_ADMIN', 'PATIENT', 'PHYSIO'),
   validate(getAppointmentSchema),
   getAppointment
 );
@@ -42,6 +44,13 @@ router.patch(
   authorize('DOCTOR', 'RECEPTIONIST', 'ADMIN', 'SUPER_ADMIN'),
   validate(updateAppointmentStatusSchema),
   updateAppointmentStatus
+);
+
+router.patch(
+  '/:id/patient',
+  authorize('PATIENT'),
+  validate(patientUpdateAppointmentSchema),
+  patientUpdateAppointment
 );
 
 router.post(

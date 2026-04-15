@@ -1,0 +1,24 @@
+.page { padding: 24px; max-width: 1200px; }
+.title { font-size: 1.5rem; font-weight: 700; color: #111827; margin: 0 0 24px; }
+.loading, .error { padding: 2rem; text-align: center; color: #6b7280; }
+.error { color: #ef4444; }
+.statsRow {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;
+  @media (max-width: 700px) { grid-template-columns: 1fr; }
+}
+.statCard { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 18px 20px; }
+.statValue { display: block; font-size: 2rem; font-weight: 700; color: #111827; }
+.statLabel { display: block; font-size: 0.8125rem; font-weight: 500; color: #6b7280; margin-top: 4px; }
+.panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+.panelHeader { padding: 14px 18px; font-size: 0.9375rem; font-weight: 600; color: #111827; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+.table {
+  width: 100%; border-collapse: collapse; font-size: 0.8125rem;
+  th { text-align: left; padding: 10px 14px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+}
+.mono { font-family: monospace; }
+.empty { text-align: center; color: #9ca3af; padding: 24px; }
+.badge { display: inline-flex; padding: 2px 8px; border-radius: 4px; font-size: 0.6875rem; font-weight: 600; background: #e5e7eb; color: #374151; }
+.status_SCHEDULED { background: #dbeafe; color: #1e40af; }
+.status_COMPLETED  { background: #d1fae5; color: #065f46; }
+.status_CANCELLED  { background: #fee2e2; color: #991b1b; }

@@ -9,7 +9,7 @@ export const logVisitorSchema = z.object({
   body: z.object({
     patientId     : uuid,
     visitorName   : z.string().min(1).max(200),
-    visitorPhone  : z.string().min(7).max(20).optional(),
+    visitorPhone  : z.string().max(20).optional().or(z.literal('')),
     relationship  : z.string().max(100).optional(),
     idType        : z.enum(idTypes).optional(),
     idNumber      : z.string().max(100).optional(),
@@ -27,5 +27,18 @@ export const visitorHistorySchema = z.object({
 });
 
 export const checkoutVisitorSchema = z.object({
-  params: z.object({ id: uuid }),
+  params: z.object({ id: z.string() }),
+});
+
+export const listVisitorsSchema = z.object({
+  query: z.object({
+    date       : z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
+    checkedOut : z.enum(['true', 'false']).optional(),
+    page       : z.coerce.number().int().min(1).default(1),
+    limit      : z.coerce.number().int().min(1).max(200).default(50),
+  }),
+});
+
+export const searchVisitorsSchema = z.object({
+  query: z.object({ q: z.string().min(1).max(100) }),
 });

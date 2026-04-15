@@ -12,9 +12,7 @@ const ENCRYPTED_FIELDS = ['email', 'phone', 'address', 'emergency_contact'];
 // Helpers
 // ---------------------------------------------------------------------------
 function generateMRN() {
-  const ts  = Date.now().toString(36).toUpperCase();
-  const rnd = crypto.randomBytes(3).toString('hex').toUpperCase();
-  return `MRN-${ts}-${rnd}`;
+  return `MRN-${Date.now().toString().slice(-6)}`;
 }
 
 function generateTempPassword() {
@@ -69,15 +67,17 @@ export async function createPatient(data, createdBy, ip, userAgent) {
     // Create portal user account for the patient
     const { rows: userRows } = await client.query(
       `INSERT INTO users
-         (id, first_name, last_name, email, phone, password_hash, must_change_password, created_at, updated_at)
+         (id, first_name, last_name, email, phone, gender, date_of_birth, password_hash, must_change_password, created_at, updated_at)
        VALUES
-         (gen_random_uuid(), $1, $2, $3, $4, $5, TRUE, NOW(), NOW())
+         (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, TRUE, NOW(), NOW())
        RETURNING id`,
       [
         snaked.first_name,
         snaked.last_name,
         encrypted.email  ?? null,
         encrypted.phone  ?? null,
+        snaked.gender    ?? null,
+        snaked.date_of_birth ?? null,
         passHash,
       ]
     );
@@ -118,7 +118,7 @@ export async function createPatient(data, createdBy, ip, userAgent) {
   });
 
   await auditLog({
-    userId,
+    userId  : createdBy,
     action  : 'CREATE',
     entity  : 'patients',
     entityId: patient.id,
@@ -128,7 +128,7 @@ export async function createPatient(data, createdBy, ip, userAgent) {
   });
 
   // Send temp password — non-blocking via queue
-  await sendTempPassword(data.email, tempPass);
+  await sendTempPassword(data.email, mrn, tempPass, 'Patient ID (MRN)');
 
   return decryptPatientRow(patient);
 }
@@ -139,7 +139,7 @@ export async function createPatient(data, createdBy, ip, userAgent) {
 export async function listPatients({ status, departmentId, ward, search, doctorId, page, limit }) {
   const offset = (page - 1) * limit;
   const params = [];
-  const where  = ['p.deleted_at IS NULL'];
+  const where  = ['p.deleted_at IS NULL', '(p.user_id IS NULL OR u.deleted_at IS NULL)'];
 
   if (status === 'inpatient') {
     where.push('p.current_bed_id IS NOT NULL');
@@ -188,6 +188,7 @@ export async function listPatients({ status, departmentId, ward, search, doctorI
     FROM patients p
     LEFT JOIN beds  b ON b.id = p.current_bed_id
     LEFT JOIN rooms r ON r.id = b.room_id
+    LEFT JOIN users u ON u.id = p.user_id
     WHERE ${whereClause}
     ORDER BY p.created_at DESC
     LIMIT $${limitIdx} OFFSET $${offsetIdx}
@@ -229,6 +230,20 @@ export async function getPatientById(id, requestingUser) {
   }
 
   return decryptPatientRow(rows[0]);
+}
+
+// ---------------------------------------------------------------------------
+// LOOKUP BY MRN (for security check-in)
+// ---------------------------------------------------------------------------
+export async function getPatientByMrn(mrn) {
+  const { rows } = await query(
+    `SELECT p.id, p.mrn, p.first_name, p.last_name, p.date_of_birth, p.gender, p.blood_group
+     FROM patients p
+     WHERE UPPER(p.mrn) = UPPER($1) AND p.deleted_at IS NULL
+     LIMIT 1`,
+    [mrn]
+  );
+  return rows[0] ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -372,4 +387,23 @@ export async function getMyRecords(userId) {
   );
   if (!rows[0]) return null;
   return decryptPatientRow(rows[0]);
+}
+
+// ---------------------------------------------------------------------------
+// Get single medical record by ID
+// ---------------------------------------------------------------------------
+export async function getMedicalRecordById(recordId) {
+  const { rows } = await query(
+    `SELECT mr.*,
+            p.first_name || ' ' || p.last_name AS patient_name,
+            u.first_name || ' ' || u.last_name AS doctor_name,
+            d.name AS department_name
+     FROM medical_records mr
+     JOIN patients p ON p.id = mr.patient_id
+     JOIN users u ON u.id = mr.attending_doctor_id
+     LEFT JOIN departments d ON d.id = mr.department_id
+     WHERE mr.id = $1 AND mr.deleted_at IS NULL`,
+    [recordId]
+  );
+  return rows[0] ?? null;
 }

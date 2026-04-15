@@ -8,11 +8,12 @@ import { apiRateLimiter }  from '../../shared/middleware/rateLimiter.js';
 import {
   createItemSchema, updateItemSchema, itemIdSchema,
   listItemsSchema, updateBedSchema, generateQrSchema,
-  qrCodeSchema, adjustQuantitySchema,
+  qrCodeSchema, adjustQuantitySchema, createRoomSchema, createBedSchema,
 } from './inventory.schema.js';
 import {
   createItem, listItems, getItem, updateItem, deleteItem, adjustQuantity,
   getBeds, updateBed, generateQr, lookupQr, getAlerts, getStats, importCsv,
+  createRoom, createBed,
 } from './inventory.controller.js';
 
 const router = Router();
@@ -39,8 +40,10 @@ router.get('/stats',   authorize(...INV_ROLES, 'DOCTOR', 'NURSE'), getStats);
 router.get('/alerts',  authorize(...INV_ROLES), getAlerts);
 
 // Beds
-router.get('/beds',         authorize(...INV_ROLES, 'NURSE', 'DOCTOR', 'RECEPTIONIST'), getBeds);
-router.patch('/beds/:id',   authorize(...INV_ROLES, 'NURSE'), validate(updateBedSchema), updateBed);
+router.get('/beds',              authorize(...INV_ROLES, 'NURSE', 'DOCTOR', 'RECEPTIONIST', 'ORDERLY'), getBeds);
+router.post('/beds/rooms',       authorize(...INV_ROLES), validate(createRoomSchema), createRoom);
+router.post('/beds/rooms/:roomId/beds', authorize(...INV_ROLES), validate(createBedSchema), createBed);
+router.patch('/beds/:id',        authorize(...INV_ROLES, 'NURSE'), validate(updateBedSchema), updateBed);
 
 // QR
 router.post('/qr/generate', authorize(...INV_ROLES), validate(generateQrSchema), generateQr);

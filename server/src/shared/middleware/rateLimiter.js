@@ -1,4 +1,4 @@
-import { redis } from '../db/redis.js';
+import { redis } from '../../shared/services/redis.service.js';
 
 /**
  * Sliding window rate limiter backed by Redis.
@@ -53,18 +53,27 @@ export function rateLimiter({ windowSecs, max, keyFn }) {
 // Pre-configured limiters
 // ---------------------------------------------------------------------------
 
-/** Strict limiter for auth endpoints: 20 req / 15 min per IP */
+const isDev = process.env.NODE_ENV !== 'production';
+
+/** Strict limiter for auth endpoints: 20 req / 15 min per IP (100 in dev) */
 export const authRateLimiter = rateLimiter({
   windowSecs: 15 * 60,
-  max       : 20,
+  max       : isDev ? 100 : 20,
   keyFn     : (req) => `auth:${req.ip}`,
 });
 
-/** Login-specific: 5 attempts / 15 min per IP+username */
+/** Login-specific: 5 attempts / 15 min per IP+username (50 in dev) */
 export const loginRateLimiter = rateLimiter({
   windowSecs: 15 * 60,
-  max       : 5,
+  max       : isDev ? 50 : 5,
   keyFn     : (req) => `login:${req.ip}:${req.body?.username ?? 'unknown'}`,
+});
+
+/** OTP / forgot-password: 10 req / 15 min per IP (50 in dev) */
+export const otpRateLimiter = rateLimiter({
+  windowSecs: 15 * 60,
+  max       : isDev ? 50 : 10,
+  keyFn     : (req) => `otp:${req.ip}`,
 });
 
 /** General API limiter: 200 req / min per IP */

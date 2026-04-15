@@ -9,7 +9,7 @@ export async function createBloodUnit(req, res, next) {
 
 export async function getBloodUnits(req, res, next) {
   try {
-    const rows = await svc.getBloodUnits(req.query);
+    const rows = await svc.getBloodUnits((req.parsedQuery ?? req.query));
     res.json(rows);
   } catch (err) { next(err); }
 }

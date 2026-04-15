@@ -3,6 +3,28 @@ import { z } from 'zod';
 const uuidV4Regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const uuid = z.string().regex(uuidV4Regex, 'Invalid UUID');
 
+export const createLabOrderSchema = z.object({
+  body: z.object({
+    patientId  : uuid,
+    testName   : z.string().min(1).max(200),
+    testCode   : z.string().max(50).optional(),
+    priority   : z.enum(['STAT', 'URGENT', 'ROUTINE']).default('ROUTINE'),
+    notes      : z.string().max(500).optional(),
+  }),
+});
+
+export const getPatientLabResultsSchema = z.object({
+  params: z.object({ patientId: uuid }),
+  query : z.object({
+    page : z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+  }),
+});
+
+export const getLabResultSchema = z.object({
+  params: z.object({ id: uuid }),
+});
+
 export const listLabOrdersSchema = z.object({
   query: z.object({
     status   : z.enum(['PENDING', 'COLLECTED', 'PROCESSING', 'COMPLETED', 'CANCELLED']).optional(),

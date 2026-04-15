@@ -1,36 +1,41 @@
+@use '../../shared/styles/mixins' as *;
+
 .container {
-  padding: 24px;
+  @include responsive-padding;
 }
 
+/* ── Header ────────────────────────────────────────────────────────────── */
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24px;
+  @include flex-between;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
 
   h1 {
-    font-size: 1.5rem;
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
     font-weight: 600;
     color: #111827;
     margin: 0;
   }
 }
 
+/* ── Toolbar ───────────────────────────────────────────────────────────── */
 .toolbar {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
   flex-wrap: wrap;
   align-items: center;
 }
 
 .searchInput {
   flex: 1;
-  min-width: 220px;
-  padding: 8px 14px;
+  min-width: 180px;
+  padding: 10px 14px;
+  min-height: 44px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 0.875rem;
+  font-size: 1rem; // 16px — prevents iOS zoom
   color: #111827;
   background: #fff;
   outline: none;
@@ -43,44 +48,48 @@
 }
 
 .filterSelect {
-  padding: 8px 12px;
+  padding: 10px 12px;
+  min-height: 44px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #374151;
   background: #fff;
   cursor: pointer;
   outline: none;
 
-  &:focus {
-    border-color: #1a56db;
-  }
+  &:focus { border-color: #1a56db; }
 }
 
 .addButton {
-  padding: 8px 18px;
+  @include touch-target;
+  @include tap-feedback;
+  padding: 10px 18px;
   background: #1a56db;
   color: #fff;
   border: none;
   border-radius: 6px;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s;
 
-  &:hover {
-    background: #1648c0;
-  }
+  &:hover { background: #1648c0; }
+}
+
+/* ── Desktop table ─────────────────────────────────────────────────────── */
+.tableWrap {
+  @include table-scroll;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+
+  @include tablet { display: none; } // hidden on mobile
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
   background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
 }
 
 .thead {
@@ -95,6 +104,7 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
   }
 }
 
@@ -103,14 +113,8 @@
     border-bottom: 1px solid #f3f4f6;
     transition: background 0.1s;
 
-    &:last-child {
-      border-bottom: none;
-    }
-
-    &:hover {
-      background: #f9fafb;
-      cursor: pointer;
-    }
+    &:last-child { border-bottom: none; }
+    &:hover { background: #f9fafb; cursor: pointer; }
   }
 
   td {
@@ -121,6 +125,50 @@
   }
 }
 
+/* ── Mobile card list ──────────────────────────────────────────────────── */
+.mobileList {
+  display: none;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  @include tablet { display: flex; }
+}
+
+.patientCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  cursor: pointer;
+  @include tap-feedback;
+
+  &:active { background: #f9fafb; }
+}
+
+.patientCardTop {
+  @include flex-between;
+  gap: 0.5rem;
+}
+
+.patientCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.patientCardActions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+/* ── Shared cell styles ────────────────────────────────────────────────── */
 .patientName {
   font-weight: 500;
   color: #111827;
@@ -132,6 +180,7 @@
   font-family: monospace;
 }
 
+/* ── Badges ────────────────────────────────────────────────────────────── */
 .badge {
   display: inline-flex;
   align-items: center;
@@ -140,64 +189,55 @@
   font-size: 0.75rem;
   font-weight: 500;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
-.badgeInpatient {
-  background: #dcfce7;
-  color: #15803d;
-}
+.badgeInpatient  { background: #dcfce7; color: #15803d; }
+.badgeOutpatient { background: #dbeafe; color: #1d4ed8; }
 
-.badgeOutpatient {
-  background: #dbeafe;
-  color: #1d4ed8;
-}
-
+/* ── Action buttons ────────────────────────────────────────────────────── */
 .actionBtn {
-  padding: 5px 12px;
-  font-size: 0.8rem;
+  @include touch-target;
+  @include tap-feedback;
+  padding: 6px 14px;
+  font-size: 0.875rem;
   border: 1px solid #d1d5db;
   border-radius: 5px;
   background: #fff;
   color: #374151;
   cursor: pointer;
-  transition: all 0.15s;
 
-  &:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
-  }
+  &:hover { background: #f3f4f6; border-color: #9ca3af; }
 }
 
+/* ── Pagination ────────────────────────────────────────────────────────── */
 .pagination {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
   font-size: 0.875rem;
   color: #6b7280;
+  flex-wrap: wrap;
 }
 
 .pageBtn {
-  padding: 6px 12px;
+  @include touch-target;
+  @include tap-feedback;
+  padding: 6px 14px;
   border: 1px solid #d1d5db;
   border-radius: 5px;
   background: #fff;
   color: #374151;
   cursor: pointer;
   font-size: 0.875rem;
-  transition: all 0.15s;
 
-  &:hover:not(:disabled) {
-    background: #f3f4f6;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
+  &:hover:not(:disabled) { background: #f3f4f6; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
+/* ── States ────────────────────────────────────────────────────────────── */
 .emptyState {
   text-align: center;
   padding: 60px 24px;

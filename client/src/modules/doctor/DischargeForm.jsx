@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
 import styles from './DischargeForm.module.scss';
 
 const API  = import.meta.env.VITE_API_URL ?? '/api';
-const auth = () => ({ Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` });
 
 export default function DischargeForm({ patientId, onSuccess }) {
   const [form, setForm] = useState({
@@ -24,9 +24,9 @@ export default function DischargeForm({ patientId, onSuccess }) {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${API}/discharge-summaries`, {
+      const json = await apiFetch(`${API}/discharge-summaries`, {
         method : 'POST',
-        headers: { ...auth(), 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({
           ...form,
           patientId,
@@ -35,9 +35,7 @@ export default function DischargeForm({ patientId, onSuccess }) {
           followUpDate : form.followUpDate || undefined,
         }),
       });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to save');
-      const data = await res.json();
-      onSuccess?.(data);
+      onSuccess?.(json);
     } catch (e) {
       setError(e.message);
     } finally {

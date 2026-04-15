@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
 import styles from './FinancialSummary.module.scss';
 
 const API = import.meta.env.VITE_API_URL ?? '/api';
-const token = () => sessionStorage.getItem('accessToken');
 
 function fmt(n) { return Number(n ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }); }
 function fmtDate(iso) {
@@ -78,11 +78,7 @@ export default function FinancialSummary() {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(`${API}/bills/summary/financial?date=${date}`, {
-        headers: { Authorization: `Bearer ${token()}` },
-      });
-      const json = await r.json();
-      if (!r.ok) throw new Error(json.error ?? 'Failed to load summary');
+      const json = await apiFetch(`${API}/bills/summary/financial?date=${date}`);
       setData(json.data);
     } catch (e) {
       setError(e.message);

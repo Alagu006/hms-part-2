@@ -26,6 +26,7 @@ export function authenticate(req, res, next) {
       departmentId: payload.departmentId,
       firstName   : payload.firstName,
       lastName    : payload.lastName,
+      sessionId   : payload.sessionId ?? null,
     };
 
     next();

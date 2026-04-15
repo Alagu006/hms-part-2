@@ -1,33 +1,26 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
+import PatientFileUpload from './PatientFileUpload.jsx';
+import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './NurseDashboard.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
-function authHeaders() {
-  return { Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` };
-}
-
 async function fetchMyAssignments() {
-  const res = await fetch(`${API_BASE}/nurse/assignments`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load assignments');
-  const json = await res.json();
-  return json.assignments ?? [];
+  const data = await apiFetch(`${API_BASE}/nurse/assignments`);
+  return data?.assignments ?? [];
 }
 
 async function fetchVitalsCount() {
-  const res = await fetch(`${API_BASE}/vitals/count?nurseId=me`, { headers: authHeaders() });
-  if (!res.ok) return 0;
-  const json = await res.json();
-  return json.count ?? 0;
+  const data = await apiFetch(`${API_BASE}/vitals/count?nurseId=me`);
+  return data?.count ?? 0;
 }
 
 async function fetchHandoverNotes() {
-  const res = await fetch(`${API_BASE}/handover-notes?unreadOnly=true&limit=20`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load handover notes');
-  const json = await res.json();
-  return json.handoverNotes ?? [];
+  const data = await apiFetch(`${API_BASE}/handover-notes?unreadOnly=true&limit=20`);
+  return data?.handoverNotes ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -198,10 +191,7 @@ export default function NurseDashboard() {
 
   async function handleMarkRead(noteId) {
     try {
-      await fetch(`${API_BASE}/handover-notes/${noteId}/read`, {
-        method : 'PATCH',
-        headers: authHeaders(),
-      });
+      await apiFetch(`${API_BASE}/handover-notes/${noteId}/read`, { method: 'PATCH' });
       refetchHandover();
     } catch { /* silent */ }
   }
@@ -234,6 +224,37 @@ export default function NurseDashboard() {
           loading={handoverLoading}
         />
       </div>
+
+      {/* ── Quick actions ── */}
+      <div className={styles.quickActions}>
+        <button className={styles.qaBtn} onClick={() => navigate('/nurse/vitals')}>
+          💓 Record Vitals <kbd className={styles.qaKey}>V</kbd>
+        </button>
+        <button className={styles.qaBtn} onClick={() => navigate('/nurse/handover')}>
+          📝 Handover Notes <kbd className={styles.qaKey}>H</kbd>
+        </button>
+        <button className={styles.qaBtn} onClick={() => navigate('/nurse/incidents')}>
+          ⚠ Incident Report
+        </button>
+      </div>
+
+      {/* ── Critical vitals alert banner ── */}
+      {overdueCount > 0 && (
+        <div className={styles.criticalBanner} role="alert">
+          <span className={styles.criticalIcon}>🚨</span>
+          <strong>{overdueCount} patient{overdueCount > 1 ? 's' : ''} with overdue vitals</strong>
+          — immediate attention required
+          <button
+            className={styles.criticalBtn}
+            onClick={() => {
+              const first = assignments.find(a => a.isOverdue);
+              if (first) handleRecordVitals(first.patientId, `${first.firstName} ${first.lastName}`);
+            }}
+          >
+            Record Now →
+          </button>
+        </div>
+      )}
 
       <div className={styles.twoCol}>
         {/* ── My Patients ── */}
@@ -295,6 +316,11 @@ export default function NurseDashboard() {
             </div>
           )}
         </section>
+      </div>
+
+      {/* ── Patient File Upload ── */}
+      <div style={{ marginTop: 24 }}>
+        <PatientFileUpload assignments={assignments} loading={assignLoading} />
       </div>
     </div>
   );

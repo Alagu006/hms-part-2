@@ -23,7 +23,7 @@ export async function getVitalsHistory(req, res, next) {
 
 export async function getVitalsCount(req, res, next) {
   try {
-    const filters = { ...req.query };
+    const filters = { ...(req.parsedQuery ?? req.query) };
     if (filters.nurseId === 'me') filters.nurseId = req.user.id;
     const count = await svc.countVitalsToday(filters);
     return res.status(200).json({ count });

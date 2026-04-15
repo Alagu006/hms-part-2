@@ -1,18 +1,18 @@
 import { query } from '../../shared/db/pool.js';
 
 export async function listDepartments({ search, isActive, page, limit }) {
-  const offset      = (page - 1) * limit;
+  const offset     = (page - 1) * limit;
   const params     = [];
   const conditions = [];
 
   if (search) {
     params.push(`%${search}%`);
-    conditions.push(`(d.name ILIKE $${params.length} OR d.code ILIKE $${params.length})`);
+    conditions.push('(d.name ILIKE $' + params.length + ' OR d.code ILIKE $' + params.length + ')');
   }
 
   if (isActive !== undefined) {
     params.push(isActive);
-    conditions.push(`d.is_active = $${params.length}`);
+    conditions.push('d.is_active = $' + params.length);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -57,19 +57,19 @@ export async function updateDepartment(id, data) {
 
   if (data.name !== undefined) {
     params.push(data.name);
-    setClauses.push(`name = $${params.length}`);
+    setClauses.push('name = $' + params.length);
   }
   if (data.headOfDepartmentId !== undefined) {
     params.push(data.headOfDepartmentId);
-    setClauses.push(`head_of_department = $${params.length}`);
+    setClauses.push('head_of_department = $' + params.length);
   }
   if (data.floor !== undefined) {
     params.push(data.floor);
-    setClauses.push(`floor = $${params.length}`);
+    setClauses.push('floor = $' + params.length);
   }
   if (data.isActive !== undefined) {
     params.push(data.isActive);
-    setClauses.push(`is_active = $${params.length}`);
+    setClauses.push('is_active = $' + params.length);
   }
 
   if (setClauses.length === 0) return null;

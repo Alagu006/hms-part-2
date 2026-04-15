@@ -36,11 +36,11 @@ export async function createBroadcast(data, sentBy, ip, userAgent, io) {
   // 3. Persist broadcast record
   const { rows: bcRows } = await query(
     `INSERT INTO broadcasts
-       (id, title, body, encryption_iv, target_roles, sent_by, sent_at, expires_at, created_at)
+       (id, title, body, encryption_iv, priority, target_roles, sent_by, sent_at, expires_at, created_at)
      VALUES
-       (gen_random_uuid(), $1, $2, 'plaintext', ARRAY[]::user_role[], $3, NOW(), $4, NOW())
+       (gen_random_uuid(), $1, $2, 'plaintext', $3, ARRAY[]::user_role[], $4, NOW(), $5, NOW())
      RETURNING *`,
-    [title, message, sentBy, expiresAt ?? null]
+    [title, message, priority, sentBy, expiresAt ?? null]
   );
   const broadcast = bcRows[0];
 

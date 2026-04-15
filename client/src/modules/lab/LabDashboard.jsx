@@ -1,16 +1,10 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
 import EncryptedFileUpload from '../../shared/components/EncryptedFileUpload.jsx';
 import styles from './LabDashboard.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
-
-function authHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${sessionStorage.getItem('accessToken')}`,
-  };
-}
 
 function today() {
   return new Date().toISOString().split('T')[0];
@@ -19,10 +13,8 @@ function today() {
 async function fetchOrders(params) {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.set(k, v); });
-  const res = await fetch(`${API_BASE}/lab-orders?${q}`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load orders');
-  const json = await res.json();
-  return json.labOrders ?? [];
+  const json = await apiFetch(`${API_BASE}/lab-orders?${q}`);
+  return json?.labOrders ?? [];
 }
 
 function timeAgo(iso) {
@@ -56,26 +48,28 @@ function UploadPanel({ order, onClose, onComplete }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/lab-orders/results`, {
-        method : 'POST',
-        headers: authHeaders(),
+      // Step 1: create the lab result first to get its ID
+      const resultRes = await apiFetch(`${API_BASE}/lab-orders/results`, {
+        method: 'POST',
         body: JSON.stringify({
-          labOrderId     : order.id,
-          resultText     : resultText.trim() || undefined,
+          labOrderId    : order.id,
+          resultText    : resultText.trim() || undefined,
           interpretation: resultText.trim() || undefined,
-          fileId         : uploadedFile?.fileId,
-          fileKey        : uploadedFile?.keyB64,
-          fileIv         : uploadedFile?.ivB64,
-          isAbnormal     : false,
+          isAbnormal    : false,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? 'Failed to submit result');
+      const labResultId = resultRes?.data?.id;
 
-      // Mark order as completed
-      await fetch(`${API_BASE}/lab-orders/${order.id}`, {
+      // Step 2: if a file was uploaded, re-link it to the actual lab result ID
+      if (uploadedFile && labResultId) {
+        await apiFetch(`${API_BASE}/files/${uploadedFile.fileId}/entity`, {
+          method: 'PATCH',
+          body: JSON.stringify({ entityType: 'LAB_RESULT', entityId: labResultId }),
+        });
+      }
+
+      await apiFetch(`${API_BASE}/lab-orders/${order.id}`, {
         method : 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify({ status: 'COMPLETED' }),
       });
 
@@ -113,7 +107,7 @@ function UploadPanel({ order, onClose, onComplete }) {
         <div className={styles.uploadField}>
           <label className={styles.label}>Attach Report (optional)</label>
           <EncryptedFileUpload
-            entityType="lab_result"
+            entityType="LAB_RESULT"
             entityId={order.id}
             onSuccess={handleFileSuccess}
           />
@@ -153,9 +147,8 @@ function OrderRow({ order, action, qc }) {
 
   async function handleAction(newStatus) {
     try {
-      await fetch(`${API_BASE}/lab-orders/${order.id}`, {
+      await apiFetch(`${API_BASE}/lab-orders/${order.id}`, {
         method : 'PATCH',
-        headers: authHeaders(),
         body: JSON.stringify({ status: newStatus }),
       });
       qc.invalidateQueries({ queryKey: ['lab-orders'] });
@@ -321,7 +314,6 @@ export default function LabDashboard() {
   return (
     <div className={styles.page}>
 
-      {/* ── Stats ── */}
       <div className={styles.statsRow}>
         <StatCard label="Pending"        value={statPending}    loading={pendingLoading} />
         <StatCard label="In Progress"   value={statInProgress} loading={ipLoading} />
@@ -334,7 +326,6 @@ export default function LabDashboard() {
         />
       </div>
 
-      {/* ── Pending ── */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Pending Orders</h2>
@@ -349,7 +340,6 @@ export default function LabDashboard() {
         />
       </section>
 
-      {/* ── In Progress ── */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>In Progress</h2>
@@ -364,7 +354,6 @@ export default function LabDashboard() {
         />
       </section>
 
-      {/* ── Completed Today ── */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <h2 className={styles.sectionTitle}>Completed Today</h2>

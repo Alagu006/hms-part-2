@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { apiFetch } from '../../shared/utils/authHeaders.js';
 import styles from './Reports.module.scss';
 
 const API  = import.meta.env.VITE_API_URL ?? '/api';
-const auth = () => ({ Authorization: `Bearer ${sessionStorage.getItem('accessToken')}` });
 
 const REPORT_TYPES = [
   { value: 'patient',   label: 'Patient Statistics' },
@@ -37,9 +37,8 @@ export default function Reports() {
   // ---------------------------------------------------------------------------
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/analytics/reports/history`, { headers: auth() });
-      if (!res.ok) return;
-      setHistory(await res.json());
+      const json = await apiFetch(`${API}/analytics/reports/history`);
+      setHistory(json?.history ?? json ?? []);
     } catch { /* silent */ }
   }, []);
 
@@ -48,18 +47,13 @@ export default function Reports() {
     return () => clearInterval(pollRef.current);
   }, [fetchHistory]);
 
-  // ---------------------------------------------------------------------------
-  // Poll job status
-  // ---------------------------------------------------------------------------
   const startPolling = useCallback((id) => {
     clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
-        const res = await fetch(`${API}/analytics/reports/status/${id}`, { headers: auth() });
-        if (!res.ok) return;
-        const status = await res.json();
+        const status = await apiFetch(`${API}/analytics/reports/status/${id}`);
         setJobStatus(status);
-        if (status.status === 'completed' || status.status === 'failed') {
+        if (status?.status === 'completed' || status?.status === 'failed') {
           clearInterval(pollRef.current);
           setGenerating(false);
           fetchHistory();
@@ -68,9 +62,6 @@ export default function Reports() {
     }, POLL_INTERVAL);
   }, [fetchHistory]);
 
-  // ---------------------------------------------------------------------------
-  // Generate report
-  // ---------------------------------------------------------------------------
   const handleGenerate = async (e) => {
     e.preventDefault();
     setGenerating(true);
@@ -80,9 +71,9 @@ export default function Reports() {
 
     try {
       const params = new URLSearchParams(form).toString();
-      const res = await fetch(`${API}/analytics/reports/generate?${params}`, { headers: auth() });
-      if (!res.ok) throw new Error((await res.json()).error ?? 'Failed to enqueue');
-      const { jobId: id } = await res.json();
+      const json = await apiFetch(`${API}/analytics/reports/generate?${params}`);
+      const id = json?.jobId;
+      if (!id) throw new Error(json?.error ?? 'Failed to enqueue');
       setJobId(id);
       setJobStatus({ status: 'pending' });
       startPolling(id);
@@ -92,19 +83,14 @@ export default function Reports() {
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // Download
-  // ---------------------------------------------------------------------------
   const handleDownload = async (downloadKey, filename) => {
-    // downloadKey is "report:file:<filename>" — extract just the filename for the URL param
     const filenamePart = downloadKey.startsWith('report:file:')
       ? downloadKey.slice('report:file:'.length)
       : downloadKey;
-    const res = await fetch(`${API}/analytics/reports/download/${encodeURIComponent(filenamePart)}`, { headers: auth() });
-    if (!res.ok) { setError('Download failed or file expired'); return; }
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
+    const blob = await apiFetch(`${API}/analytics/reports/download/${encodeURIComponent(filenamePart)}`);
+    if (!blob) { setError('Download failed or file expired'); return; }
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
     a.href     = url;
     a.download = filename ?? filenamePart;
     a.click();

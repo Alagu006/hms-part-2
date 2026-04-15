@@ -1,8 +1,10 @@
 import { reportQueue }               from '../../shared/jobs/queue.js';
 import { pool }                      from '../../shared/db/pool.js';
-import { redis }                     from '../../shared/db/redis.js';
+import { redis }                     from '../../shared/services/redis.service.js';
 import { auditLog }                  from '../../shared/middleware/audit.js';
 import { uuidv7 }                    from '../../shared/utils/uuid.js';
+import { generatePdfToFile }           from '../../shared/utils/pdf.service.js';
+import { join }                       from 'path';
 import * as analytics                from './analytics.service.js';
 
 const REPORT_TTL = 60 * 60; // 1 hour download window
@@ -75,6 +77,95 @@ export async function getReportHistory(userId, { page = 1, limit = 20 }) {
 }
 
 // ---------------------------------------------------------------------------
+// HTML builders for PDF reports
+// ---------------------------------------------------------------------------
+function hospitalHeaderHtml(title) {
+  return `<div style="border-bottom:3px solid #1a56db;padding-bottom:14px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-start;">
+    <div>
+      <h1 style="margin:0;font-size:20px;color:#1a56db;">${process.env.HMS_NAME || 'Hospital Management System'}</h1>
+      <p style="margin:4px 0 0;font-size:11px;color:#6b7280;">${process.env.HMS_ADDRESS || ''}</p>
+    </div>
+    <div style="text-align:right;">
+      <p style="margin:0;font-size:12px;color:#374151;font-weight:600;">${title}</p>
+      <p style="margin:2px 0 0;font-size:11px;color:#6b7280;">Period: ${new Date().toLocaleDateString()}</p>
+    </div>
+  </div>`;
+}
+
+function buildPatientReportHtml(data) {
+  const rows = (data.admissions ?? []).map(r => `
+    <tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${r.date ?? '—'}</td>
+    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center;">${r.count ?? 0}</td>
+    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;">${r.running_total ?? 0}</td></tr>`).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<title>Patient Statistics Report</title></head>
+<body style="margin:0;padding:20px 30px;font-family:Arial,sans-serif;font-size:13px;color:#111;">
+<div style="max-width:800px;margin:0 auto;">
+${hospitalHeaderHtml('Patient Statistics Report')}
+${data.summary ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+  <div style="background:#eff6ff;padding:14px;border-radius:8px;text-align:center;"><p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#1e40af;">Total Admissions</p><p style="margin:0;font-size:24px;font-weight:700;color:#1e40af;">${data.summary.total_admissions ?? 0}</p></div>
+  <div style="background:#f0fdf4;padding:14px;border-radius:8px;text-align:center;"><p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#065f46;">Discharges</p><p style="margin:0;font-size:24px;font-weight:700;color:#065f46;">${data.summary.total_discharges ?? 0}</p></div>
+  <div style="background:#fef3c7;padding:14px;border-radius:8px;text-align:center;"><p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#92400e;">Avg LOS (days)</p><p style="margin:0;font-size:24px;font-weight:700;color:#92400e;">${data.summary.avg_los ?? 0}</p></div>
+</div>` : ''}
+<table style="width:100%;border-collapse:collapse;font-size:12px;">
+  <thead><tr style="background:#f9fafb;"><th style="text-align:left;padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600;">Date</th><th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;text-align:center;">Admissions</th><th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7288;text-align:right;">Running Total</th></tr></thead>
+  <tbody>${rows || '<tr><td colspan="3" style="padding:20px;text-align:center;color:#9ca3af;">No data available</td></tr>'}</tbody>
+</table>
+<div style="margin-top:24px;text-align:center;"><p style="margin:0;font-size:10px;color:#9ca3af;font-style:italic;">Generated on ${new Date().toLocaleString()}</p></div>
+</div></body></html>`;
+}
+
+function buildFinancialReportHtml(data) {
+  const rows = (data.dailyRevenue ?? []).map(r => `
+    <tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${r.date ?? '—'}</td>
+    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;">₹${(+r.revenue ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:right;">₹${(+r.cumulative ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td></tr>`).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<title>Financial Report</title></head>
+<body style="margin:0;padding:20px 30px;font-family:Arial,sans-serif;font-size:13px;color:#111;">
+<div style="max-width:800px;margin:0 auto;">
+${hospitalHeaderHtml('Financial Report')}
+${data.summary ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;">
+  <div style="background:#d1fae5;padding:14px;border-radius:8px;text-align:center;"><p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#065f46;">Total Revenue</p><p style="margin:0;font-size:24px;font-weight:700;color:#065f46;">₹${(+data.summary.total_revenue ?? 0).toLocaleString('en-IN')}</p></div>
+  <div style="background:#fee2e2;padding:14px;border-radius:8px;text-align:center;"><p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#991b1b;">Outstanding</p><p style="margin:0;font-size:24px;font-weight:700;color:#991b1b;">₹${(+data.summary.outstanding ?? 0).toLocaleString('en-IN')}</p></div>
+  <div style="background:#fef3c7;padding:14px;border-radius:8px;text-align:center;"><p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#92400e;">Collection Rate</p><p style="margin:0;font-size:24px;font-weight:700;color:#92400e;">${data.summary.collection_rate ?? 0}%</p></div>
+</div>` : ''}
+<table style="width:100%;border-collapse:collapse;font-size:12px;">
+  <thead><tr style="background:#f9fafb;"><th style="text-align:left;padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600;">Date</th><th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;text-align:right;">Daily Revenue</th><th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;text-align:right;">Cumulative</th></tr></thead>
+  <tbody>${rows || '<tr><td colspan="3" style="padding:20px;text-align:center;color:#9ca3af;">No data available</td></tr>'}</tbody>
+</table>
+<div style="margin-top:24px;text-align:center;"><p style="margin:0;font-size:10px;color:#9ca3af;font-style:italic;">Generated on ${new Date().toLocaleString()}</p></div>
+</div></body></html>`;
+}
+
+function buildStaffReportHtml(data) {
+  const rows = (data.doctors ?? []).map(d => `
+    <tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${d.first_name ?? ''} ${d.last_name ?? ''}</td>
+    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center;">${d.patients_seen ?? 0}</td>
+    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center;">${d.prescriptions_count ?? 0}</td>
+    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center;">${d.completed_appointments ?? 0}</td></tr>`).join('');
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<title>Staff Performance Report</title></head>
+<body style="margin:0;padding:20px 30px;font-family:Arial,sans-serif;font-size:13px;color:#111;">
+<div style="max-width:800px;margin:0 auto;">
+${hospitalHeaderHtml('Staff Performance Report')}
+<table style="width:100%;border-collapse:collapse;font-size:12px;">
+  <thead><tr style="background:#f9fafb;">
+    <th style="text-align:left;padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;font-weight:600;">Staff Member</th>
+    <th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;text-align:center;">Patients Seen</th>
+    <th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;text-align:center;">Prescriptions</th>
+    <th style="padding:8px 12px;border-bottom:2px solid #e5e7eb;color:#6b7280;text-align:center;">Appointments</th>
+  </tr></thead>
+  <tbody>${rows || '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af;">No data available</td></tr>'}</tbody>
+</table>
+<div style="margin-top:24px;text-align:center;"><p style="margin:0;font-size:10px;color:#9ca3af;font-style:italic;">Generated on ${new Date().toLocaleString()}</p></div>
+</div></body></html>`;
+}
+
+// ---------------------------------------------------------------------------
 // Actual generation (called by the BullMQ worker)
 // ---------------------------------------------------------------------------
 export async function generateReport({ type, format, period, userId }) {
@@ -82,7 +173,7 @@ export async function generateReport({ type, format, period, userId }) {
   switch (type) {
     case 'patient':   data = await analytics.getPatientStats(period);    break;
     case 'financial': data = await analytics.getFinancialStats(period);  break;
-    case 'staff':     data = await analytics.getStaffPerformance(period); break;
+    case 'staff':    data = await analytics.getStaffPerformance(period); break;
     default: throw new Error(`Unknown report type: ${type}`);
   }
 
@@ -92,15 +183,30 @@ export async function generateReport({ type, format, period, userId }) {
     content  = buildCsv(type, data);
     mimeType = 'text/csv';
     ext      = 'csv';
+  } else if (format === 'pdf') {
+    let html;
+    switch (type) {
+      case 'patient':   html = buildPatientReportHtml(data); break;
+      case 'financial':  html = buildFinancialReportHtml(data); break;
+      case 'staff':     html = buildStaffReportHtml(data); break;
+    }
+
+    const filename = `report_${type}_${period}_${Date.now()}.pdf`;
+    const reportsDir = join(process.cwd(), 'tmp', 'reports');
+    const filePath = await generatePdfToFile(html, join(reportsDir, filename));
+
+    // Store file path in Redis for download
+    const downloadKey = `report:file:${filename}`;
+    await redis.setex(downloadKey, REPORT_TTL, filePath);
+
+    return { filename, downloadKey, mimeType: 'application/pdf', filePath };
   } else {
-    // PDF: return structured JSON that the client can render/print
-    // In production wire to puppeteer or pdfkit
     content  = JSON.stringify(data, null, 2);
     mimeType = 'application/json';
     ext      = 'json';
   }
 
-  // Store in Redis as base64 for download
+  // For CSV/JSON, store as base64 in Redis
   const filename = `report_${type}_${period}_${Date.now()}.${ext}`;
   const encoded  = Buffer.from(content).toString('base64');
   const downloadKey = `report:file:${filename}`;

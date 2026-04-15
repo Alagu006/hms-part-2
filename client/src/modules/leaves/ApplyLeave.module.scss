@@ -144,3 +144,123 @@
 
   &:hover { background: #15803d; }
 }
+
+// ── Page layout ────────────────────────────────────────────────────────────
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 600px;
+  padding: 24px;
+}
+
+// ── History section ────────────────────────────────────────────────────────
+.historySection {}
+
+.historyTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 14px;
+}
+
+.historyList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+// ── Leave card ─────────────────────────────────────────────────────────────
+.leaveCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.leaveCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.leaveType {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  text-transform: capitalize;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.leaveDates {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.leaveDays {
+  color: #9ca3af;
+}
+
+// ── Status badge ───────────────────────────────────────────────────────────
+.statusBadge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.statusPending   { background: #fef3c7; color: #b45309; }
+.statusApproved  { background: #dcfce7; color: #15803d; }
+.statusRejected  { background: #fee2e2; color: #b91c1c; }
+.statusCancelled { background: #f3f4f6; color: #6b7280; }
+
+// ── Reason / rejection ─────────────────────────────────────────────────────
+.leaveReason {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.rejectionBox {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.8125rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.rejectionLabel {
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.rejectionText {
+  color: #374151;
+}
+
+.reviewerName {
+  color: #9ca3af;
+  font-size: 0.75rem;
+}
+
+.approvedBy {
+  font-size: 0.75rem;
+  color: #15803d;
+}
+
+.leaveCardMeta {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 2px;
+}

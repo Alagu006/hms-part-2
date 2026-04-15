@@ -2,7 +2,7 @@ import * as deptService from './departments.service.js';
 
 export async function listDepartments(req, res, next) {
   try {
-    const result = await deptService.listDepartments(req.query);
+    const result = await deptService.listDepartments(req.parsedQuery ?? req.query);
     return res.status(200).json(result);
   } catch (err) {
     next(err);

@@ -1,0 +1,382 @@
+$blue:       #1d4ed8;
+$blue-light: #eff6ff;
+$white:      #ffffff;
+$text:       #111827;
+$text-muted: #6b7280;
+$error:      #dc2626;
+
+.page {
+  overflow-x: hidden;
+}
+
+// ── Hero ──────────────────────────────────────────────────────────────────────
+.hero {
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+  padding: 6rem 1.5rem 5rem;
+  text-align: center;
+}
+
+.heroInner {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.3rem 0.9rem;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #bfdbfe;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 1.25rem;
+}
+
+.heroTitle {
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 900;
+  color: $white;
+  margin: 0 0 1rem;
+  letter-spacing: -0.025em;
+}
+
+.heroDesc {
+  font-size: 1.05rem;
+  color: #bfdbfe;
+  line-height: 1.65;
+  margin: 0;
+}
+
+// ── Main layout ───────────────────────────────────────────────────────────────
+.main {
+  padding: 4rem 1.5rem 5rem;
+  background: #f8fafc;
+}
+
+.inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 3rem;
+  align-items: start;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.colTitle {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: $text;
+  margin: 0 0 1.5rem;
+}
+
+// ── Info column ───────────────────────────────────────────────────────────────
+.infoCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.infoCards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.infoCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: $white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.1rem 1.25rem;
+  transition: box-shadow 0.2s;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+}
+
+.infoIcon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.infoLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $text-muted;
+  margin: 0 0 0.25rem;
+}
+
+.infoValue {
+  font-size: 0.9rem;
+  color: $text;
+  margin: 0;
+  text-decoration: none;
+  line-height: 1.5;
+}
+
+a.infoValue {
+  color: $blue;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// ── Department directory ──────────────────────────────────────────────────────
+.deptBox {
+  background: $white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.deptTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $blue;
+  margin: 0 0 0.85rem;
+}
+
+.deptList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.deptItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.875rem;
+  color: $text;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.deptExt {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: $blue;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// ── Staff box ─────────────────────────────────────────────────────────────────
+.staffBox {
+  background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+  border-radius: 12px;
+  padding: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.staffText {
+  font-size: 0.9rem;
+  color: #bfdbfe;
+  margin: 0;
+}
+
+.staffBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.55rem 1.1rem;
+  background: $white;
+  color: $blue;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: transform 0.15s;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
+// ── Form column ───────────────────────────────────────────────────────────────
+.formCol {
+  background: $white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+
+  span {
+    color: $error;
+  }
+}
+
+.input,
+.textarea {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: $text;
+  background: #f9fafb;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+  resize: vertical;
+
+  &:focus {
+    outline: none;
+    border-color: $blue;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+    background: $white;
+  }
+}
+
+.inputError {
+  border-color: $error;
+
+  &:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  }
+}
+
+.fieldError {
+  font-size: 0.78rem;
+  color: $error;
+  margin: 0;
+}
+
+.disclaimer {
+  font-size: 0.8rem;
+  color: $text-muted;
+  margin: 0;
+  line-height: 1.5;
+
+  a {
+    color: $blue;
+    font-weight: 600;
+  }
+}
+
+.submitBtn {
+  align-self: flex-start;
+  padding: 0.75rem 2rem;
+  background: $blue;
+  color: $white;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  box-shadow: 0 4px 16px rgba(29, 78, 216, 0.3);
+
+  &:hover {
+    background: #1e40af;
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// ── Success state ─────────────────────────────────────────────────────────────
+.successBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.successIcon {
+  font-size: 1.75rem;
+  flex-shrink: 0;
+}
+
+.successTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #15803d;
+  margin: 0 0 0.4rem;
+}
+
+.successDesc {
+  font-size: 0.875rem;
+  color: #166534;
+  line-height: 1.55;
+  margin: 0 0 1rem;
+}
+
+.resetBtn {
+  background: none;
+  border: none;
+  color: $blue;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+
+  &:hover {
+    color: #1e40af;
+  }
+}

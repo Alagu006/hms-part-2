@@ -1,0 +1,19 @@
+@use '../styles/mixins' as *;
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-page, #f8fafc);
+}
+
+.main {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0; // prevent flex blowout
+  background: var(--bg-page, #f8fafc);
+
+  @include tablet {
+    // push content below the fixed hamburger bar
+    padding-top: 56px;
+  }
+}

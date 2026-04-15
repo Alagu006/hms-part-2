@@ -3,7 +3,19 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import fs from 'fs';
 import { pool } from '../../shared/db/pool.js';
-import { redis } from '../../shared/db/redis.js';
+import { redis } from '../../shared/services/redis.service.js';
+import { pgDecryptFields } from '../../shared/db/pgcrypto.js';
+
+// ---------------------------------------------------------------------------
+// Email service (lazy import to avoid circular dependency)
+// ---------------------------------------------------------------------------
+let _emailService = null;
+async function getEmailService() {
+  if (!_emailService) {
+    _emailService = await import('../../shared/services/email.service.js');
+  }
+  return _emailService;
+}
 
 // ---------------------------------------------------------------------------
 // Key loading — RS256 key pair from env-specified paths
@@ -36,13 +48,18 @@ function generateOtp() {
 async function getUserByUsername(username) {
   const { rows } = await pool.query(
     `SELECT u.id, u.password_hash, u.is_active, u.must_change_password,
-            u.first_name, u.last_name, u.department_id, u.email,
+            u.first_name, u.last_name, u.department_id, u.twofa_enabled,
+            pgp_sym_decrypt(decode(u.email, 'hex'), $2) AS email,
             array_agg(ur.role) FILTER (WHERE ur.role IS NOT NULL AND ur.revoked_at IS NULL) AS roles
      FROM users u
      LEFT JOIN user_roles ur ON ur.user_id = u.id
-     WHERE u.employee_id = $1 AND u.deleted_at IS NULL
+     WHERE (
+       u.employee_id = $1
+       OR u.id IN (SELECT user_id FROM patients WHERE mrn = $1 AND deleted_at IS NULL AND user_id IS NOT NULL)
+     )
+     AND u.deleted_at IS NULL
      GROUP BY u.id`,
-    [username]
+    [username, process.env.PG_CRYPTO_KEY]
   );
   return rows[0] || null;
 }
@@ -64,16 +81,23 @@ async function getUserById(userId) {
 // ---------------------------------------------------------------------------
 // Login
 // ---------------------------------------------------------------------------
-export async function login(username, password, ip) {
-  // Rate limit check
+export async function login(username, password, ip, userAgent = '') {
   const attemptKey = loginKey(ip, username);
   const attempts   = await redis.incr(attemptKey);
   if (attempts === 1) await redis.expire(attemptKey, LOGIN_WINDOW);
+
   if (attempts > MAX_LOGIN_ATTEMPTS) {
     const ttl = await redis.ttl(attemptKey);
     const err  = new Error(`Too many login attempts. Try again in ${Math.ceil(ttl / 60)} minutes.`);
     err.status = 429;
     throw err;
+  }
+
+  if (attempts === MAX_LOGIN_ATTEMPTS) {
+    const user = await getUserByUsername(username);
+    if (user) {
+      await sendLockoutNotification(user, ip);
+    }
   }
 
   const user = await getUserByUsername(username);
@@ -96,34 +120,54 @@ export async function login(username, password, ip) {
     throw err;
   }
 
-  // Clear rate limit on success
   await redis.del(attemptKey);
 
-  // First-login flag
   if (user.must_change_password) {
     return { mustChangePassword: true };
   }
 
-  // Update last_login_at
+  // Check if 2FA is enabled for this user
+  if (user.twofa_enabled) {
+    await sendTwoFaLoginOtp(user.id, user.email);
+    return { requires2fa: true, userId: user.id };
+  }
+
   await pool.query(
     'UPDATE users SET last_login_at = NOW() WHERE id = $1',
     [user.id]
   );
 
-  const tokens = await issueTokenPair(user);
+  const ipHash         = hashField(ip);
+  const uaHash         = hashField(userAgent);
+  const expiresAt      = new Date(Date.now() + REFRESH_TOKEN_TTL * 1000);
+  const { rows: ses }  = await pool.query(
+    `INSERT INTO sessions (user_id, ip_hash, user_agent_hash, expires_at)
+     VALUES ($1, $2, $3, $4) RETURNING id`,
+    [user.id, ipHash, uaHash, expiresAt]
+  );
+  const sessionId = ses[0].id;
+
+  const tokens = await issueTokenPair(user, sessionId);
   return { user: sanitizeUser(user), ...tokens };
 }
 
 // ---------------------------------------------------------------------------
 // Issue access + refresh token pair
 // ---------------------------------------------------------------------------
-export async function issueTokenPair(user) {
+export async function issueTokenPair(user, sessionId = null) {
+  // Normalize roles — pg array_agg can return '{ROLE1,ROLE2}' string
+  let roles = user.roles ?? [];
+  if (typeof roles === 'string') {
+    roles = roles.replace(/^\{|\}$/g, '').split(',').filter(Boolean);
+  }
+
   const payload = {
     sub:          user.id,
-    roles:        user.roles ?? [],
+    roles,
     departmentId: user.department_id,
     firstName:    user.first_name,
     lastName:     user.last_name,
+    ...(sessionId && { sessionId }),
   };
 
   const accessToken = jwt.sign(payload, PRIVATE_KEY, {
@@ -135,8 +179,8 @@ export async function issueTokenPair(user) {
 
   const refreshToken = generateOpaqueToken();
 
-  // Store refresh token in Redis: value = userId, TTL = 7 days
-  await redis.setex(refreshKey(refreshToken), REFRESH_TOKEN_TTL, user.id);
+  // Store refresh token in Redis: value = JSON({userId, sessionId}), TTL = 7 days
+  await redis.setex(refreshKey(refreshToken), REFRESH_TOKEN_TTL, JSON.stringify({ userId: user.id, sessionId }));
 
   return { accessToken, refreshToken };
 }
@@ -151,8 +195,8 @@ export async function refresh(oldRefreshToken) {
     throw err;
   }
 
-  const userId = await redis.get(refreshKey(oldRefreshToken));
-  if (!userId) {
+  const stored   = await redis.get(refreshKey(oldRefreshToken));
+  if (!stored) {
     const err = new Error('Invalid or expired refresh token');
     err.status = 401;
     throw err;
@@ -160,6 +204,8 @@ export async function refresh(oldRefreshToken) {
 
   // Rotate: delete old token immediately (single-use)
   await redis.del(refreshKey(oldRefreshToken));
+
+  const { userId, sessionId } = JSON.parse(stored);
 
   const { rows } = await pool.query(
     `SELECT u.id, u.is_active, u.first_name, u.last_name, u.department_id,
@@ -178,7 +224,7 @@ export async function refresh(oldRefreshToken) {
     throw err;
   }
 
-  return issueTokenPair(user);
+  return issueTokenPair(user, sessionId);
 }
 
 // ---------------------------------------------------------------------------
@@ -262,13 +308,349 @@ export async function flushAllRefreshTokens() {
 // Helpers
 // ---------------------------------------------------------------------------
 function sanitizeUser(user) {
+  const roles = Array.isArray(user.roles)
+    ? user.roles
+    : typeof user.roles === 'string'
+      ? user.roles.replace(/^\{|\}$/g, '').split(',').filter(Boolean)
+      : [];
   return {
     id          : user.id,
     firstName   : user.first_name,
     lastName    : user.last_name,
-    roles       : user.roles ?? [],
+    roles,
     departmentId: user.department_id,
   };
 }
 
+// ---------------------------------------------------------------------------
+// Account lockout notification
+// ---------------------------------------------------------------------------
+async function sendLockoutNotification(user, ip) {
+  try {
+    const emailSvc = await getEmailService();
+
+    // Decrypt user email for sending
+    const decryptedUser = await pgDecryptFields(user, ['email']);
+    const userEmail = decryptedUser.email;
+
+    const html = emailSvc.baseTemplate('Account Locked — Multiple Failed Login Attempts', `
+      <h2 style="margin:0 0 16px;color:#111827;font-size:22px;">Account Locked</h2>
+      <p style="margin:0 0 12px;color:#374151;font-size:15px;line-height:1.6;">
+        Multiple failed login attempts have been detected on your account.
+      </p>
+      <div style="background:#fee2e2;border-radius:6px;padding:16px 24px;margin:24px 0;">
+        <p style="margin:0 0 8px;color:#991b1b;font-size:13px;text-transform:uppercase;letter-spacing:1px;">
+          Details
+        </p>
+        <p style="margin:0;color:#7f1d1d;font-size:14px;">
+          User: <strong>${user.first_name} ${user.last_name}</strong><br/>
+          IP Address: <strong>${ip}</strong><br/>
+          Attempts: <strong>${MAX_LOGIN_ATTEMPTS}</strong>
+        </p>
+      </div>
+      <p style="margin:0 0 12px;color:#374151;font-size:14px;">
+        If this was you, please wait 15 minutes and try again. If you did not attempt to log in,
+        please contact IT support immediately.
+      </p>
+    `);
+
+    // Notify the locked-out user
+    if (userEmail) {
+      await emailSvc.sendNotification(
+        userEmail,
+        `Account Locked — ${process.env.HOSPITAL_NAME || 'HMS'}`,
+        html
+      );
+    }
+
+    // Notify SUPER_ADMIN
+    if (process.env.SUPER_ADMIN_EMAIL) {
+      const adminHtml = emailSvc.baseTemplate('Security Alert — Account Lockout', `
+        <h2 style="margin:0 0 16px;color:#111827;font-size:22px;">Account Lockout Detected</h2>
+        <p style="margin:0 0 12px;color:#374151;font-size:15px;line-height:1.6;">
+          An account has been locked due to multiple failed login attempts.
+        </p>
+        <div style="background:#fef3c7;border-radius:6px;padding:16px 24px;margin:24px 0;">
+          <p style="margin:0 0 8px;color:#92400e;font-size:13px;text-transform:uppercase;letter-spacing:1px;">
+            Incident Details
+          </p>
+          <p style="margin:0;color:#78350f;font-size:14px;">
+            User ID: <strong>${user.id}</strong><br/>
+            Name: <strong>${user.first_name} ${user.last_name}</strong><br/>
+            IP Address: <strong>${ip}</strong><br/>
+            Failed Attempts: <strong>${MAX_LOGIN_ATTEMPTS}</strong>
+          </p>
+        </div>
+        <p style="margin:0;color:#6b7280;font-size:13px;">
+          Timestamp: ${new Date().toISOString()}
+        </p>
+      `);
+
+      await emailSvc.sendNotification(
+        process.env.SUPER_ADMIN_EMAIL,
+        `Security Alert — Account Lockout for ${user.first_name} ${user.last_name}`,
+        adminHtml
+      );
+    }
+  } catch (err) {
+    console.error('[auth] Failed to send lockout notification:', err.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Session management
+// ---------------------------------------------------------------------------
+function hashField(value) {
+  if (!value) return '';
+  return crypto.createHash('sha256').update(value).digest('hex').slice(0, 16);
+}
+
+export async function getSessions(userId) {
+  const { rows } = await pool.query(
+    `SELECT id, ip_hash, user_agent_hash, created_at, expires_at
+     FROM sessions
+     WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > NOW()
+     ORDER BY created_at DESC`,
+    [userId]
+  );
+  return rows;
+}
+
+export async function revokeSession(sessionId, userId) {
+  await pool.query(
+    `UPDATE sessions SET revoked_at = NOW()
+     WHERE id = $1 AND user_id = $2`,
+    [sessionId, userId]
+  );
+
+  const keys = await redis.keys('refresh:*');
+  for (const key of keys) {
+    const val = await redis.get(key);
+    if (val) {
+      try {
+        const { sessionId: sid } = JSON.parse(val);
+        if (sid === sessionId) {
+          await redis.del(key);
+          break;
+        }
+      } catch {}
+    }
+  }
+}
+
+export async function revokeAllOtherSessions(currentSessionId, userId) {
+  const { rowCount } = await pool.query(
+    `UPDATE sessions SET revoked_at = NOW()
+     WHERE user_id = $1 AND id != $2 AND revoked_at IS NULL`,
+    [userId, currentSessionId]
+  );
+
+  const keys = await redis.keys('refresh:*');
+  const toDelete = [];
+  for (const key of keys) {
+    const val = await redis.get(key);
+    if (val) {
+      try {
+        const { sessionId: sid } = JSON.parse(val);
+        if (sid !== currentSessionId) toDelete.push(key);
+      } catch {}
+    }
+  }
+  if (toDelete.length > 0) await redis.del(...toDelete);
+
+  return rowCount ?? 0;
+}
+
 export { PUBLIC_KEY };
+
+// ---------------------------------------------------------------------------
+// 2FA — Redis key helpers
+// ---------------------------------------------------------------------------
+const twoFaOtpKey    = (userId) => `2fa_otp:${userId}`;
+const twoFaPendingKey = (userId) => `2fa_pending:${userId}`;
+const TWOFA_OTP_TTL  = 10 * 60; // 10 minutes
+const TWOFA_PENDING_TTL = 10 * 60; // 10 minutes — window to complete 2FA after password OK
+
+// ---------------------------------------------------------------------------
+// Get 2FA status for a user
+// ---------------------------------------------------------------------------
+export async function getTwoFaStatus(userId) {
+  const { rows } = await pool.query(
+    'SELECT twofa_enabled FROM users WHERE id = $1 AND deleted_at IS NULL',
+    [userId]
+  );
+  if (!rows[0]) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+  return { enabled: rows[0].twofa_enabled };
+}
+
+// ---------------------------------------------------------------------------
+// Enable 2FA — sends OTP to email, marks pending
+// ---------------------------------------------------------------------------
+export async function requestTwoFaEnable(userId) {
+  const { rows } = await pool.query(
+    `SELECT u.id, u.first_name, u.twofa_enabled,
+            pgp_sym_decrypt(decode(u.email, 'hex'), $2) AS email
+     FROM users u WHERE u.id = $1 AND u.deleted_at IS NULL`,
+    [userId, process.env.PG_CRYPTO_KEY]
+  );
+  const user = rows[0];
+  if (!user) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+  if (user.twofa_enabled) {
+    const err = new Error('2FA is already enabled');
+    err.status = 409;
+    throw err;
+  }
+
+  const otp = generateOtp();
+  await redis.setex(twoFaOtpKey(userId), TWOFA_OTP_TTL, otp);
+
+  const { sendOTP } = await import('../../shared/services/email.service.js');
+  if (user.email) await sendOTP(user.email, otp);
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[DEV] 2FA enable OTP for ${userId}: ${otp}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Confirm 2FA enable — verify OTP then flip the flag
+// ---------------------------------------------------------------------------
+export async function confirmTwoFaEnable(userId, otp) {
+  const stored = await redis.get(twoFaOtpKey(userId));
+  if (!stored || stored !== otp) {
+    const err = new Error('Invalid or expired OTP');
+    err.status = 400;
+    throw err;
+  }
+  await redis.del(twoFaOtpKey(userId));
+  await pool.query(
+    'UPDATE users SET twofa_enabled = TRUE, updated_at = NOW() WHERE id = $1',
+    [userId]
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Disable 2FA — verify OTP then clear the flag
+// ---------------------------------------------------------------------------
+export async function requestTwoFaDisable(userId) {
+  const { rows } = await pool.query(
+    `SELECT u.id, u.twofa_enabled,
+            pgp_sym_decrypt(decode(u.email, 'hex'), $2) AS email
+     FROM users u WHERE u.id = $1 AND u.deleted_at IS NULL`,
+    [userId, process.env.PG_CRYPTO_KEY]
+  );
+  const user = rows[0];
+  if (!user) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+  if (!user.twofa_enabled) {
+    const err = new Error('2FA is not enabled');
+    err.status = 409;
+    throw err;
+  }
+
+  const otp = generateOtp();
+  await redis.setex(twoFaOtpKey(userId), TWOFA_OTP_TTL, otp);
+
+  const { sendOTP } = await import('../../shared/services/email.service.js');
+  if (user.email) await sendOTP(user.email, otp);
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[DEV] 2FA disable OTP for ${userId}: ${otp}`);
+  }
+}
+
+export async function confirmTwoFaDisable(userId, otp) {
+  const stored = await redis.get(twoFaOtpKey(userId));
+  if (!stored || stored !== otp) {
+    const err = new Error('Invalid or expired OTP');
+    err.status = 400;
+    throw err;
+  }
+  await redis.del(twoFaOtpKey(userId));
+  await pool.query(
+    'UPDATE users SET twofa_enabled = FALSE, updated_at = NOW() WHERE id = $1',
+    [userId]
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Login 2FA — verify OTP sent during login, then issue tokens
+// ---------------------------------------------------------------------------
+export async function verifyTwoFaLogin(userId, otp, ip, userAgent) {
+  // Check the pending marker (ensures this is a real in-progress login)
+  const pending = await redis.get(twoFaPendingKey(userId));
+  if (!pending) {
+    const err = new Error('No pending 2FA session — please log in again');
+    err.status = 400;
+    throw err;
+  }
+
+  const stored = await redis.get(twoFaOtpKey(userId));
+  if (!stored || stored !== otp) {
+    const err = new Error('Invalid or expired OTP');
+    err.status = 400;
+    throw err;
+  }
+
+  await redis.del(twoFaOtpKey(userId));
+  await redis.del(twoFaPendingKey(userId));
+
+  // Fetch user to issue tokens
+  const { rows } = await pool.query(
+    `SELECT u.id, u.is_active, u.first_name, u.last_name, u.department_id,
+            array_agg(ur.role) FILTER (WHERE ur.role IS NOT NULL AND ur.revoked_at IS NULL) AS roles
+     FROM users u
+     LEFT JOIN user_roles ur ON ur.user_id = u.id
+     WHERE u.id = $1 AND u.deleted_at IS NULL
+     GROUP BY u.id`,
+    [userId]
+  );
+  const user = rows[0];
+  if (!user || !user.is_active) {
+    const err = new Error('User not found or inactive');
+    err.status = 401;
+    throw err;
+  }
+
+  await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [userId]);
+
+  const ipHash    = hashField(ip);
+  const uaHash    = hashField(userAgent);
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL * 1000);
+  const { rows: ses } = await pool.query(
+    `INSERT INTO sessions (user_id, ip_hash, user_agent_hash, expires_at)
+     VALUES ($1, $2, $3, $4) RETURNING id`,
+    [user.id, ipHash, uaHash, expiresAt]
+  );
+  const sessionId = ses[0].id;
+
+  const tokens = await issueTokenPair(user, sessionId);
+  return { user: sanitizeUser(user), ...tokens };
+}
+
+// ---------------------------------------------------------------------------
+// Internal: send 2FA OTP during login and store pending marker
+// ---------------------------------------------------------------------------
+export async function sendTwoFaLoginOtp(userId, email) {
+  const otp = generateOtp();
+  await redis.setex(twoFaOtpKey(userId), TWOFA_OTP_TTL, otp);
+  await redis.setex(twoFaPendingKey(userId), TWOFA_PENDING_TTL, '1');
+
+  const { sendOTP } = await import('../../shared/services/email.service.js');
+  if (email) await sendOTP(email, otp);
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[DEV] 2FA login OTP for ${userId}: ${otp}`);
+  }
+}

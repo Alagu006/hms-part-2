@@ -49,6 +49,14 @@ const markReadSchema = z.object({
   params: z.object({ id: uuid }),
 });
 
+// GET /messages/users — list all non-patient staff (for DM picker + group creation)
+router.get('/users', async (req, res, next) => {
+  try {
+    const users = await svc.getMessagingUsers(req.user.id);
+    res.json({ data: users });
+  } catch (err) { next(err); }
+});
+
 // GET /messages/groups
 router.get('/groups', async (req, res, next) => {
   try {
@@ -72,6 +80,36 @@ router.post(
     } catch (err) { next(err); }
   }
 );
+
+// GET /messages/groups/:groupId/key — fetch shared group encryption key
+router.get('/groups/:groupId/key', async (req, res, next) => {
+  try {
+    const member = await svc.isMember(req.params.groupId, req.user.id);
+    if (!member) return res.status(403).json({ error: 'Not a member' });
+    const key = await svc.getOrCreateGroupKey(req.params.groupId);
+    res.json({ key });
+  } catch (err) { next(err); }
+});
+
+// GET /messages/groups/:groupId/members
+router.get('/groups/:groupId/members', async (req, res, next) => {
+  try {
+    const members = await svc.getGroupMembers(req.params.groupId);
+    res.json({ data: members });
+  } catch (err) { next(err); }
+});
+
+// POST /messages/groups/:groupId/members — add a member
+router.post('/groups/:groupId/members', async (req, res, next) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(422).json({ error: 'userId required' });
+    const isMember = await svc.isMember(req.params.groupId, req.user.id);
+    if (!isMember) return res.status(403).json({ error: 'Not a member of this group' });
+    await svc.addMember(req.params.groupId, userId);
+    res.status(201).json({ ok: true });
+  } catch (err) { next(err); }
+});
 
 // GET /messages/groups/:groupId/history
 router.get(

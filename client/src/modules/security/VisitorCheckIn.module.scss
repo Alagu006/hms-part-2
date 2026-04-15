@@ -1,0 +1,343 @@
+.checkInWrap {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 24px;
+  max-width: 560px;
+}
+
+.checkInTitle {
+  margin: 0 0 20px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+// ── Step hint ────────────────────────────────────────────────────────────────
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stepHint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+// ── MRN form ─────────────────────────────────────────────────────────────────
+.mrnForm {
+  display: flex;
+  gap: 10px;
+}
+
+// ── Patient card ─────────────────────────────────────────────────────────────
+.patientCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.patientInfo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.patientName {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9375rem;
+}
+
+.patientMrn {
+  font-family: monospace;
+  font-size: 0.8125rem;
+  color: #059669;
+  background: #d1fae5;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.patientMeta {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.resetBtn {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+
+  &:hover { color: #374151; background: #f3f4f6; }
+}
+
+// ── Past visitor picker ───────────────────────────────────────────────────────
+.pastPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pastPickerHint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.pastList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.pastItem {
+  display: block;
+}
+
+.pastSelectBtn {
+  width: 100%;
+  text-align: left;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: #1a56db;
+    background: #eff6ff;
+  }
+}
+
+.pastName {
+  font-weight: 600;
+  color: #111827;
+  font-size: 0.9rem;
+}
+
+.pastMeta {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.pastDate {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.skipBtn {
+  background: none;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  color: #6b7280;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, color 0.15s;
+
+  &:hover { border-color: #1a56db; color: #1a56db; }
+}
+
+// ── Visitor form ──────────────────────────────────────────────────────────────
+.visitorForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.input,
+.select {
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #111827;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: #1a56db;
+    box-shadow: 0 0 0 2px rgba(26, 86, 219, 0.1);
+  }
+
+  &::placeholder { color: #9ca3af; }
+}
+
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+// ── Autocomplete ──────────────────────────────────────────────────────────────
+.autocompleteWrap {
+  position: relative;
+}
+
+.suggestionList {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.suggestionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 0.875rem;
+
+  &:hover { background: #f3f4f6; }
+}
+
+.suggName { font-weight: 500; color: #111827; }
+.suggPhone { color: #6b7280; font-family: monospace; font-size: 0.8125rem; }
+.suggRel { color: #9ca3af; font-size: 0.75rem; }
+
+// ── Field error ───────────────────────────────────────────────────────────────
+.fieldError {
+  font-size: 0.75rem;
+  color: #dc2626;
+}
+
+.errorMsg {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: #dc2626;
+}
+
+// ── Form actions ──────────────────────────────────────────────────────────────
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.primaryBtn {
+  padding: 9px 20px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover:not(:disabled) { background: #1e429f; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.secondaryBtn {
+  padding: 9px 16px;
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s;
+
+  &:hover { border-color: #9ca3af; }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1001;
+  animation: slideIn 0.25s ease-out;
+}
+
+.toastSuccess { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+.toastError   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+.toastClose {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  padding: 0;
+  line-height: 1;
+  &:hover { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
