@@ -3,7 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiFetch } from '../../shared/utils/authHeaders.js';
 import LabTestsPanel from './LabTestsPanel.jsx';
+import CDSInsightsPanel from '../cds/CDSInsightsPanel.jsx';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
+import StatCard from '../../shared/components/StatCard.jsx';
+import PageHeader from '../../shared/components/PageHeader.jsx';
 import styles from './DoctorDashboard.module.scss';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
@@ -280,34 +283,46 @@ export default function DoctorDashboard() {
 
   return (
     <div className={styles.page}>
+      <PageHeader
+        title="Doctor Dashboard"
+        subtitle={new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        actions={
+          <button className={styles.qaBtn} onClick={() => navigate('/doctor/prescriptions')}>
+            💊 New Prescription
+          </button>
+        }
+      />
+
       {/* Stat cards */}
       <div className={styles.statsRow}>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Today&apos;s Appointments</span>
-          {pendingLoading ? (
-            <div className={styles.skeleton} style={{ width: 60, height: 32, marginTop: 8 }} />
-          ) : (
-            <span className={styles.statValue}>{todayCount}</span>
-          )}
-        </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Upcoming</span>
-          <span className={styles.statValue}>{upcomingCount}</span>
-        </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Pending Prescriptions</span>
-          {pendingLoading ? (
-            <div className={styles.skeleton} style={{ width: 60, height: 32, marginTop: 8 }} />
-          ) : (
-            <span className={`${styles.statValue} ${pendingCount > 0 ? styles.statAlert : ''}`}>
-              {pendingCount}
-            </span>
-          )}
-        </div>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Recent Patients</span>
-          <span className={styles.statValue}>{recentPatients.length}</span>
-        </div>
+        <StatCard
+          label="Today's Appointments"
+          value={todayCount}
+          icon="📅"
+          status="blue"
+          delay={0}
+        />
+        <StatCard
+          label="Upcoming"
+          value={upcomingCount}
+          icon="⏰"
+          status="teal"
+          delay={0.05}
+        />
+        <StatCard
+          label="Pending Prescriptions"
+          value={pendingCount}
+          icon="💊"
+          status={pendingCount > 0 ? 'amber' : 'green'}
+          delay={0.1}
+        />
+        <StatCard
+          label="Recent Patients"
+          value={recentPatients.length}
+          icon="👥"
+          status="purple"
+          delay={0.15}
+        />
       </div>
 
       {/* Quick actions */}
@@ -418,6 +433,14 @@ export default function DoctorDashboard() {
       <SectionCard title="Lab Tests">
         <LabTestsPanel />
       </SectionCard>
+
+      {/* CDS Insights — shown when a patient is selected from recent patients */}
+      {recentPatients.length > 0 && (
+        <CDSInsightsPanel
+          patientId={recentPatients[0]?.id}
+          collapsed={true}
+        />
+      )}
     </div>
   );
 }

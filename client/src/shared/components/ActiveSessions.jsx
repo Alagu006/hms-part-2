@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '../../store/index.js';
-import { useNotificationStore } from '../../hooks/useNotifications.js';
-import { decodeJwtPayload } from '../../utils/crypto.js';
+import { useAuth } from '../store/index.js';
+import { useNotificationStore } from '../hooks/useNotifications.js';
+import { decodeJwtPayload } from '../utils/crypto.js';
 import styles from './ActiveSessions.module.scss';
 
 const API = import.meta.env.VITE_API_URL ?? '/api';

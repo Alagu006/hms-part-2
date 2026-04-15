@@ -1,8 +1,10 @@
 import { useState, lazy, Suspense } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar.jsx';
+import Navbar from './Navbar.jsx';
 import Breadcrumb from './Breadcrumb.jsx';
 import SessionTimeoutWarning from './SessionTimeoutWarning.jsx';
+import MobileBottomNav from './MobileBottomNav.jsx';
 import styles from './AppLayout.module.scss';
 import { useForceLogout } from '../hooks/useForceLogout.js';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts.js';
@@ -25,11 +27,16 @@ export default function AppLayout() {
     <div className={styles.layout}>
       <Sidebar onOpenSearch={() => setSearchOpen(true)} />
 
-      <main className={styles.main}>
-        <Breadcrumb />
-        <Outlet />
-      </main>
+      <div className={styles.content}>
+        <Navbar onOpenSearch={() => setSearchOpen(true)} />
 
+        <main className={styles.main}>
+          <Breadcrumb />
+          <Outlet />
+        </main>
+      </div>
+
+      <MobileBottomNav />
       <SessionTimeoutWarning />
 
       <Suspense fallback={null}>

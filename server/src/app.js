@@ -43,6 +43,7 @@ import visitorsRoutes    from './modules/visitors/visitors.routes.js';
 import dietPlansRoutes   from './modules/diet-plans/diet-plans.routes.js';
 import caseNotesRoutes   from './modules/case-notes/case-notes.routes.js';
 import contactRoutes     from './modules/contact/contact.routes.js';
+import cdsRoutes         from './modules/cds/cds.routes.js';
 
 // ── Socket bootstrap ──────────────────────────────────────────────────────────
 import { initSocket } from './socket.js';
@@ -183,6 +184,7 @@ app.use('/api/lab-orders',         labOrdersRoutes);
 app.use('/api/diet-plans',         dietPlansRoutes);
 app.use('/api/case-notes',         caseNotesRoutes);
 app.use('/api/contact',            contactRoutes);
+app.use('/api/cds',                cdsRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));

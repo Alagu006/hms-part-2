@@ -63,3 +63,30 @@ export const timelineSchema = z.object({
 export const getMedicalRecordSchema = z.object({
   params: z.object({ id: uuid }),
 });
+
+// ── Allergy schemas ───────────────────────────────────────────────────────────
+export const createAllergySchema = z.object({
+  params: z.object({ id: uuid }),
+  body: z.object({
+    allergen : z.string().min(1).max(200),
+    type     : z.enum(['DRUG', 'FOOD', 'ENVIRONMENTAL', 'OTHER']).default('DRUG'),
+    severity : z.enum(['MILD', 'MODERATE', 'SEVERE']).default('MODERATE'),
+    reaction : z.string().max(500).optional(),
+    notes    : z.string().max(1000).optional(),
+  }),
+});
+
+export const updateAllergySchema = z.object({
+  params: z.object({ id: uuid, allergyId: uuid }),
+  body: z.object({
+    allergen : z.string().min(1).max(200).optional(),
+    type     : z.enum(['DRUG', 'FOOD', 'ENVIRONMENTAL', 'OTHER']).optional(),
+    severity : z.enum(['MILD', 'MODERATE', 'SEVERE']).optional(),
+    reaction : z.string().max(500).optional(),
+    notes    : z.string().max(1000).optional(),
+  }).refine(obj => Object.keys(obj).length > 0, { message: 'At least one field required' }),
+});
+
+export const allergyParamsSchema = z.object({
+  params: z.object({ id: uuid, allergyId: uuid }),
+});

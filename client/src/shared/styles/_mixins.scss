@@ -59,8 +59,143 @@ $bp-desktop : 1024px;
 // Card base
 // ─────────────────────────────────────────────────────────────────────────────
 @mixin card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06));
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shadow levels
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin shadow-sm { box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)); }
+@mixin shadow-md { box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04)); }
+@mixin shadow-lg { box-shadow: var(--shadow-lg, 0 10px 30px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06)); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Primary button gradient
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin btn-primary {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.30);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+    box-shadow: 0 4px 14px rgba(29, 78, 216, 0.40);
+    transform: translateY(-1px);
+  }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Secondary button
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin btn-secondary {
+  background: var(--bg-card, #fff);
+  color: var(--text-secondary, #374151);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-subtle, #f3f4f6);
+    border-color: #9ca3af;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Danger button
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #b91c1c;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.35);
+  }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stat card with animated count-up support
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin stat-card {
+  @include card;
+  padding: clamp(0.875rem, 2vw, 1.25rem) clamp(1rem, 2.5vw, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    @include shadow-md;
+    transform: translateY(-2px);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Animated entrance
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin fade-in-up($delay: 0s) {
+  animation: fadeInUp 0.4s ease both;
+  animation-delay: $delay;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Focus ring (accessibility)
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin focus-ring {
+  &:focus-visible {
+    outline: 2px solid var(--accent-blue, #1d4ed8);
+    outline-offset: 2px;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Truncate text
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scrollbar styling
+// ─────────────────────────────────────────────────────────────────────────────
+@mixin custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border, #e5e7eb) transparent;
+
+  &::-webkit-scrollbar { width: 6px; height: 6px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border, #e5e7eb);
+    border-radius: 3px;
+  }
 }

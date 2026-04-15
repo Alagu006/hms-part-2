@@ -1,0 +1,222 @@
+@use '../styles/mixins' as *;
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: var(--bg-subtle, #f9fafb);
+  flex-wrap: wrap;
+}
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 160px;
+  max-width: 320px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted, #9ca3af);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 7px 10px 7px 32px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  background: var(--bg-card, #fff);
+  color: var(--text-primary, #111827);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    border-color: var(--accent-blue, #3b82f6);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  }
+
+  &::placeholder { color: var(--text-muted, #9ca3af); }
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.count {
+  font-size: 0.78rem;
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
+}
+
+.exportBtn {
+  @include touch-target;
+  @include tap-feedback;
+  padding: 5px 12px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--bg-card, #fff);
+  color: var(--text-secondary, #374151);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: #eff6ff;
+    border-color: #93c5fd;
+    color: var(--accent-blue, #1d4ed8);
+  }
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────────
+.tableWrap {
+  @include table-scroll;
+  @include custom-scrollbar;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  th {
+    padding: 0.625rem 1rem;
+    text-align: left;
+    background: var(--bg-subtle, #f9fafb);
+    color: var(--text-muted, #6b7280);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border, #f3f4f6);
+    color: var(--text-secondary, #374151);
+    vertical-align: middle;
+  }
+
+  tbody tr {
+    transition: background 0.1s ease;
+
+    &:last-child td { border-bottom: none; }
+    &:hover td { background: var(--bg-subtle, #f9fafb); }
+  }
+}
+
+.sortable {
+  cursor: pointer;
+
+  &:hover { background: var(--bg-card, #f3f4f6) !important; }
+}
+
+.thInner {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sortIcon {
+  font-size: 0.65rem;
+  color: var(--text-muted, #9ca3af);
+}
+
+.clickable {
+  cursor: pointer;
+
+  &:focus-visible { outline: 2px solid var(--accent-blue, #3b82f6); outline-offset: -2px; }
+}
+
+.emptyCell {
+  padding: 0 !important;
+  border: none !important;
+}
+
+// ── Skeleton ──────────────────────────────────────────────────────────────────
+.skeleton {
+  display: block;
+  height: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg,
+    var(--skeleton-base, #f3f4f6) 25%,
+    var(--skeleton-shine, #e5e7eb) 50%,
+    var(--skeleton-base, #f3f4f6) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+// ── Pagination ────────────────────────────────────────────────────────────────
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border, #e5e7eb);
+  flex-wrap: wrap;
+}
+
+.pageBtn {
+  @include tap-feedback;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 6px;
+  background: var(--bg-card, #fff);
+  color: var(--text-secondary, #374151);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+
+  &:hover:not(:disabled) {
+    background: var(--bg-subtle, #f3f4f6);
+    border-color: #9ca3af;
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+.pageBtnActive {
+  background: var(--accent-blue, #1d4ed8) !important;
+  border-color: var(--accent-blue, #1d4ed8) !important;
+  color: #fff !important;
+}

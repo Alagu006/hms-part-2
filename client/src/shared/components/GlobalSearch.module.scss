@@ -16,7 +16,7 @@
   width: min(640px, 94vw);
   background: var(--bg-card, #fff);
   border-radius: 16px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.20), 0 4px 16px rgba(0,0,0,0.08);
   overflow: hidden;
   border: 1px solid var(--border, #e5e7eb);
 }

@@ -10,13 +10,13 @@
   font-size: clamp(1.25rem, 4vw, 1.5rem);
   font-weight: 700;
   margin-bottom: 1.5rem;
-  color: #111;
+  color: var(--text-primary, #111);
 }
 
 .loading, .error {
   padding: 3rem;
   text-align: center;
-  color: #666;
+  color: var(--text-muted, #666);
 }
 .error { color: #dc2626; }
 
@@ -34,14 +34,17 @@
 }
 
 .statCard {
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
   padding: clamp(0.875rem, 2vw, 1.25rem) clamp(1rem, 2.5vw, 1.5rem);
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   border-left: 4px solid #6366f1;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  &:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 }
 .statCard.accentRed    { border-left-color: #dc2626; }
 .statCard.accentGreen  { border-left-color: #16a34a; }
@@ -50,15 +53,15 @@
 .statValue {
   font-size: clamp(1.25rem, 4vw, 1.75rem);
   font-weight: 700;
-  color: #111;
+  color: var(--text-primary, #111);
 }
 .statLabel {
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-.statSub { font-size: 0.72rem; color: #9ca3af; }
+.statSub { font-size: 0.72rem; color: var(--text-muted, #9ca3af); }
 
 /* ── Charts row ────────────────────────────────────────────────────────── */
 .chartsRow {

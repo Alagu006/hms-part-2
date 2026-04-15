@@ -1,0 +1,50 @@
+@use '../styles/mixins' as *;
+
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--text-muted, #6b7280);
+}
+
+.compact {
+  padding: 1.5rem 1rem;
+}
+
+.icon {
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+  opacity: 0.7;
+}
+
+.compact .icon {
+  font-size: 1.75rem;
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-secondary, #374151);
+}
+
+.compact .title {
+  font-size: 0.875rem;
+}
+
+.message {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-muted, #6b7280);
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.action {
+  margin-top: 0.75rem;
+}

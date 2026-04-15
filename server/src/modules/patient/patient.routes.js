@@ -13,6 +13,9 @@ import {
   listPatientsSchema,
   timelineSchema,
   getMedicalRecordSchema,
+  createAllergySchema,
+  updateAllergySchema,
+  allergyParamsSchema,
 } from './patient.schema.js';
 import {
   createPatient,
@@ -23,6 +26,10 @@ import {
   getMyRecords,
   getMedicalRecord,
   lookupPatientByMrn,
+  listAllergies,
+  createAllergy,
+  updateAllergy,
+  deleteAllergy,
 } from './patient.controller.js';
 
 const router = Router();
@@ -92,6 +99,40 @@ router.get(
   validate(getMedicalRecordSchema),
   checkOwnership('medical_record'),
   getMedicalRecord
+);
+
+// ── Allergy routes ────────────────────────────────────────────────────────────
+// Roles that can read allergies
+const ALLERGY_READERS = ['DOCTOR', 'NURSE', 'PHARMACIST', 'ADMIN', 'SUPER_ADMIN', 'PATIENT'];
+// Roles that can write allergies
+const ALLERGY_WRITERS = ['DOCTOR', 'NURSE', 'ADMIN', 'SUPER_ADMIN'];
+
+router.get(
+  '/:id/allergies',
+  authorize(...ALLERGY_READERS),
+  validate(getPatientSchema),
+  listAllergies
+);
+
+router.post(
+  '/:id/allergies',
+  authorize(...ALLERGY_WRITERS),
+  validate(createAllergySchema),
+  createAllergy
+);
+
+router.patch(
+  '/:id/allergies/:allergyId',
+  authorize(...ALLERGY_WRITERS),
+  validate(updateAllergySchema),
+  updateAllergy
+);
+
+router.delete(
+  '/:id/allergies/:allergyId',
+  authorize(...ALLERGY_WRITERS),
+  validate(allergyParamsSchema),
+  deleteAllergy
 );
 
 export default router;

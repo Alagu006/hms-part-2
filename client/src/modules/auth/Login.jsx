@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../shared/store/index.js';
 import { initSessionKey } from '../../shared/utils/sessionKey.js';
 import styles from './Login.module.scss';
@@ -205,35 +206,51 @@ export default function Login() {
   if (step === 'twofa') {
     return (
       <div className={styles.wrapper}>
-        <form className={styles.form} onSubmit={handleTwoFaVerify} noValidate>
-          <h1 className={styles.title}>Two-Factor Authentication</h1>
-          <p className={styles.subtitle}>Enter the 6-digit code sent to your registered email.</p>
+        <BrandPanel />
+        <div className={styles.formPanel}>
+          <motion.form
+            className={styles.form}
+            onSubmit={handleTwoFaVerify}
+            noValidate
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+          >
+            <MobileLogoRow />
+            <div className={styles.formHeader}>
+              <h1 className={styles.title}>Two-Factor Auth</h1>
+              <p className={styles.subtitle}>Enter the 6-digit code sent to your registered email.</p>
+            </div>
 
-          {info  && <p className={styles.infoMsg}>{info}</p>}
-          {error && <p className={styles.error}>{error}</p>}
+            {info  && <p className={styles.infoMsg}>{info}</p>}
+            {error && <p className={styles.error}>{error}</p>}
 
-          <label className={styles.label}>
-            Verification Code
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={twoFaOtp}
-              onChange={(e) => setTwoFaOtp(e.target.value.replace(/\D/g, ''))}
-              className={styles.input}
-              autoComplete="one-time-code"
-              autoFocus
-              required
-            />
-          </label>
+            <label className={styles.label}>
+              Verification Code
+              <div className={styles.inputWrapper}>
+                <span className={styles.inputIcon}>🔐</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={twoFaOtp}
+                  onChange={(e) => setTwoFaOtp(e.target.value.replace(/\D/g, ''))}
+                  className={styles.input}
+                  autoComplete="one-time-code"
+                  autoFocus
+                  required
+                />
+              </div>
+            </label>
 
-          <button type="submit" className={styles.btn} disabled={loading || twoFaOtp.length !== 6}>
-            {loading ? 'Verifying…' : 'Verify'}
-          </button>
-          <button type="button" className={styles.linkBtn} onClick={() => { setStep('login'); setError(''); setInfo(''); setTwoFaOtp(''); }}>
-            Back to Sign In
-          </button>
-        </form>
+            <button type="submit" className={styles.btn} disabled={loading || twoFaOtp.length !== 6}>
+              {loading ? 'Verifying…' : 'Verify Code'}
+            </button>
+            <button type="button" className={styles.linkBtn} onClick={() => { setStep('login'); setError(''); setInfo(''); setTwoFaOtp(''); }}>
+              ← Back to Sign In
+            </button>
+          </motion.form>
+        </div>
       </div>
     );
   }
@@ -241,31 +258,47 @@ export default function Login() {
   if (step === 'forgot_email') {
     return (
       <div className={styles.wrapper}>
-        <form className={styles.form} onSubmit={handleRequestOtp} noValidate>
-          <h1 className={styles.title}>Forgot Password</h1>
-          <p className={styles.subtitle}>Enter your Employee ID or Patient MRN and we'll send an OTP to your registered email.</p>
+        <BrandPanel />
+        <div className={styles.formPanel}>
+          <motion.form
+            className={styles.form}
+            onSubmit={handleRequestOtp}
+            noValidate
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+          >
+            <MobileLogoRow />
+            <div className={styles.formHeader}>
+              <h1 className={styles.title}>Forgot Password</h1>
+              <p className={styles.subtitle}>Enter your Employee ID or Patient MRN and we'll send an OTP to your registered email.</p>
+            </div>
 
-          {error && <p className={styles.error}>{error}</p>}
+            {error && <p className={styles.error}>{error}</p>}
 
-          <label className={styles.label}>
-            Employee ID / Patient MRN
-            <input
-              type="text"
-              value={fpUsername}
-              onChange={(e) => setFpUsername(e.target.value)}
-              className={styles.input}
-              autoComplete="username"
-              required
-            />
-          </label>
+            <label className={styles.label}>
+              Employee ID / Patient MRN
+              <div className={styles.inputWrapper}>
+                <span className={styles.inputIcon}>🪪</span>
+                <input
+                  type="text"
+                  value={fpUsername}
+                  onChange={(e) => setFpUsername(e.target.value)}
+                  className={styles.input}
+                  autoComplete="username"
+                  required
+                />
+              </div>
+            </label>
 
-          <button type="submit" className={styles.btn} disabled={loading || !fpUsername.trim()}>
-            {loading ? 'Sending…' : 'Send OTP'}
-          </button>
-          <button type="button" className={styles.linkBtn} onClick={resetToLogin}>
-            Back to Sign In
-          </button>
-        </form>
+            <button type="submit" className={styles.btn} disabled={loading || !fpUsername.trim()}>
+              {loading ? 'Sending…' : 'Send OTP'}
+            </button>
+            <button type="button" className={styles.linkBtn} onClick={resetToLogin}>
+              ← Back to Sign In
+            </button>
+          </motion.form>
+        </div>
       </div>
     );
   }
@@ -273,32 +306,48 @@ export default function Login() {
   if (step === 'forgot_otp') {
     return (
       <div className={styles.wrapper}>
-        <form className={styles.form} onSubmit={handleOtpNext} noValidate>
-          <h1 className={styles.title}>Enter OTP</h1>
-          {info && <p className={styles.infoMsg}>{info}</p>}
-          {error && <p className={styles.error}>{error}</p>}
+        <BrandPanel />
+        <div className={styles.formPanel}>
+          <motion.form
+            className={styles.form}
+            onSubmit={handleOtpNext}
+            noValidate
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+          >
+            <MobileLogoRow />
+            <div className={styles.formHeader}>
+              <h1 className={styles.title}>Enter OTP</h1>
+            </div>
+            {info && <p className={styles.infoMsg}>{info}</p>}
+            {error && <p className={styles.error}>{error}</p>}
 
-          <label className={styles.label}>
-            6-digit OTP
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              className={styles.input}
-              autoComplete="one-time-code"
-              required
-            />
-          </label>
+            <label className={styles.label}>
+              6-digit OTP
+              <div className={styles.inputWrapper}>
+                <span className={styles.inputIcon}>🔑</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                  className={styles.input}
+                  autoComplete="one-time-code"
+                  required
+                />
+              </div>
+            </label>
 
-          <button type="submit" className={styles.btn} disabled={otp.length !== 6}>
-            Verify OTP
-          </button>
-          <button type="button" className={styles.linkBtn} onClick={() => { setStep('forgot_email'); setError(''); setInfo(''); }}>
-            Back
-          </button>
-        </form>
+            <button type="submit" className={styles.btn} disabled={otp.length !== 6}>
+              Verify OTP
+            </button>
+            <button type="button" className={styles.linkBtn} onClick={() => { setStep('forgot_email'); setError(''); setInfo(''); }}>
+              ← Back
+            </button>
+          </motion.form>
+        </div>
       </div>
     );
   }
@@ -306,43 +355,62 @@ export default function Login() {
   if (step === 'forgot_newpass') {
     return (
       <div className={styles.wrapper}>
-        <form className={styles.form} onSubmit={handleChangePassword} noValidate>
-          <h1 className={styles.title}>New Password</h1>
-          <p className={styles.subtitle}>Must be 12+ characters with uppercase, lowercase, number, and special character.</p>
+        <BrandPanel />
+        <div className={styles.formPanel}>
+          <motion.form
+            className={styles.form}
+            onSubmit={handleChangePassword}
+            noValidate
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+          >
+            <MobileLogoRow />
+            <div className={styles.formHeader}>
+              <h1 className={styles.title}>New Password</h1>
+              <p className={styles.subtitle}>Must be 12+ characters with uppercase, lowercase, number, and special character.</p>
+            </div>
 
-          {error && <p className={styles.error}>{error}</p>}
+            {error && <p className={styles.error}>{error}</p>}
 
-          <label className={styles.label}>
-            New Password
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className={styles.input}
-              autoComplete="new-password"
-              required
-            />
-          </label>
+            <label className={styles.label}>
+              New Password
+              <div className={styles.inputWrapper}>
+                <span className={styles.inputIcon}>🔒</span>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className={styles.input}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+            </label>
 
-          <label className={styles.label}>
-            Confirm Password
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className={styles.input}
-              autoComplete="new-password"
-              required
-            />
-          </label>
+            <label className={styles.label}>
+              Confirm Password
+              <div className={styles.inputWrapper}>
+                <span className={styles.inputIcon}>🔒</span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={styles.input}
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+            </label>
 
-          <button type="submit" className={styles.btn} disabled={loading || !newPassword || !confirmPassword}>
-            {loading ? 'Saving…' : 'Set New Password'}
-          </button>
-          <button type="button" className={styles.linkBtn} onClick={() => { setStep('forgot_otp'); setError(''); }}>
-            Back
-          </button>
-        </form>
+            <button type="submit" className={styles.btn} disabled={loading || !newPassword || !confirmPassword}>
+              {loading ? 'Saving…' : 'Set New Password'}
+            </button>
+            <button type="button" className={styles.linkBtn} onClick={() => { setStep('forgot_otp'); setError(''); }}>
+              ← Back
+            </button>
+          </motion.form>
+        </div>
       </div>
     );
   }
@@ -350,44 +418,108 @@ export default function Login() {
   // Default: login
   return (
     <div className={styles.wrapper}>
-      <form className={styles.form} onSubmit={handleLogin} noValidate>
-        <h1 className={styles.title}>HMS Login</h1>
+      <BrandPanel />
+      <div className={styles.formPanel}>
+        <motion.form
+          className={styles.form}
+          onSubmit={handleLogin}
+          noValidate
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+        >
+          <MobileLogoRow />
+          <div className={styles.formHeader}>
+            <h1 className={styles.title}>Welcome back</h1>
+            <p className={styles.subtitle}>Sign in to your HMS account</p>
+          </div>
 
-        {error && <p className={styles.error}>{error}</p>}
-        {info && <p className={styles.infoMsg}>{info}</p>}
+          <div className={styles.divider} />
 
-        <label className={styles.label}>
-          Employee ID / Patient MRN
-          <input
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className={styles.input}
-            autoComplete="username"
-            required
-          />
-        </label>
+          {error && <p className={styles.error}>{error}</p>}
+          {info && <p className={styles.infoMsg}>{info}</p>}
 
-        <label className={styles.label}>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className={styles.input}
-            autoComplete="current-password"
-            required
-          />
-        </label>
+          <label className={styles.label}>
+            Employee ID / Patient MRN
+            <div className={styles.inputWrapper}>
+              <span className={styles.inputIcon}>🪪</span>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className={styles.input}
+                autoComplete="username"
+                placeholder="e.g. EMP-001"
+                required
+              />
+            </div>
+          </label>
 
-        <button type="submit" className={styles.btn} disabled={loading}>
-          {loading ? 'Signing in…' : 'Sign In'}
-        </button>
+          <label className={styles.label}>
+            Password
+            <div className={styles.inputWrapper}>
+              <span className={styles.inputIcon}>🔒</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={styles.input}
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+          </label>
 
-        <button type="button" className={styles.linkBtn} onClick={() => { setStep('forgot_email'); setError(''); setInfo(''); }}>
-          Forgot Password?
-        </button>
-      </form>
+          <button type="submit" className={styles.btn} disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign In'}
+          </button>
+
+          <button type="button" className={styles.linkBtn} onClick={() => { setStep('forgot_email'); setError(''); setInfo(''); }}>
+            Forgot Password?
+          </button>
+        </motion.form>
+      </div>
+    </div>
+  );
+}
+
+/* ── Shared sub-components ─────────────────────────────────────────────── */
+function BrandPanel() {
+  return (
+    <div className={styles.brandPanel}>
+      <div className={styles.brandLogo}>🏥</div>
+      <h2 className={styles.brandTitle}>Hospital Management System</h2>
+      <p className={styles.brandSubtitle}>
+        Streamlined care coordination for modern healthcare teams.
+      </p>
+      <div className={styles.brandFeatures}>
+        <div className={styles.brandFeature}>
+          <div className={styles.brandFeatureIcon}>🩺</div>
+          Patient records &amp; appointments
+        </div>
+        <div className={styles.brandFeature}>
+          <div className={styles.brandFeatureIcon}>💊</div>
+          Prescriptions &amp; lab results
+        </div>
+        <div className={styles.brandFeature}>
+          <div className={styles.brandFeatureIcon}>📊</div>
+          Analytics &amp; reporting
+        </div>
+        <div className={styles.brandFeature}>
+          <div className={styles.brandFeatureIcon}>🔒</div>
+          Role-based secure access
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MobileLogoRow() {
+  return (
+    <div className={styles.mobileLogoRow}>
+      <span className={styles.mobileLogo}>🏥</span>
+      <span className={styles.mobileBrandName}>HMS</span>
     </div>
   );
 }

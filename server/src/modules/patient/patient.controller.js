@@ -97,3 +97,49 @@ export async function lookupPatientByMrn(req, res, next) {
     next(err);
   }
 }
+
+// ── Allergy handlers ──────────────────────────────────────────────────────────
+
+export async function listAllergies(req, res, next) {
+  try {
+    const allergies = await patientService.listAllergies(req.params.id);
+    return res.json({ allergies });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createAllergy(req, res, next) {
+  try {
+    const allergy = await patientService.createAllergy(
+      req.params.id,
+      req.body,
+      req.user.id
+    );
+    return res.status(201).json({ data: allergy });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateAllergy(req, res, next) {
+  try {
+    const allergy = await patientService.updateAllergy(
+      req.params.id,
+      req.params.allergyId,
+      req.body
+    );
+    return res.json({ data: allergy });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteAllergy(req, res, next) {
+  try {
+    await patientService.deleteAllergy(req.params.id, req.params.allergyId);
+    return res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+}

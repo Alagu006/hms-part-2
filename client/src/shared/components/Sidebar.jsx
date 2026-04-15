@@ -259,7 +259,7 @@ export default function Sidebar({ onOpenSearch }) {
   const { user, clearAuth } = useStore();
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { isDark, toggle: toggleDark } = useDarkMode();
+  const { isDark, toggle: toggleDark, cycle: cycleTheme, theme } = useDarkMode();
 
   // Close mobile menu on route change
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
@@ -321,8 +321,13 @@ export default function Sidebar({ onOpenSearch }) {
           <div className={styles.avatar}>{user.firstName?.[0]}{user.lastName?.[0]}</div>
           <div className={styles.userDetails}>
             <span className={styles.userName}>{user.firstName} {user.lastName}</span>
-            <span className={styles.userRole}>{primaryRole?.replace('_', ' ')}</span>
+            <span className={styles.userRole}>{primaryRole?.replace(/_/g, ' ')}</span>
           </div>
+        </NavLink>
+      )}
+      {collapsed && user && (
+        <NavLink to="/profile" className={styles.userInfoCollapsed} title={`${user.firstName} ${user.lastName}`}>
+          <div className={styles.avatar}>{user.firstName?.[0]}{user.lastName?.[0]}</div>
         </NavLink>
       )}
 
@@ -356,12 +361,18 @@ export default function Sidebar({ onOpenSearch }) {
 
         <button
           className={styles.toolBtn}
-          onClick={toggleDark}
-          title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-          aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          onClick={cycleTheme}
+          title={`Theme: ${theme} — click to cycle`}
+          aria-label={`Current theme: ${theme}. Click to cycle themes.`}
         >
-          <span aria-hidden="true">{isDark ? '☀️' : '🌙'}</span>
-          {!collapsed && <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>}
+          <span aria-hidden="true">
+            {theme === 'dark' ? '☀️' : theme === 'high-contrast' ? '🌙' : '🌓'}
+          </span>
+          {!collapsed && (
+            <span>
+              {theme === 'light' ? 'Dark Mode' : theme === 'dark' ? 'High Contrast' : 'Light Mode'}
+            </span>
+          )}
         </button>
       </div>
 

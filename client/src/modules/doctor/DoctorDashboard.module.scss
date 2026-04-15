@@ -19,24 +19,27 @@
 }
 
 .statCard {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
   padding: clamp(0.875rem, 2vw, 1.25rem);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  &:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 }
 
 .statLabel {
   display: block;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
 }
 
 .statValue {
   display: block;
   font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary, #111827);
   line-height: 1.2;
   margin-top: 4px;
 }
@@ -260,7 +263,7 @@
   @include touch-target;
   @include tap-feedback;
   padding: 6px 14px;
-  background: #1a56db;
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -268,12 +271,22 @@
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
-  &:hover { background: #1648c0; }
+  box-shadow: 0 2px 6px rgba(29,78,216,0.30);
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+  &:hover {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+    box-shadow: 0 4px 12px rgba(29,78,216,0.40);
+    transform: translateY(-1px);
+  }
 }
 
 .startBtnTele {
-  background: #7c3aed;
-  &:hover { background: #6d28d9; }
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  box-shadow: 0 2px 6px rgba(124,58,237,0.30);
+  &:hover {
+    background: linear-gradient(135deg, #6d28d9, #7c3aed);
+    box-shadow: 0 4px 12px rgba(124,58,237,0.40);
+  }
 }
 
 .vitalsBtn {

@@ -407,3 +407,77 @@ export async function getMedicalRecordById(recordId) {
   );
   return rows[0] ?? null;
 }
+
+// ── Patient Allergies ─────────────────────────────────────────────────────────
+
+export async function listAllergies(patientId) {
+  const { rows } = await query(
+    `SELECT
+       pa.*,
+       u.first_name || ' ' || u.last_name AS recorded_by_name
+     FROM patient_allergies pa
+     LEFT JOIN users u ON u.id = pa.recorded_by
+     WHERE pa.patient_id = $1
+     ORDER BY
+       CASE pa.severity WHEN 'SEVERE' THEN 0 WHEN 'MODERATE' THEN 1 ELSE 2 END,
+       pa.created_at DESC`,
+    [patientId]
+  );
+  return rows;
+}
+
+export async function createAllergy(patientId, data, recordedBy) {
+  const { rows } = await query(
+    `INSERT INTO patient_allergies
+       (patient_id, allergen, type, severity, reaction, notes, recorded_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [
+      patientId,
+      data.allergen,
+      data.type     ?? 'DRUG',
+      data.severity ?? 'MODERATE',
+      data.reaction ?? null,
+      data.notes    ?? null,
+      recordedBy,
+    ]
+  );
+  return rows[0];
+}
+
+export async function updateAllergy(patientId, allergyId, data) {
+  // Build dynamic SET clause from provided fields only
+  const fields  = [];
+  const values  = [];
+  let   idx     = 1;
+
+  if (data.allergen  !== undefined) { fields.push(`allergen  = $${idx++}`); values.push(data.allergen); }
+  if (data.type      !== undefined) { fields.push(`type      = $${idx++}`); values.push(data.type); }
+  if (data.severity  !== undefined) { fields.push(`severity  = $${idx++}`); values.push(data.severity); }
+  if (data.reaction  !== undefined) { fields.push(`reaction  = $${idx++}`); values.push(data.reaction); }
+  if (data.notes     !== undefined) { fields.push(`notes     = $${idx++}`); values.push(data.notes); }
+
+  if (!fields.length) throw Object.assign(new Error('No fields to update'), { status: 400 });
+
+  fields.push(`updated_at = NOW()`);
+  values.push(allergyId, patientId);
+
+  const { rows } = await query(
+    `UPDATE patient_allergies
+     SET ${fields.join(', ')}
+     WHERE id = $${idx++} AND patient_id = $${idx}
+     RETURNING *`,
+    values
+  );
+
+  if (!rows[0]) throw Object.assign(new Error('Allergy not found'), { status: 404 });
+  return rows[0];
+}
+
+export async function deleteAllergy(patientId, allergyId) {
+  const { rowCount } = await query(
+    `DELETE FROM patient_allergies WHERE id = $1 AND patient_id = $2`,
+    [allergyId, patientId]
+  );
+  if (!rowCount) throw Object.assign(new Error('Allergy not found'), { status: 404 });
+}

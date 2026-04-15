@@ -39,7 +39,7 @@
 }
 
 .primaryBtn {
-  background   : #1d4ed8;
+  background   : linear-gradient(135deg, #1d4ed8, #2563eb);
   color        : #fff;
   border       : none;
   border-radius: 8px;
@@ -47,7 +47,13 @@
   font-size    : 0.875rem;
   font-weight  : 600;
   cursor       : pointer;
-  &:hover { background: #1e40af; }
+  box-shadow   : 0 2px 8px rgba(29,78,216,0.30);
+  transition   : background 0.2s, box-shadow 0.2s, transform 0.15s;
+  &:hover {
+    background: linear-gradient(135deg, #1e40af, #1d4ed8);
+    box-shadow: 0 4px 14px rgba(29,78,216,0.40);
+    transform: translateY(-1px);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -61,11 +67,14 @@
 }
 
 .statCard {
-  background   : #fff;
-  border       : 1px solid #e5e7eb;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
-  padding      : 20px;
-  text-align   : center;
+  padding: 20px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  &:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 
   &.blue   { border-top: 3px solid #3b82f6; }
   &.purple { border-top: 3px solid #8b5cf6; }
@@ -74,21 +83,21 @@
 }
 
 .statValue {
-  font-size  : 2rem;
+  font-size: 2rem;
   font-weight: 700;
-  color      : #111827;
+  color: var(--text-primary, #111827);
   line-height: 1;
 }
 
 .statLabel {
-  font-size : 0.8125rem;
-  color     : #6b7280;
+  font-size: 0.8125rem;
+  color: var(--text-muted, #6b7280);
   margin-top: 6px;
 }
 
 .statSub {
-  font-size : 0.75rem;
-  color     : #9ca3af;
+  font-size: 0.75rem;
+  color: var(--text-muted, #9ca3af);
   margin-top: 2px;
 }
 

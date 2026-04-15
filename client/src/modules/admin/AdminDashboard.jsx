@@ -1,30 +1,15 @@
 import { useEffect, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../../shared/utils/api.js';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
+import StatCard from '../../shared/components/StatCard.jsx';
+import PageHeader from '../../shared/components/PageHeader.jsx';
 import styles from './AdminDashboard.module.scss';
 
-const ROLES = [
-  'SUPER_ADMIN','ADMIN','DOCTOR','NURSE','RECEPTIONIST','PHARMACIST',
-  'LAB_TECHNICIAN','RADIOLOGIST','ANESTHETIST','PHYSIOTHERAPIST',
-  'INVENTORY_MANAGER','BILLING_STAFF','HR_MANAGER','IT_ADMIN',
-  'SECURITY','PATIENT','CAREGIVER','INSURANCE_OFFICER','AUDITOR',
-];
-
-function StatCard({ label, value, sub, accent }) {
-  return (
-    <div className={`${styles.statCard} ${accent ? styles[accent] : ''}`}>
-      <span className={styles.statValue}>{value ?? '—'}</span>
-      <span className={styles.statLabel}>{label}</span>
-      {sub && <span className={styles.statSub}>{sub}</span>}
-    </div>
-  );
-}
-
 export default function AdminDashboard() {
-  const [stats, setStats]   = useState(null);
-  const [logs, setLogs]     = useState([]);
+  const [stats, setStats]       = useState(null);
+  const [logs, setLogs]         = useState([]);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState(null);
@@ -60,7 +45,7 @@ export default function AdminDashboard() {
     socket.on('audit:new', (entry) => {
       setLogs((prev) => [entry, ...prev].slice(0, 20));
     });
-    socket.on('connect_error', () => { /* backend not reachable — silent in dev */ });
+    socket.on('connect_error', () => { /* silent in dev */ });
     return () => socket.disconnect();
   }, [fetchAll]);
 
@@ -78,28 +63,48 @@ export default function AdminDashboard() {
 
   return (
     <div className={styles.page}>
-      <h1 className={styles.title}>Admin Dashboard</h1>
+      <PageHeader title="Admin Dashboard" badge="LIVE" badgeColor="green" />
 
-      {/* Stats row */}
+      {/* Stats row — animated StatCards with count-up */}
       <div className={styles.statsRow}>
-        <StatCard label="Today's Admissions"  value={stats.todayAdmissions} />
+        <StatCard
+          label="Today's Admissions"
+          value={stats.todayAdmissions}
+          icon="🏥"
+          status="blue"
+          delay={0}
+        />
         <StatCard
           label="Bed Occupancy"
-          value={`${stats.bedOccupancy.occupied}/${stats.bedOccupancy.total}`}
-          sub={`${occupancyPct}% occupied`}
-          accent={occupancyPct > 85 ? 'accentRed' : 'accentGreen'}
+          value={stats.bedOccupancy.occupied}
+          suffix={'/' + stats.bedOccupancy.total}
+          sub={occupancyPct + '% occupied'}
+          icon="🛏️"
+          status={occupancyPct > 85 ? 'red' : 'green'}
+          delay={0.05}
         />
         <StatCard
           label="Pending Revenue"
-          value={`$${stats.pendingRevenue.toLocaleString()}`}
-          sub={`${stats.pendingBills} unpaid bills`}
-          accent="accentYellow"
+          value={stats.pendingRevenue}
+          prefix="₹"
+          sub={stats.pendingBills + ' unpaid bills'}
+          icon="💰"
+          status="amber"
+          delay={0.1}
         />
-        <StatCard label="Active Users"       value={stats.activeUsers} />
+        <StatCard
+          label="Active Users"
+          value={stats.activeUsers}
+          icon="👥"
+          status="teal"
+          delay={0.15}
+        />
         <StatCard
           label="Failed Logins (24h)"
           value={stats.failedLogins24h}
-          accent={stats.failedLogins24h > 20 ? 'accentRed' : undefined}
+          icon="🔒"
+          status={stats.failedLogins24h > 20 ? 'red' : 'blue'}
+          delay={0.2}
         />
       </div>
 
@@ -109,10 +114,10 @@ export default function AdminDashboard() {
           <div className={styles.panelHeader}><span>Bed Occupancy</span></div>
           <ResponsiveContainer width="100%" height={120}>
             <BarChart data={[
-              { name: 'Occupied', value: stats.bedOccupancy.occupied },
+              { name: 'Occupied',  value: stats.bedOccupancy.occupied },
               { name: 'Available', value: stats.bedOccupancy.total - stats.bedOccupancy.occupied },
             ]} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border, #f3f4f6)" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
@@ -125,11 +130,11 @@ export default function AdminDashboard() {
           <div className={styles.panelHeader}><span>Security Overview</span></div>
           <ResponsiveContainer width="100%" height={120}>
             <BarChart data={[
-              { name: 'Active Users', value: stats.activeUsers },
+              { name: 'Active Users',  value: stats.activeUsers },
               { name: 'Failed Logins', value: stats.failedLogins24h },
               { name: 'Pending Bills', value: stats.pendingBills },
             ]} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border, #f3f4f6)" />
               <XAxis dataKey="name" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip />
@@ -157,8 +162,10 @@ export default function AdminDashboard() {
                 {logs.map((l) => (
                   <tr key={l.id}>
                     <td>{new Date(l.created_at).toLocaleTimeString()}</td>
-                    <td>{l.first_name ? `${l.first_name} ${l.last_name}` : l.user_id?.slice(0, 8) ?? 'system'}</td>
-                    <td><span className={`${styles.badge} ${styles[`action_${l.action}`] ?? ''}`}>{l.action}</span></td>
+                    <td>{l.first_name ? l.first_name + ' ' + l.last_name : (l.user_id?.slice(0, 8) ?? 'system')}</td>
+                    <td>
+                      <span className={styles.badge}>{l.action}</span>
+                    </td>
                     <td className={styles.mono}>{l.entity}</td>
                     <td className={styles.mono}>{l.ip_address ?? '—'}</td>
                   </tr>
@@ -180,9 +187,7 @@ export default function AdminDashboard() {
             {sessions.map((s) => (
               <div key={s.sessionId} className={styles.sessionRow}>
                 <div className={styles.sessionInfo}>
-                  <span className={styles.sessionName}>
-                    {s.firstName} {s.lastName}
-                  </span>
+                  <span className={styles.sessionName}>{s.firstName} {s.lastName}</span>
                   <span className={styles.sessionMeta}>
                     {s.employeeId} · {(s.roles ?? []).join(', ')}
                   </span>
@@ -190,7 +195,7 @@ export default function AdminDashboard() {
                 <button
                   className={styles.logoutBtn}
                   onClick={() => forceLogout(s.sessionId)}
-                  aria-label={`Force logout ${s.firstName} ${s.lastName}`}
+                  aria-label={'Force logout ' + s.firstName + ' ' + s.lastName}
                 >
                   Logout
                 </button>

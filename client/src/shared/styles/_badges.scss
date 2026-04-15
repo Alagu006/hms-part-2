@@ -1,0 +1,38 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared badge / pill system
+// Usage: @use '../../shared/styles/badges' as *;
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Base pill mixin
+@mixin badge-base {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+// Semantic color variants
+@mixin badge-blue    { @include badge-base; background: #dbeafe; color: #1d4ed8; }
+@mixin badge-purple  { @include badge-base; background: #ede9fe; color: #6d28d9; }
+@mixin badge-green   { @include badge-base; background: #dcfce7; color: #15803d; }
+@mixin badge-red     { @include badge-base; background: #fee2e2; color: #991b1b; }
+@mixin badge-yellow  { @include badge-base; background: #fef3c7; color: #92400e; }
+@mixin badge-gray    { @include badge-base; background: #f3f4f6; color: #374151; }
+@mixin badge-teal    { @include badge-base; background: #ccfbf1; color: #0f766e; }
+@mixin badge-orange  { @include badge-base; background: #ffedd5; color: #c2410c; }
+
+// Priority variants
+@mixin badge-stat    { @include badge-base; background: #fee2e2; color: #991b1b; text-transform: uppercase; }
+@mixin badge-urgent  { @include badge-base; background: #fef3c7; color: #92400e; text-transform: uppercase; }
+@mixin badge-routine { @include badge-base; background: #f3f4f6; color: #374151; text-transform: uppercase; }
+
+// Status variants
+@mixin badge-scheduled   { @include badge-base; background: #f3f4f6; color: #374151; }
+@mixin badge-confirmed   { @include badge-base; background: #dbeafe; color: #1d4ed8; }
+@mixin badge-in-progress { @include badge-base; background: #fef3c7; color: #92400e; }
+@mixin badge-completed   { @include badge-base; background: #dcfce7; color: #15803d; }
+@mixin badge-cancelled   { @include badge-base; background: #fee2e2; color: #991b1b; }

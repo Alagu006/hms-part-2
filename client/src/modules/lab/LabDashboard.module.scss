@@ -1,5 +1,5 @@
 .page {
-  padding: 24px;
+  padding: clamp(0.75rem, 3vw, 1.5rem);
   max-width: 1100px;
 }
 
@@ -16,24 +16,27 @@
 }
 
 .statCard {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
   padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  &:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 }
 
 .statLabel {
   display: block;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--text-muted, #6b7280);
 }
 
 .statValue {
   display: block;
   font-size: 2rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--text-primary, #111827);
   margin-top: 4px;
   line-height: 1.2;
 }
@@ -51,11 +54,12 @@
 
 // ── Section ──────────────────────────────────────────────────────────────
 .section {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
   overflow: hidden;
   margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
 }
 
 .sectionHeader {
@@ -63,15 +67,15 @@
   align-items: center;
   gap: 10px;
   padding: 14px 20px;
-  border-bottom: 1px solid #f3f4f6;
-  background: #f9fafb;
+  border-bottom: 1px solid var(--border, #f3f4f6);
+  background: var(--bg-subtle, #f9fafb);
 }
 
 .sectionTitle {
   margin: 0;
   font-size: 0.9375rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--text-primary, #111827);
 }
 
 .countBadge {

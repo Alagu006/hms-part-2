@@ -1,7 +1,7 @@
 @use '../styles/mixins' as *;
 
 .breadcrumb {
-  padding: 8px clamp(0.75rem, 3vw, 2rem) 0;
+  padding: 10px clamp(0.75rem, 3vw, 2rem) 0;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -26,12 +26,13 @@
   font-size: 0.78rem;
   color: var(--text-muted, #6b7280);
   text-decoration: none;
-  padding: 2px 4px;
-  border-radius: 4px;
+  padding: 3px 6px;
+  border-radius: 6px;
   transition: color 0.15s, background 0.15s;
+  font-weight: 500;
   &:hover {
-    color: var(--text-primary, #111827);
-    background: var(--bg-subtle, #f3f4f6);
+    color: var(--accent-blue, #1d4ed8);
+    background: #eff6ff;
   }
 }
 
@@ -39,11 +40,14 @@
   font-size: 0.78rem;
   color: var(--text-primary, #111827);
   font-weight: 600;
-  padding: 2px 4px;
+  padding: 3px 6px;
+  background: var(--bg-subtle, #f3f4f6);
+  border-radius: 6px;
 }
 
 .sep {
   font-size: 0.72rem;
   color: var(--text-muted, #d1d5db);
   margin: 0 1px;
+  user-select: none;
 }
