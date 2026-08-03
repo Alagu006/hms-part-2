@@ -55,7 +55,7 @@ export async function loginHandler(req, res, next) {
         nextData : { username: req.body?.username },
         ip       : req.ip,
         userAgent: req.headers['user-agent'] ?? '',
-      }).catch(() => {});
+      }).catch(() => {}); // best-effort audit trail — must not mask the login error
     }
     next(err);
   }
@@ -92,7 +92,7 @@ export async function logoutHandler(req, res, next) {
       entityId : req.user?.id ?? null,
       ip       : req.ip,
       userAgent: req.headers['user-agent'] ?? '',
-    }).catch(() => {});
+    }).catch(() => {}); // best-effort audit trail — logout succeeds regardless
 
     res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
     return res.status(200).json({ message: 'Logged out' });

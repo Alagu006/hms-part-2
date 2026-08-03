@@ -58,10 +58,11 @@ const NAV = {
   DOCTOR: [
     { label: 'Dashboard',       to: '/doctor',                    icon: 'dashboard' },
     { label: 'Prescriptions',   to: '/doctor/prescriptions',      icon: 'prescription' },
+    { label: 'Patient Vitals',  to: '/doctor/patient-vitals',     icon: 'vitals' },
+    { label: 'Patient History', to: '/doctor/patient-history',    icon: 'history' },
     { label: 'Discharge',       to: '/doctor/discharge',          icon: 'discharge' },
     { label: 'OT Schedule',     to: '/admin/ot',                  icon: 'ot' },
     { label: 'Telemedicine',    to: '/doctor/telemedicine',       icon: 'telemedicine' },
-    { label: 'Patient Vitals',  to: '/doctor/patient-vitals',     icon: 'vitals' },
     { label: 'Broadcasts',      to: '/broadcasts',                icon: 'broadcast' },
     { label: 'Messaging',       to: '/messaging',                 icon: 'messaging' },
     { label: 'Apply Leave',     to: '/doctor/leaves',             icon: 'leave' },

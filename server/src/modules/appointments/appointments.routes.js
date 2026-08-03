@@ -4,6 +4,7 @@ import { authorize }       from '../../shared/middleware/rbac.js';
 import { validate }       from '../../shared/middleware/validate.js';
 import { auditMiddleware } from '../../shared/middleware/audit.js';
 import { apiRateLimiter } from '../../shared/middleware/rateLimiter.js';
+import { checkOwnership }  from '../../shared/middleware/ownership.js';
 import {
   listAppointmentsSchema,
   getAppointmentSchema,
@@ -36,6 +37,7 @@ router.get(
   '/:id',
   authorize('DOCTOR', 'NURSE', 'RECEPTIONIST', 'ADMIN', 'SUPER_ADMIN', 'PATIENT', 'PHYSIO'),
   validate(getAppointmentSchema),
+  checkOwnership('appointment'),
   getAppointment
 );
 

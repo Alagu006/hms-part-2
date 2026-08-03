@@ -18,7 +18,7 @@ import { useStore } from '../store/index.js';
  *  Escape     → Close any open modal (handled by individual components)
  *
  * Role-specific quick actions:
- *  DOCTOR     → p = Prescriptions, v = Patient Vitals
+ *  DOCTOR     → p = Prescriptions, v = Patient Vitals, h = Patient History
  *  NURSE      → v = Record Vitals, h = Handover Notes
  *  PATIENT    → a = Appointments, b = My Bills, x = My Prescriptions
  *  ADMIN      → u = User Management, l = Audit Log
@@ -50,6 +50,7 @@ const ROLE_SHORTCUTS = {
   DOCTOR: {
     p: '/doctor/prescriptions',
     v: '/doctor/patient-vitals',
+    h: '/doctor/patient-history',
     d: '/doctor/discharge',
     t: '/doctor/telemedicine',
   },

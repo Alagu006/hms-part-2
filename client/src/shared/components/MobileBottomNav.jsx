@@ -17,9 +17,10 @@ const BOTTOM_NAV = {
     { label: 'Messages',  to: '/messaging',         icon: '💬' },
   ],
   DOCTOR: [
-    { label: 'Dashboard',  to: '/doctor',                icon: '🏠' },
-    { label: 'Patients',   to: '/doctor/prescriptions',  icon: '💊' },
-    { label: 'Vitals',     to: '/doctor/patient-vitals', icon: '📊' },
+    { label: 'Dashboard',  to: '/doctor',                 icon: '🏠' },
+    { label: 'Rx',         to: '/doctor/prescriptions',   icon: '💊' },
+    { label: 'Vitals',     to: '/doctor/patient-vitals',  icon: '📊' },
+    { label: 'History',    to: '/doctor/patient-history', icon: '📋' },
     { label: 'Messages',   to: '/messaging',              icon: '💬' },
   ],
   NURSE: [

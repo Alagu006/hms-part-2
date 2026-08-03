@@ -74,3 +74,120 @@
   border-radius: 6px;
   font-size: 14px;
 }
+
+/* ── Patient search ─────────────────────────────────────────────────────── */
+.patientSearchWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.searchInput {
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  background: #fff;
+  &:focus {
+    outline: none;
+    border-color: #1a56db;
+    box-shadow: 0 0 0 2px rgba(26,86,219,0.15);
+  }
+}
+
+.hint {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.patientList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.patientItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f4f6;
+  transition: background 0.12s;
+  &:last-child { border-bottom: none; }
+  &:hover, &:focus { background: #eff6ff; outline: none; }
+}
+
+.patientName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.patientMrn {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-family: monospace;
+  background: #f3f4f6;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.patientChip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #1d4ed8;
+}
+
+.changeBtn {
+  background: none;
+  border: none;
+  color: #1a56db;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  padding: 0;
+  &:hover { text-decoration: underline; }
+}
+
+.req {
+  color: #ef4444;
+}
+
+/* ── Success state ──────────────────────────────────────────────────────── */
+.successBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+
+  h3 { margin: 0; font-size: 1.125rem; font-weight: 700; color: #111827; }
+  p  { margin: 0; font-size: 0.875rem; color: #6b7280; max-width: 380px; }
+}
+
+.successIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: #dcfce7;
+  color: #16a34a;
+  border-radius: 50%;
+  font-size: 1.375rem;
+  font-weight: 700;
+}

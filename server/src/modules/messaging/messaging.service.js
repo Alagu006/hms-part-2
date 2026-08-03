@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { query, withTransaction } from '../../shared/db/pool.js';
 import { redis }                  from '../../shared/services/redis.service.js';
 import { auditLog }              from '../../shared/middleware/audit.js';
@@ -352,12 +353,56 @@ export async function getPinnedMessages(groupId) {
 // Group key management
 // ---------------------------------------------------------------------------
 
+const KEY_ENC_ALGO = 'aes-256-gcm';
+
+/**
+ * Encrypt a raw base64 group key using the master DB_ENCRYPTION_KEY.
+ * Stored format: "<hex(iv)>:<hex(authTag)>:<hex(ciphertext)>"
+ */
+function encryptGroupKey(rawKeyBase64) {
+  const masterKey = Buffer.from(process.env.DB_ENCRYPTION_KEY, 'hex');
+  if (masterKey.length !== 32) {
+    throw new Error('DB_ENCRYPTION_KEY must be a 64-char hex string (32 bytes)');
+  }
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv(KEY_ENC_ALGO, masterKey, iv);
+  const encrypted = Buffer.concat([
+    cipher.update(rawKeyBase64, 'utf8'),
+    cipher.final(),
+  ]);
+  const tag = cipher.getAuthTag();
+  return `${iv.toString('hex')}:${tag.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+/**
+ * Decrypt a stored group key back to its raw base64 form.
+ */
+function decryptGroupKey(stored) {
+  const parts = stored.split(':');
+  if (parts.length !== 3) throw new Error('Malformed stored group key');
+  const [ivHex, tagHex, ctHex] = parts;
+  const masterKey = Buffer.from(process.env.DB_ENCRYPTION_KEY, 'hex');
+  const decipher = crypto.createDecipheriv(
+    KEY_ENC_ALGO,
+    masterKey,
+    Buffer.from(ivHex, 'hex')
+  );
+  decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(ctHex, 'hex')),
+    decipher.final(),
+  ]);
+  return decrypted.toString('utf8');
+}
+
 /**
  * Get the shared AES-256-GCM key for a group.
  * Creates one on first call (lazy init).
+ * Keys are encrypted at rest in PostgreSQL using DB_ENCRYPTION_KEY.
+ * The decrypted key is cached in Redis for 1 hour (in-memory only).
  */
 export async function getOrCreateGroupKey(groupId) {
-  // Try cache first
+  // Redis cache holds the raw (decrypted) key — in-memory only, never persisted to disk
   const cached = await redis.get(`groupkey:${groupId}`);
   if (cached) return cached;
 
@@ -367,29 +412,31 @@ export async function getOrCreateGroupKey(groupId) {
   );
 
   if (rows[0]) {
-    await redis.setex(`groupkey:${groupId}`, 3600, rows[0].group_key);
-    return rows[0].group_key;
+    // Decrypt the stored key before caching
+    const rawKey = decryptGroupKey(rows[0].group_key);
+    await redis.setex(`groupkey:${groupId}`, 3600, rawKey);
+    return rawKey;
   }
 
-  // Generate a new 256-bit key as base64
-  const keyBytes = Array.from({ length: 32 }, () => Math.floor(Math.random() * 256));
-  const keyBase64 = Buffer.from(keyBytes).toString('base64');
+  // Generate a new 256-bit key — CSPRNG
+  const rawKey = crypto.randomBytes(32).toString('base64');
+  const encryptedKey = encryptGroupKey(rawKey);
 
   await query(
     `INSERT INTO message_group_keys (id, group_id, group_key, created_at)
      VALUES (gen_random_uuid(), $1, $2, NOW())
      ON CONFLICT (group_id) DO NOTHING`,
-    [groupId, keyBase64]
+    [groupId, encryptedKey]
   );
 
-  // Re-fetch in case of race condition
+  // Re-fetch in case of race condition (another process inserted first)
   const { rows: fresh } = await query(
     `SELECT group_key FROM message_group_keys WHERE group_id = $1`,
     [groupId]
   );
-  const finalKey = fresh[0]?.group_key ?? keyBase64;
-  await redis.setex(`groupkey:${groupId}`, 3600, finalKey);
-  return finalKey;
+  const finalRaw = fresh[0] ? decryptGroupKey(fresh[0].group_key) : rawKey;
+  await redis.setex(`groupkey:${groupId}`, 3600, finalRaw);
+  return finalRaw;
 }
 
 // ---------------------------------------------------------------------------
@@ -434,4 +481,30 @@ export async function markMessageRead(messageId, userId) {
   await auditLog(userId, 'UPDATE', 'message_reads', null, null, { messageId, action: 'MARK_READ' });
 
   return { messageId, userId };
+}
+
+/**
+ * Purge all messages in a group that are older than a certain date.
+ * Used to clean up undecryptable messages after a key rotation or encryption key change.
+ * Admin-only operation.
+ */
+export async function purgeOldMessages(groupId, beforeDate, adminId) {
+  const { rows } = await query(
+    `UPDATE messages 
+     SET is_deleted = TRUE, content = '', encryption_iv = '', deleted_at = NOW()
+     WHERE group_id = $1 
+       AND sent_at < $2 
+       AND is_deleted = FALSE
+     RETURNING id`,
+    [groupId, beforeDate]
+  );
+
+  await auditLog(adminId, 'DELETE', 'messages', null, null, {
+    groupId,
+    beforeDate,
+    count: rows.length,
+    action: 'PURGE_OLD_MESSAGES',
+  });
+
+  return { deletedCount: rows.length, messageIds: rows.map(r => r.id) };
 }

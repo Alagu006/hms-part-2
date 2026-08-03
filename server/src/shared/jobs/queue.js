@@ -1,5 +1,7 @@
 import { Queue, Worker, QueueEvents } from 'bullmq';
-import { sendMail } from '../services/mailer.js';
+import { processEmailJob, processNotificationJob, processReportJob } from './worker-handlers.js';
+import { validateWorkerConfig } from './workerConfig.js';
+import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
 // Shared Redis connection config for BullMQ
@@ -49,21 +51,11 @@ export const reportQueue = new Queue('report', {
 });
 
 // ---------------------------------------------------------------------------
-// Email Worker
+// Workers — handlers live in worker-handlers.js (unit-testable in isolation)
 // ---------------------------------------------------------------------------
 export const emailWorker = new Worker(
   'email',
-  async (job) => {
-    const { to, subject, html } = job.data;
-
-    if (!to || !subject || !html) {
-      throw new Error(`Invalid email job payload: ${JSON.stringify(job.data)}`);
-    }
-
-    console.log(`[emailWorker] Processing job ${job.id} (${job.name}) → ${to}`);
-    await sendMail({ to, subject, html });
-    console.log(`[emailWorker] Sent job ${job.id} → ${to}`);
-  },
+  processEmailJob,
   {
     connection  : redisConnection,
     concurrency : parseInt(process.env.EMAIL_WORKER_CONCURRENCY || '3', 10),
@@ -71,39 +63,20 @@ export const emailWorker = new Worker(
 );
 
 emailWorker.on('completed', (job) => {
-  console.log(`[emailWorker] Job ${job.id} completed`);
+  logger.info(`[emailWorker] Job ${job.id} completed`);
 });
 
 emailWorker.on('failed', (job, err) => {
-  console.error(`[emailWorker] Job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`);
+  logger.error(`[emailWorker] Job ${job?.id} failed (attempt ${job?.attemptsMade}): ${err.message}`);
 });
 
 emailWorker.on('error', (err) => {
-  console.error('[emailWorker] Worker error:', err.message);
+  logger.error('[emailWorker] Worker error:', { message: err.message });
 });
 
-// ---------------------------------------------------------------------------
-// Notification Worker (stub — wire to your notification service)
-// ---------------------------------------------------------------------------
 export const notificationWorker = new Worker(
   'notification',
-  async (job) => {
-    // Dispatch based on job name
-    switch (job.name) {
-      case 'push': {
-        // TODO: integrate with your WebSocket/push notification service
-        console.log(`[notificationWorker] Push notification for user ${job.data.userId}`);
-        break;
-      }
-      case 'sms': {
-        // TODO: integrate with SMS provider (Twilio, etc.)
-        console.log(`[notificationWorker] SMS to ${job.data.phone}`);
-        break;
-      }
-      default:
-        console.warn(`[notificationWorker] Unknown job type: ${job.name}`);
-    }
-  },
+  processNotificationJob,
   {
     connection : redisConnection,
     concurrency: parseInt(process.env.NOTIFICATION_WORKER_CONCURRENCY || '5', 10),
@@ -111,57 +84,12 @@ export const notificationWorker = new Worker(
 );
 
 notificationWorker.on('failed', (job, err) => {
-  console.error(`[notificationWorker] Job ${job?.id} failed: ${err.message}`);
+  logger.error(`[notificationWorker] Job ${job?.id} failed: ${err.message}`);
 });
 
-// ---------------------------------------------------------------------------
-// Report Worker
-// ---------------------------------------------------------------------------
 export const reportWorker = new Worker(
   'report',
-  async (job) => {
-    // Lazy import to avoid circular deps at startup
-    const { generateReport, reportJobKey } = await import('../../modules/analytics/report.service.js');
-    const { redis: redisClient }           = await import('../services/redis.service.js');
-
-    console.log(`[reportWorker] Generating report job ${job.id}: ${JSON.stringify(job.data)}`);
-
-    try {
-      const result = await generateReport(job.data);
-
-      // Update status in Redis
-      await redisClient.setex(
-        reportJobKey(job.id),
-        60 * 60,
-        JSON.stringify({
-          status     : 'completed',
-          ...job.data,
-          filename   : result.filename,
-          downloadKey: result.downloadKey,
-          mimeType   : result.mimeType,
-          completedAt: new Date().toISOString(),
-        })
-      );
-
-      // Update DB row if it exists
-      const { pool: dbPool } = await import('../db/pool.js');
-      await dbPool.query(
-        `UPDATE report_jobs SET status = 'completed', download_key = $1, completed_at = NOW()
-         WHERE job_id = $2`,
-        [result.downloadKey, job.id]
-      ).catch(() => {});
-
-      console.log(`[reportWorker] Job ${job.id} completed → ${result.filename}`);
-    } catch (err) {
-      const { redis: redisClient2 } = await import('../services/redis.service.js');
-      const { reportJobKey: rjk }   = await import('../../modules/analytics/report.service.js');
-      await redisClient2.setex(
-        rjk(job.id), 60 * 60,
-        JSON.stringify({ status: 'failed', error: err.message, ...job.data })
-      ).catch(() => {});
-      throw err;
-    }
-  },
+  processReportJob,
   {
     connection : redisConnection,
     concurrency: parseInt(process.env.REPORT_WORKER_CONCURRENCY || '2', 10),
@@ -169,18 +97,23 @@ export const reportWorker = new Worker(
 );
 
 reportWorker.on('failed', (job, err) => {
-  console.error(`[reportWorker] Job ${job?.id} failed: ${err.message}`);
+  logger.error('[reportWorker] Job failed', { jobId: job?.id, message: err.message });
 });
+
+// ---------------------------------------------------------------------------
+// Startup report — confirm the resolved credential scope for every worker
+// ---------------------------------------------------------------------------
+validateWorkerConfig();
 
 // ---------------------------------------------------------------------------
 // Queue Events (optional monitoring)
 // ---------------------------------------------------------------------------
 export const emailQueueEvents = new QueueEvents('email', { connection: redisConnection });
 
-emailQueueEvents.on('waiting',   ({ jobId })         => console.debug(`[emailQueue] Job ${jobId} waiting`));
-emailQueueEvents.on('active',    ({ jobId })         => console.debug(`[emailQueue] Job ${jobId} active`));
-emailQueueEvents.on('stalled',   ({ jobId })         => console.warn(`[emailQueue] Job ${jobId} stalled`));
-emailQueueEvents.on('delayed',   ({ jobId, delay })  => console.debug(`[emailQueue] Job ${jobId} delayed ${delay}ms`));
+emailQueueEvents.on('waiting',   ({ jobId })         => logger.debug('[emailQueue] Job waiting',  { jobId }));
+emailQueueEvents.on('active',    ({ jobId })         => logger.debug('[emailQueue] Job active',   { jobId }));
+emailQueueEvents.on('stalled',   ({ jobId })         => logger.warn('[emailQueue] Job stalled',   { jobId }));
+emailQueueEvents.on('delayed',   ({ jobId, delay })  => logger.debug('[emailQueue] Job delayed',  { jobId, delay }));
 
 // ---------------------------------------------------------------------------
 // Graceful shutdown
@@ -195,5 +128,5 @@ export async function closeQueues() {
     reportQueue.close(),
     emailQueueEvents.close(),
   ]);
-  console.log('[queue] All queues and workers closed');
+  logger.info('[queue] All queues and workers closed');
 }

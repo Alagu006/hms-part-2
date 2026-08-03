@@ -1,11 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
-import { useStore } from '../../shared/store/index.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { useStore, getAccessToken } from '../../shared/store/index.js';
 import { encryptProfileImage, decryptProfileImageToUrl } from '../../shared/utils/crypto.js';
 import { storeFileKey, getFileKey } from '../../shared/utils/keyStore.js';
 import styles from './UserManagement.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 const ROLES = [
   'ADMIN','DOCTOR','NURSE','RECEPTIONIST','LAB_TECH','PHARMACIST',
@@ -58,7 +56,7 @@ async function uploadProfileImage(file, userId) {
   const form = new FormData();
   form.append('file', encryptedBlob, file.name);
 
-  const token = sessionStorage.getItem('accessToken');
+  const token = getAccessToken();
   const csrfRes = await fetch('/api/auth/csrf-token', { credentials: 'include' });
   const { csrfToken } = await csrfRes.json();
 
@@ -111,7 +109,7 @@ function ProfileImage({ fileId, initials, small = false }) {
 
     (async () => {
       try {
-        const token = sessionStorage.getItem('accessToken');
+        const token = getAccessToken();
         const res = await fetch(`${API_BASE}/files/profile-image/${fileId}`, {
           credentials: 'include',
           headers: { Authorization: `Bearer ${token}` },

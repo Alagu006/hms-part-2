@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { io }               from 'socket.io-client';
 import { create }           from 'zustand';
-import { apiFetch }         from '../utils/auth.js';
+import { apiFetch, API_BASE } from '../utils/api.js';
+import { getAccessToken } from '../store/index.js';
 
-const API_BASE   = import.meta.env.VITE_API_URL    ?? '/api';
 import { getSocketUrl } from '../utils/socketUrl.js';
 const SOCKET_URL = getSocketUrl();
 
@@ -85,7 +85,7 @@ export function useNotifications(currentUser) {
     if (!currentUser?.id) return;
 
     const socket = io(`${SOCKET_URL}/notifications`, {
-      auth      : { token: sessionStorage.getItem('accessToken') },
+      auth      : { token: getAccessToken() },
       transports: ['websocket'],
     });
 

@@ -10,7 +10,7 @@ import {
   usersQuerySchema,
   setStatusSchema,
   sessionDeleteSchema,
-  createUserSchema,
+  createUserSchemaFor,
   updateUserSchema,
   flagAuditLogSchema,
   blockIpSchema,
@@ -65,9 +65,15 @@ router.delete('/blocked-ips/:id',
   ctrl.unblockIp
 );
 
-// User management — admin + HR can manage staff
+// User management — admin + HR can manage staff.
+// Role validation is per-actor: the schema is built from the caller's own roles,
+// so HR/ADMIN cannot grant the privileged ADMIN role (SUPER_ADMIN only).
 router.get('/users',    authorize('SUPER_ADMIN', 'ADMIN', 'HR'), validate(usersQuerySchema), ctrl.getUsers);
-router.post('/users',   authorize('SUPER_ADMIN', 'ADMIN', 'HR'), validate(createUserSchema), ctrl.createUser);
+router.post('/users',
+  authorize('SUPER_ADMIN', 'ADMIN', 'HR'),
+  (req, res, next) => validate(createUserSchemaFor(req.user?.roles ?? []))(req, res, next),
+  ctrl.createUser
+);
 router.patch('/users/:id', authorize('SUPER_ADMIN', 'ADMIN', 'HR'), validate(updateUserSchema), ctrl.updateUser);
 router.patch(
   '/users/:id/status',

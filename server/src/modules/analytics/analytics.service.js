@@ -153,11 +153,13 @@ export async function getFinancialStats(period) {
           SUM(bi.total_price)::float AS revenue
         FROM bill_items bi
         JOIN bills b ON b.id = bi.bill_id
-        JOIN appointments a ON a.id = b.visit_id
-        JOIN departments d ON d.id = a.department_id
+        JOIN patients p ON p.id = b.patient_id
+        LEFT JOIN appointments a ON a.patient_id = p.id AND a.status = 'COMPLETED'
+        LEFT JOIN departments d ON d.id = a.department_id
         WHERE b.created_at >= NOW() - ($1 || ' days')::interval
           AND b.deleted_at IS NULL
           AND d.deleted_at IS NULL
+          AND d.id IS NOT NULL
         GROUP BY d.name
         ORDER BY revenue DESC
         LIMIT 5

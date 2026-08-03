@@ -6,11 +6,13 @@ import cors          from 'cors';
 import helmet        from 'helmet';
 import { createServer } from 'http';
 import { doubleCsrf } from 'csrf-csrf';
+import { logger }    from './shared/logger.js';
+import { corsOriginCheck } from './shared/utils/corsOriginCheck.js';
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 import { apiRateLimiter } from './shared/middleware/rateLimiter.js';
 import { auditMiddleware } from './shared/middleware/audit.js';
-import { isIpBlocked } from './modules/admin/admin.service.js';
+import { ipBlockMiddleware } from './shared/middleware/ipBlock.js';
 
 // ── Route modules ─────────────────────────────────────────────────────────────
 import authRoutes         from './modules/auth/auth.routes.js';
@@ -44,12 +46,36 @@ import dietPlansRoutes   from './modules/diet-plans/diet-plans.routes.js';
 import caseNotesRoutes   from './modules/case-notes/case-notes.routes.js';
 import contactRoutes     from './modules/contact/contact.routes.js';
 import cdsRoutes         from './modules/cds/cds.routes.js';
+import payrollRoutes     from './modules/payroll/payroll.routes.js';
 
 // ── Socket bootstrap ──────────────────────────────────────────────────────────
 import { initSocket } from './socket.js';
 
+// ---------------------------------------------------------------------------
+// Startup environment validation — fail fast if required secrets are missing
+// ---------------------------------------------------------------------------
+const REQUIRED_ENV = [
+  'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD',
+  'JWT_PRIVATE_KEY_PATH', 'JWT_PUBLIC_KEY_PATH',
+  'PG_CRYPTO_KEY', 'DB_ENCRYPTION_KEY',
+  'CSRF_SECRET',
+];
+const missingEnv = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missingEnv.length > 0) {
+  // eslint-disable-next-line no-console
+  console.error(`[startup] FATAL — missing required environment variables: ${missingEnv.join(', ')}`);
+  process.exit(1);
+}
+
 const app = express();
-app.set('trust proxy', true); // trust X-Forwarded-For from Vite proxy
+
+// ── Trust proxy — restrict to loopback only in dev, configurable in prod ──────
+// Setting to 'true' blindly trusts any X-Forwarded-For header which can be
+// spoofed. Use the number of trusted proxy hops instead.
+const TRUST_PROXY = process.env.TRUST_PROXY_HOPS
+  ? parseInt(process.env.TRUST_PROXY_HOPS, 10)
+  : process.env.NODE_ENV === 'production' ? 1 : 'loopback';
+app.set('trust proxy', TRUST_PROXY);
 
 // ── 1. Request ID (FIRST middleware) ─────────────────────────────────────────
 app.use((req, res, next) => {
@@ -64,26 +90,36 @@ app.use(helmet({
     directives: {
       defaultSrc : ["'self'"],
       scriptSrc : ["'self'"],
-      styleSrc  : ["'self'", "'unsafe-inline'"],
+      // Nonce-based inline styles would be ideal but require SSR support.
+      // For now we allow unsafe-inline only in development; production should
+      // migrate to CSS-in-JS or external stylesheets and remove this.
+      styleSrc  : process.env.NODE_ENV === 'production'
+        ? ["'self'"]
+        : ["'self'", "'unsafe-inline'"],
       imgSrc    : ["'self'", 'data:'],
       connectSrc: ["'self'", 'wss:'],
     },
   },
+  // HSTS — only in production to avoid breaking local HTTP dev
+  hsts: process.env.NODE_ENV === 'production'
+    ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+    : false,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  permissionsPolicy: {
+    features: {
+      camera      : [],
+      microphone  : [],
+      geolocation : [],
+      payment     : [],
+    },
+  },
+  crossOriginOpenerPolicy : { policy: 'same-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
 }));
 
 // ── 2. CORS ───────────────────────────────────────────────────────────────────
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    const allowed = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
-      .split(',')
-      .map(o => o.trim());
-    if (process.env.NODE_ENV !== 'production' && origin.startsWith('https://')) {
-      return callback(null, true);
-    }
-    if (allowed.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS blocked: ${origin}`));
-  },
+  origin: corsOriginCheck,
   credentials: true,
 }));
 
@@ -91,13 +127,9 @@ app.use(cors({
 app.use('/api', apiRateLimiter);
 
 // ── 3b. IP block check ────────────────────────────────────────────────────────
-app.use('/api', async (req, res, next) => {
-  try {
-    const blocked = await isIpBlocked(req.ip);
-    if (blocked) return res.status(403).json({ error: 'Access denied.' });
-  } catch { /* fail open if DB/Redis is down */ }
-  next();
-});
+// FAIL-CLOSED: see ipBlock.js — an unreachable block list rejects with 503
+// instead of letting requests through unchecked.
+app.use('/api', ipBlockMiddleware);
 
 // ── 4. Audit middleware (all /api routes) ─────────────────────────────────────
 app.use('/api', auditMiddleware);
@@ -185,15 +217,24 @@ app.use('/api/diet-plans',         dietPlansRoutes);
 app.use('/api/case-notes',         caseNotesRoutes);
 app.use('/api/contact',            contactRoutes);
 app.use('/api/cds',                cdsRoutes);
+app.use('/api/payroll',            payrollRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
 // ── 6. Global error handler ───────────────────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   const status = err.status ?? 500;
-  if (status >= 500) console.error('[error]', err);
+  if (status >= 500) {
+    logger.error(err.message ?? 'Internal server error', {
+      requestId : req.requestId,
+      method    : req.method,
+      path      : req.path,
+      statusCode: status,
+      stack     : err.stack,
+    });
+  }
   res.status(status).json({ error: err.message ?? 'Internal server error' });
 });
 
@@ -206,7 +247,66 @@ app.set('io', io);
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
 httpServer.listen(PORT, () => {
-  console.log(`[server] Listening on port ${PORT}`);
+  logger.info('Server started', { NODE_ENV: process.env.NODE_ENV, PORT });
+});
+
+// ── Graceful shutdown ─────────────────────────────────────────────────────────
+async function shutdown(signal) {
+  logger.info(`[shutdown] Received ${signal} — shutting down gracefully`);
+
+  // Stop accepting new connections
+  httpServer.close(async () => {
+    logger.info('[shutdown] HTTP server closed');
+
+    try {
+      // Close BullMQ queues and workers
+      const { closeQueues } = await import('./shared/jobs/queue.js');
+      await closeQueues();
+      logger.info('[shutdown] BullMQ queues closed');
+    } catch (e) {
+      logger.warn('[shutdown] Queue close error:', { message: e.message });
+    }
+
+    try {
+      // Close DB pool
+      const { pool } = await import('./shared/db/pool.js');
+      await pool.end();
+      logger.info('[shutdown] DB pool closed');
+    } catch (e) {
+      logger.warn('[shutdown] DB pool close error:', { message: e.message });
+    }
+
+    try {
+      // Close Redis
+      const { redis } = await import('./shared/services/redis.service.js');
+      await redis.quit();
+      logger.info('[shutdown] Redis closed');
+    } catch (e) {
+      logger.warn('[shutdown] Redis close error:', { message: e.message });
+    }
+
+    logger.info('[shutdown] Clean exit');
+    process.exit(0);
+  });
+
+  // Force exit after 15 seconds if graceful shutdown hangs
+  setTimeout(() => {
+    logger.error('[shutdown] Forced exit after timeout');
+    process.exit(1);
+  }, 15_000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));
+
+// ── Process-level resilience guards ──────────────────────────────────────────
+// A Redis/DB outage must never crash the process — the fail-closed middleware
+// (503s) only helps if the server stays up to serve them. Log and continue.
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', { reason: reason instanceof Error ? reason.message : reason });
+});
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception — continuing', { message: err.message, stack: err.stack });
 });
 
 export { app, httpServer, io };

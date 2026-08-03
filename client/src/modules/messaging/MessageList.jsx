@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { decryptMessage } from '../../shared/utils/crypto.js';
 import styles from './MessageList.module.scss';
 
+// How long to wait before retrying decryption when the key isn't ready yet
+const DECRYPT_RETRY_DELAY_MS = 1500;
+
 const REACTION_EMOJIS = ['👍', '❤️', '😂', '😮'];
 
 function formatTime(iso) {
@@ -17,18 +20,42 @@ function TickStatus({ status }) {
 // ---------------------------------------------------------------------------
 // Single message bubble
 // ---------------------------------------------------------------------------
-function MessageBubble({ msg, currentUserId, groupKey, onContextMenu, onReact, hovered, onHover }) {
+function MessageBubble({ msg, currentUserId, groupKey, onContextMenu, onReact, hovered, onHover, onDecryptFailed }) {
   const [plaintext, setPlaintext] = useState(null);
   const [decryptErr, setDecryptErr] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (msg.is_deleted) { setPlaintext(null); return; }
     if (!groupKey || !msg.content || !msg.encryption_iv) return;
 
+    // Reset error state when key changes (new key loaded)
+    setDecryptErr(false);
+    setPlaintext(null);
+
     decryptMessage(msg.content, msg.encryption_iv, groupKey)
       .then(setPlaintext)
-      .catch(() => setDecryptErr(true));
-  }, [msg.content, msg.encryption_iv, msg.is_deleted, groupKey]);
+      .catch((err) => {
+        console.warn(`[MessageBubble] Decryption failed for message ${msg.id}:`, err.message);
+        
+        // Retry once after a delay (in case key wasn't fully loaded)
+        if (retryCount === 0) {
+          setTimeout(() => {
+            setRetryCount(1);
+            decryptMessage(msg.content, msg.encryption_iv, groupKey)
+              .then(setPlaintext)
+              .catch(() => {
+                setDecryptErr(true);
+                // Notify parent to handle cleanup
+                onDecryptFailed?.(msg.id);
+              });
+          }, DECRYPT_RETRY_DELAY_MS);
+        } else {
+          setDecryptErr(true);
+          onDecryptFailed?.(msg.id);
+        }
+      });
+  }, [msg.content, msg.encryption_iv, msg.is_deleted, groupKey, msg.id, retryCount, onDecryptFailed]);
 
   const isMine = msg.sender_id === currentUserId;
 
@@ -54,7 +81,9 @@ function MessageBubble({ msg, currentUserId, groupKey, onContextMenu, onReact, h
         {msg.is_deleted ? (
           <em>This message was deleted</em>
         ) : decryptErr ? (
-          <span className={styles.decryptError}>⚠ Could not decrypt</span>
+          <span className={styles.unavailable}>
+            <em style={{ fontSize: '0.85em', color: '#9ca3af' }}>Message unavailable</em>
+          </span>
         ) : plaintext === null ? (
           <span style={{ opacity: 0.4 }}>…</span>
         ) : (
@@ -175,6 +204,7 @@ export default function MessageList({
 }) {
   const [contextMenu, setContextMenu] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
+  const [failedMessageIds, setFailedMessageIds] = useState(new Set());
   const listRef  = useRef(null);
 
   // Scroll to bottom on new messages
@@ -196,6 +226,26 @@ export default function MessageList({
     setHoveredId(isHovered ? messageId : null);
   }
 
+  function handleDecryptFailed(messageId) {
+    setFailedMessageIds(prev => new Set(prev).add(messageId));
+    
+    // Auto-delete own messages that failed to decrypt (they're corrupted/unrecoverable)
+    const msg = messages.find(m => m.id === messageId);
+    if (msg && msg.sender_id === currentUserId) {
+      console.log(`[MessageList] Auto-deleting own undecryptable message ${messageId}`);
+      handleDelete(messageId);
+    }
+  }
+
+  // Filter out messages that have persistently failed decryption
+  const visibleMessages = messages.filter(msg => {
+    // Show deleted messages (they display as "This message was deleted")
+    if (msg.is_deleted) return true;
+    // Hide messages that failed decryption and belong to others (can't delete them)
+    if (failedMessageIds.has(msg.id) && msg.sender_id !== currentUserId) return false;
+    return true;
+  });
+
   const typingNames = Object.values(typingUsers ?? {})
     .filter((u) => u.userId !== currentUserId)
     .map((u) => u.firstName);
@@ -211,7 +261,7 @@ export default function MessageList({
       )}
 
       <div ref={listRef} className={styles.listOuter}>
-        {messages.map((msg, index) => (
+        {visibleMessages.map((msg, index) => (
           <div key={msg.id} className={styles.row}>
             <MessageBubble
               msg={msg}
@@ -221,6 +271,7 @@ export default function MessageList({
               onReact={handleReact}
               hovered={hoveredId === msg.id}
               onHover={handleHover}
+              onDecryptFailed={handleDecryptFailed}
             />
           </div>
         ))}

@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './ApplyLeave.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 const LEAVE_TYPES = [
   { value: 'ANNUAL',       label: 'Annual Leave' },

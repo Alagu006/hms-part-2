@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { pool } from '../db/pool.js';
+import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
 // Core audit log writer — call this directly from service/controller layers
@@ -41,7 +42,7 @@ export async function auditLog(userIdOrOpts, action, entity, entityId, prevData,
   } = opts;
 
   if (!act || !ent) {
-    console.error('[audit] Skipping log — missing action or entity', { action: act, entity: ent });
+    logger.error('[audit] Skipping log — missing action or entity', { action: act, entity: ent });
     return;
   }
   try {
@@ -87,7 +88,7 @@ export async function auditLog(userIdOrOpts, action, entity, entityId, prevData,
       client.release();
     }
   } catch (err) {
-    console.error('[audit] Failed to write audit log:', err.message);
+    logger.error('[audit] Failed to write audit log:', { message: err.message });
   }
 }
 

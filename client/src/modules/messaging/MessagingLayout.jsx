@@ -1,25 +1,26 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { io }       from 'socket.io-client';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import { importKey } from '../../shared/utils/crypto.js';
-import { useAuth }  from '../../shared/store/index.js';
+import { useAuth, getAccessToken } from '../../shared/store/index.js';
 import { getSocketUrl } from '../../shared/utils/socketUrl.js';
+import { _groupKeyCache, clearGroupKeyCache } from '../../shared/utils/groupKeyCache.js';
 import GroupList    from './GroupList.jsx';
 import MessageList  from './MessageList.jsx';
 import MessageInput from './MessageInput.jsx';
 import styles       from './MessagingLayout.module.scss';
 
-const API_BASE   = import.meta.env.VITE_API_URL ?? '/api';
+export { clearGroupKeyCache };
+
 const SOCKET_URL = getSocketUrl();
 
 async function getGroupKey(groupId) {
-  const store = JSON.parse(sessionStorage.getItem('groupKeys') ?? '{}');
-  if (store[groupId] && store[groupId].length === 44) return importKey(store[groupId]);
+  if (_groupKeyCache.has(groupId)) return _groupKeyCache.get(groupId);
   const res = await apiFetch(`${API_BASE}/messaging/groups/${groupId}/key`);
   if (!res?.key) throw new Error('Failed to fetch group key');
-  store[groupId] = res.key;
-  sessionStorage.setItem('groupKeys', JSON.stringify(store));
-  return importKey(res.key);
+  const cryptoKey = await importKey(res.key);
+  _groupKeyCache.set(groupId, cryptoKey);
+  return cryptoKey;
 }
 
 function initials(name = '?') {
@@ -29,8 +30,11 @@ function initials(name = '?') {
 // ---------------------------------------------------------------------------
 // Chat header
 // ---------------------------------------------------------------------------
-function ChatHeader({ group, members, showMembers, onToggleMembers, onBack }) {
+function ChatHeader({ group, members, showMembers, onToggleMembers, onBack, onPurgeOld, currentUserRoles }) {
   if (!group) return null;
+  
+  const isAdmin = currentUserRoles?.some(r => ['SUPER_ADMIN', 'ADMIN', 'IT_ADMIN'].includes(r));
+  
   return (
     <div style={{ padding: '14px 20px', borderBottom: '1px solid #e5e7eb', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -46,6 +50,25 @@ function ChatHeader({ group, members, showMembers, onToggleMembers, onBack }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        {isAdmin && (
+          <button 
+            onClick={onPurgeOld} 
+            title="Delete old undecryptable messages"
+            style={{ 
+              background: '#fef2f2', 
+              border: '1px solid #fecaca', 
+              borderRadius: 6, 
+              padding: '4px 10px', 
+              fontSize: '0.75rem', 
+              color: '#dc2626', 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}>
+            🗑️ Clean
+          </button>
+        )}
         {group.type !== 'DIRECT' && (
           <button onClick={onToggleMembers} style={{ background: showMembers ? '#eff6ff' : 'transparent', border: '1px solid #dbeafe', borderRadius: 6, padding: '4px 10px', fontSize: '0.75rem', color: '#3b82f6', cursor: 'pointer' }}>
             👥 Members
@@ -195,7 +218,7 @@ export default function MessagingLayout() {
 
   useEffect(() => {
     if (!currentUser?.id) return;
-    const token = sessionStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (!token) return;
 
     const socket = io(`${SOCKET_URL}/messaging`, {
@@ -272,6 +295,7 @@ export default function MessagingLayout() {
       setGroupKey(key);
     } catch (err) {
       console.error('[selectGroup] Failed to load group key:', err);
+      setGroupKey(null);
     }
 
     apiFetch(`${API_BASE}/messaging/groups/${group.id}/pinned`).then(json => setPinnedMsgs(json?.data ?? [])).catch(console.error);
@@ -310,6 +334,38 @@ export default function MessagingLayout() {
   }, [activeGroup, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredGroups = groups.filter(g => !search || (g.name ?? '').toLowerCase().includes(search.toLowerCase()));
+
+  async function handlePurgeOld() {
+    if (!activeGroup) return;
+    
+    const confirmed = window.confirm(
+      'This will permanently delete all old messages that cannot be decrypted.\n\n' +
+      'This action cannot be undone. Continue?'
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      // Delete messages older than 7 days ago (adjust as needed)
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      
+      const res = await apiFetch(
+        `${API_BASE}/messaging/groups/${activeGroup.id}/purge-old?beforeDate=${sevenDaysAgo}`,
+        { method: 'DELETE' }
+      );
+      
+      if (res?.ok) {
+        alert(`Successfully deleted ${res.deletedCount} old messages.`);
+        // Refresh the message list
+        setMessages([]);
+        setPage(1);
+        setHasMore(true);
+      }
+    } catch (err) {
+      console.error('Failed to purge old messages:', err);
+      alert('Failed to delete old messages. Check console for details.');
+    }
+  }
 
   return (
     <div className={styles.layout}>
@@ -353,7 +409,15 @@ export default function MessagingLayout() {
         ) : (
           <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-              <ChatHeader group={activeGroup} members={groupMembers} showMembers={showMembers} onToggleMembers={() => setShowMembers(v => !v)} onBack={() => setMobileChatOpen(false)} />
+              <ChatHeader 
+                group={activeGroup} 
+                members={groupMembers} 
+                showMembers={showMembers} 
+                onToggleMembers={() => setShowMembers(v => !v)} 
+                onBack={() => setMobileChatOpen(false)}
+                onPurgeOld={handlePurgeOld}
+                currentUserRoles={currentUser?.roles}
+              />
               <MessageList messages={messages} currentUserId={currentUser?.id} groupKey={groupKey}
                 pinnedMessages={pinnedMsgs} typingUsers={typingUsers} socket={socketRef.current}
                 groupId={activeGroup.id} onReply={setReplyTo} />

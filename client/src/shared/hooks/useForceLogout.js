@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { useStore } from '../store/index.js';
+import { useStore, getAccessToken } from '../store/index.js';
 import { clearSessionKey } from '../utils/sessionKey.js';
 
 /**
@@ -16,7 +16,7 @@ export function useForceLogout() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const token = sessionStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (!token) return;
 
     const socket = io('', {

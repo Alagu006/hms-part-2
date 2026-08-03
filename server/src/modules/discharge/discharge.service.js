@@ -14,10 +14,10 @@ export async function createDischargeSummary(
   // Fetch patient info (for notification + email)
   const { rows: patRows } = await pool.query(
     `SELECT p.id, p.first_name, p.last_name, p.user_id,
-            pgp_sym_decrypt(p.email::bytea, $2) AS email
+            pgp_sym_decrypt(decode(p.email, 'hex'), $2) AS email
      FROM patients p
      WHERE p.id = $1 AND p.deleted_at IS NULL`,
-    [patientId, process.env.PGP_SYM_KEY]
+    [patientId, process.env.PG_CRYPTO_KEY]
   );
   const patient = patRows[0];
   if (!patient) {

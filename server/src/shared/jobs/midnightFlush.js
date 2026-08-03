@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { flushAllRefreshTokens } from '../../modules/auth/auth.service.js';
 import { auditLog } from '../middleware/audit.js';
+import { logger } from '../logger.js';
 
 /**
  * Runs at 00:00 UTC every day.
@@ -8,7 +9,7 @@ import { auditLog } from '../middleware/audit.js';
  */
 export function scheduleMidnightFlush() {
   cron.schedule('0 0 * * *', async () => {
-    console.log('[cron] Running midnight refresh token flush...');
+    logger.info('[cron] Running midnight refresh token flush');
     await flushAllRefreshTokens();
     await auditLog({
       userId  : null,
@@ -18,5 +19,5 @@ export function scheduleMidnightFlush() {
     });
   }, { timezone: 'UTC' });
 
-  console.log('[cron] Midnight flush job scheduled (00:00 UTC)');
+  logger.info('[cron] Midnight flush job scheduled (00:00 UTC)');
 }

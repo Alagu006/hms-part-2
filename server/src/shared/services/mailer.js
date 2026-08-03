@@ -3,6 +3,7 @@
  * Kept separate to avoid circular imports between email.service.js and queue.js.
  */
 import nodemailer from 'nodemailer';
+import { logger } from '../logger.js';
 
 export const transporter = nodemailer.createTransport({
   host  : process.env.SMTP_HOST   || 'smtp.gmail.com',
@@ -18,8 +19,8 @@ export const transporter = nodemailer.createTransport({
 });
 
 transporter.verify((err) => {
-  if (err) console.error('[mailer] SMTP connection failed:', err.message);
-  else     console.log('[mailer] SMTP ready');
+  if (err) logger.error('[mailer] SMTP connection failed:', { message: err.message });
+  else     logger.info('[mailer] SMTP ready');
 });
 
 export const FROM = `"${process.env.HOSPITAL_NAME || 'HMS'}" <${process.env.SMTP_FROM || process.env.SMTP_USER || 'hms@hospital.local'}>`;

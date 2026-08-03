@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import PatientFileUpload from './PatientFileUpload.jsx';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './NurseDashboard.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 async function fetchMyAssignments() {
   const data = await apiFetch(`${API_BASE}/nurse/assignments`);

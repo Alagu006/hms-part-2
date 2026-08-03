@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './MyVitals.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 function fmt(iso) {
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));

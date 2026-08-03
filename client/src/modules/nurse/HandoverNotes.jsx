@@ -1,24 +1,22 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './HandoverNotes.module.scss';
-
-const API = import.meta.env.VITE_API_URL ?? '/api';
 
 const PRIORITIES = ['NORMAL', 'HIGH', 'URGENT', 'LOW'];
 
 async function fetchHandoverNotes() {
-  const data = await apiFetch(`${API}/handover-notes?limit=50`);
+  const data = await apiFetch(`${API_BASE}/handover-notes?limit=50`);
   return data?.handoverNotes ?? [];
 }
 
 async function fetchPatients() {
-  const data = await apiFetch(`${API}/patients?limit=100`);
+  const data = await apiFetch(`${API_BASE}/patients?limit=100`);
   return data?.patients ?? [];
 }
 
 async function createHandover(body) {
-  return apiFetch(`${API}/handover-notes`, {
+  return apiFetch(`${API_BASE}/handover-notes`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -26,7 +24,7 @@ async function createHandover(body) {
 }
 
 async function markRead(id) {
-  return apiFetch(`${API}/handover-notes/${id}/read`, { method: 'PATCH' });
+  return apiFetch(`${API_BASE}/handover-notes/${id}/read`, { method: 'PATCH' });
 }
 
 function PriorityBadge({ priority }) {

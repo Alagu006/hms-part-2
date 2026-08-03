@@ -1,0 +1,278 @@
+.page { padding: 24px; max-width: 900px; }
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.backBtn {
+  background: none;
+  border: none;
+  color: #1a56db;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0;
+  &:hover { text-decoration: underline; }
+}
+
+.changeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  &:hover { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+}
+
+/* ── Search ─────────────────────────────────────────────────────────────── */
+.searchWrap { max-width: 560px; }
+
+.title { margin: 0 0 4px; font-size: 1.375rem; font-weight: 700; color: #111827; }
+
+.searchHint { font-size: 0.875rem; color: #6b7280; margin: 4px 0 20px; }
+
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:focus-within { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+}
+
+.searchIcon { font-size: 1rem; flex-shrink: 0; }
+
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 0.9375rem;
+  background: transparent;
+  color: #111827;
+  min-width: 0;
+  &::placeholder { color: #9ca3af; }
+}
+
+.searchSpinner {
+  width: 16px; height: 16px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.noResults { font-size: 0.875rem; color: #9ca3af; margin-top: 12px; }
+
+.resultList {
+  list-style: none; margin: 12px 0 0; padding: 0;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+  overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.resultItem {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 12px 16px; cursor: pointer;
+  border-bottom: 1px solid #f3f4f6; transition: background 0.12s;
+  &:last-child { border-bottom: none; }
+  &:hover, &:focus { background: #eff6ff; outline: none; }
+}
+
+.resultMain { display: flex; align-items: center; gap: 10px; }
+
+.resultName { font-size: 0.9375rem; font-weight: 600; color: #111827; }
+
+.resultMrn {
+  font-size: 0.75rem; color: #9ca3af; font-family: monospace;
+  background: #f3f4f6; padding: 1px 6px; border-radius: 4px;
+}
+
+.resultMeta { display: flex; align-items: center; gap: 10px; font-size: 0.78rem; color: #6b7280; }
+
+.resultStatus {
+  font-size: 0.7rem; font-weight: 600; padding: 1px 7px;
+  border-radius: 10px; text-transform: capitalize;
+}
+.inpatient  { background: #dbeafe; color: #1d4ed8; }
+.outpatient { background: #dcfce7; color: #15803d; }
+
+/* ── Timeline ───────────────────────────────────────────────────────────── */
+.timelineWrap { display: flex; flex-direction: column; gap: 20px; }
+
+.timelineHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.patientTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timelineLabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.totalCount { margin: 4px 0 0; font-size: 0.8125rem; color: #9ca3af; }
+
+.timelineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.actionBtn {
+  padding: 7px 14px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  &:hover { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+}
+
+.loading { padding: 40px 0; text-align: center; color: #9ca3af; font-size: 0.9rem; }
+.errorState { padding: 20px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px; color: #dc2626; font-size: 0.875rem; }
+.empty { padding: 40px 0; text-align: center; color: #9ca3af; font-size: 0.9rem; }
+
+.timeline {
+  list-style: none;
+  margin: 0; padding: 0;
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 11px; top: 0; bottom: 0;
+    width: 2px;
+    background: #e5e7eb;
+  }
+}
+
+.item {
+  display: flex;
+  gap: 16px;
+  padding-bottom: 20px;
+  position: relative;
+  &:last-child { padding-bottom: 0; }
+}
+
+.dot {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #e5e7eb;
+  background: #9ca3af;
+  z-index: 1;
+}
+.dot_appointment    { background: #3b82f6; box-shadow: 0 0 0 2px #bfdbfe; }
+.dot_medical_record { background: #8b5cf6; box-shadow: 0 0 0 2px #ddd6fe; }
+.dot_lab_order      { background: #06b6d4; box-shadow: 0 0 0 2px #a5f3fc; }
+.dot_vital          { background: #ef4444; box-shadow: 0 0 0 2px #fca5a5; }
+.dot_prescription   { background: #10b981; box-shadow: 0 0 0 2px #a7f3d0; }
+.dot_discharge      { background: #f59e0b; box-shadow: 0 0 0 2px #fde68a; }
+
+.card {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.typeTag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: #f3f4f6;
+  color: #374151;
+}
+.tag_appointment    { background: #dbeafe; color: #1d4ed8; }
+.tag_medical_record { background: #ede9fe; color: #6d28d9; }
+.tag_lab_order      { background: #cffafe; color: #0e7490; }
+.tag_vital          { background: #fee2e2; color: #b91c1c; }
+.tag_prescription   { background: #d1fae5; color: #065f46; }
+.tag_discharge      { background: #fef3c7; color: #92400e; }
+
+.date { font-size: 0.75rem; color: #9ca3af; white-space: nowrap; }
+
+.doctor { margin: 0 0 4px; font-size: 0.8125rem; color: #6b7280; span { color: #374151; font-weight: 500; } }
+
+.meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+.metaTag {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.notes { margin: 6px 0 0; font-size: 0.8125rem; color: #374151; line-height: 1.5; }
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 0;
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.pageBtn {
+  padding: 6px 16px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  color: #374151;
+  transition: background 0.15s;
+  &:hover:not(:disabled) { background: #f3f4f6; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}

@@ -98,18 +98,6 @@
 .statusPENDING    { background: #fef3c7; color: #92400e; }
 .statusPROCESSING { background: #dbeafe; color: #1e40af; }
 
-.fileBtn {
-  background: none;
-  border: none;
-  color: var(--color-primary, #2563eb);
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 0;
-  text-decoration: underline;
-
-  &:hover { opacity: 0.75; }
-}
-
 .loading, .empty {
   padding: 2rem;
   text-align: center;

@@ -15,6 +15,7 @@ const ROLE_SHORTCUTS = {
   DOCTOR: [
     { keys: ['p'], desc: 'Prescriptions' },
     { keys: ['v'], desc: 'Patient Vitals' },
+    { keys: ['h'], desc: 'Patient History' },
     { keys: ['d'], desc: 'Discharge Form' },
     { keys: ['t'], desc: 'Telemedicine' },
   ],

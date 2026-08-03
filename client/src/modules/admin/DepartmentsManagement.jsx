@@ -1,22 +1,20 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './DepartmentsManagement.module.scss';
 
-const API = import.meta.env.VITE_API_URL ?? '/api';
-
 async function fetchDepartments() {
-  const data = await apiFetch(`${API}/departments`);
+  const data = await apiFetch(`${API_BASE}/departments`);
   return Array.isArray(data) ? data : (data?.departments ?? []);
 }
 
 async function fetchStaff(departmentId) {
-  const data = await apiFetch(`${API}/admin/users?department=${departmentId}&limit=100`);
+  const data = await apiFetch(`${API_BASE}/admin/users?department=${departmentId}&limit=100`);
   return Array.isArray(data) ? data : (data?.users ?? []);
 }
 
 async function createDepartment(body) {
-  return apiFetch(`${API}/departments`, {
+  return apiFetch(`${API_BASE}/departments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -24,7 +22,7 @@ async function createDepartment(body) {
 }
 
 async function updateDepartment({ id, ...body }) {
-  return apiFetch(`${API}/departments/${id}`, {
+  return apiFetch(`${API_BASE}/departments/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

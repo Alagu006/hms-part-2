@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './PrescriptionForm.module.scss';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 const FREQ_OPTIONS = ['1x', '2x', '3x', 'SOS'];
 const DOSES = { '1x': 1, '2x': 2, '3x': 3, 'SOS': 1 };
 const MED_FORMS = ['TABLET', 'CAPSULE', 'SYRUP', 'INJECTION', 'CREAM', 'DROPS', 'INHALER', 'PATCH', 'OTHER'];

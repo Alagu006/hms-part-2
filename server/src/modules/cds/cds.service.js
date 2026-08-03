@@ -31,7 +31,14 @@ const DRUG_INTERACTIONS = [
 function checkSepsisRisk(vitals) {
   if (!vitals || vitals.length < 2) return null;
   const latest = vitals[0];
-  const { temperature, heart_rate, respiratory_rate, systolic_bp, wbc_count } = latest;
+  
+  // Map column names: temperature_c, pulse_bpm, respiratory_rate, bp_systolic
+  // Also check for alternative column names (temperature, heart_rate, systolic_bp, wbc_count)
+  const temperature = latest.temperature ?? latest.temperature_c;
+  const heart_rate = latest.heart_rate ?? latest.pulse_bpm;
+  const respiratory_rate = latest.respiratory_rate;
+  const systolic_bp = latest.systolic_bp ?? latest.bp_systolic;
+  const wbc_count = latest.wbc_count;
 
   let sirsCriteria = 0;
   if (temperature && (temperature > 38.3 || temperature < 36)) sirsCriteria++;
@@ -41,11 +48,12 @@ function checkSepsisRisk(vitals) {
 
   // Check for deteriorating trend
   const prev = vitals[1];
+  const prev_systolic = prev.systolic_bp ?? prev.bp_systolic;
   const deteriorating =
     prev &&
     systolic_bp &&
-    prev.systolic_bp &&
-    systolic_bp < prev.systolic_bp - 20;
+    prev_systolic &&
+    systolic_bp < prev_systolic - 20;
 
   if (sirsCriteria >= 2) {
     return {
@@ -167,14 +175,20 @@ async function persistAlerts(patientId, doctorId, rawAlerts) {
     const results = [];
     for (const alert of rawAlerts) {
       const id = uuidv4();
-      await client.query(
+      // Include `type` so it's stored and returned correctly.
+      // The UNIQUE constraint is on (patient_id, message, status) — use INSERT … ON CONFLICT DO NOTHING
+      // to avoid re-inserting the same active alert, but dismissed/acknowledged ones can re-trigger.
+      const { rows } = await client.query(
         `INSERT INTO cds_alerts
-           (id, patient_id, triggered_by, severity, message, status, created_at)
-         VALUES ($1, $2, $3, $4, $5, 'active', NOW())
-         ON CONFLICT DO NOTHING`,
-        [id, patientId, doctorId, alert.severity, alert.message]
+           (id, patient_id, triggered_by, type, severity, message, status, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'active', NOW())
+         ON CONFLICT (patient_id, message, status) DO NOTHING
+         RETURNING *`,
+        [id, patientId, doctorId, alert.type ?? 'GENERAL', alert.severity, alert.message]
       );
-      results.push({ id, ...alert, status: 'active', created_at: new Date().toISOString() });
+      if (rows[0]) {
+        results.push({ id: rows[0].id, type: rows[0].type, severity: rows[0].severity, message: rows[0].message, status: 'active', created_at: rows[0].created_at });
+      }
     }
     return results;
   } finally {
@@ -184,6 +198,14 @@ async function persistAlerts(patientId, doctorId, rawAlerts) {
 
 // ── Main: getInsights ─────────────────────────────────────────────────────────
 export async function getInsights(patientId, doctorId) {
+  // Validate UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(patientId)) {
+    const err = new Error('Invalid patient ID format');
+    err.status = 400;
+    throw err;
+  }
+
   const client = await pool.connect();
   try {
     // Fetch all relevant patient data in parallel
@@ -209,9 +231,11 @@ export async function getInsights(patientId, doctorId) {
         [patientId]
       ),
       client.query(
-        `SELECT * FROM prescription_items pi
+        `SELECT pi.*, m.name AS medication_name
+         FROM prescription_items pi
          JOIN prescriptions pr ON pr.id = pi.prescription_id
-         WHERE pr.patient_id = $1 AND pr.status = 'active'
+         JOIN medicines m ON m.id = pi.medicine_id
+         WHERE pr.patient_id = $1 AND pr.status IN ('PENDING','PARTIALLY_DISPENSED')
          ORDER BY pr.created_at DESC`,
         [patientId]
       ),
@@ -266,17 +290,21 @@ export async function getInsights(patientId, doctorId) {
     // Persist new alerts
     const persisted = await persistAlerts(patientId, doctorId, newAlerts);
 
-    // Return all active alerts (existing + new)
+    // Return all active alerts (existing + newly persisted)
+    // Avoid duplicates: persisted rows are already in the DB; existing rows were fetched before insert.
+    const persistedIds = new Set(persisted.map(a => a.id));
     const allAlerts = [
       ...persisted,
-      ...existingAlertsRes.rows.map(r => ({
-        id       : r.id,
-        type     : r.type ?? 'GENERAL',
-        severity : r.severity,
-        message  : r.message,
-        status   : r.status,
-        created_at: r.created_at,
-      })),
+      ...existingAlertsRes.rows
+        .filter(r => !persistedIds.has(r.id))
+        .map(r => ({
+          id        : r.id,
+          type      : r.type,   // always stored now — no fallback needed
+          severity  : r.severity,
+          message   : r.message,
+          status    : r.status,
+          created_at: r.created_at,
+        })),
     ];
 
     // Sort: high → medium → low

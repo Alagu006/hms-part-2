@@ -4,6 +4,11 @@
  * Keys are stored as raw CryptoKey objects (non-extractable after import)
  * alongside their base64 export for backup/sharing.
  *
+ * SECURITY: Keys are stored ONLY in IndexedDB, never in sessionStorage or
+ * localStorage. sessionStorage is accessible to any XSS payload that runs
+ * in the same origin; IndexedDB is not meaningfully more secure against XSS
+ * but avoids the key being trivially readable via storage APIs.
+ *
  * DB: hms_keys  |  Store: file_keys  |  Key: fileId (string)
  * Value: { fileId, keyB64, ivB64, fileName, uploadedAt }
  */
@@ -26,7 +31,7 @@ function getDB() {
 }
 
 /**
- * Persist a file's encryption key + IV to IndexedDB.
+ * Persist a file's encryption key + IV to IndexedDB only.
  * @param {string} fileId
  * @param {string} keyB64   — base64 AES-256 raw key
  * @param {string} ivB64    — base64 IV
@@ -41,13 +46,8 @@ export async function storeFileKey(fileId, keyB64, ivB64, fileName = '') {
     fileName,
     uploadedAt: new Date().toISOString(),
   });
-
-  // Also mirror to sessionStorage for fast same-session access
-  try {
-    const store = JSON.parse(sessionStorage.getItem('fileKeys') ?? '{}');
-    store[fileId] = keyB64;
-    sessionStorage.setItem('fileKeys', JSON.stringify(store));
-  } catch { /* quota exceeded — IDB is the source of truth */ }
+  // NOTE: intentionally NOT mirrored to sessionStorage — keys must not be
+  // readable by XSS payloads via sessionStorage.getItem('fileKeys').
 }
 
 /**
@@ -57,15 +57,6 @@ export async function storeFileKey(fileId, keyB64, ivB64, fileName = '') {
  * @returns {Promise<{ fileId, keyB64, ivB64, fileName, uploadedAt } | null>}
  */
 export async function getFileKey(fileId) {
-  // Fast path: sessionStorage
-  try {
-    const store = JSON.parse(sessionStorage.getItem('fileKeys') ?? '{}');
-    if (store[fileId]) {
-      return { fileId, keyB64: store[fileId], ivB64: null, fileName: '', uploadedAt: null };
-    }
-  } catch { /* ignore */ }
-
-  // Slow path: IndexedDB
   const db = await getDB();
   return (await db.get(STORE, fileId)) ?? null;
 }
@@ -86,12 +77,6 @@ export async function listFileKeys() {
 export async function deleteFileKey(fileId) {
   const db = await getDB();
   await db.delete(STORE, fileId);
-
-  try {
-    const store = JSON.parse(sessionStorage.getItem('fileKeys') ?? '{}');
-    delete store[fileId];
-    sessionStorage.setItem('fileKeys', JSON.stringify(store));
-  } catch { /* ignore */ }
 }
 
 /**

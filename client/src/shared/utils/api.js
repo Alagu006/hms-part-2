@@ -2,8 +2,12 @@ import axios from 'axios';
 import { useStore } from '../store/index.js';
 import { encryptPayload, decryptResponse, getSessionKeyB64 } from './sessionKey.js';
 
+// Canonical base URL for the entire client. Import from here everywhere —
+// never redefine `import.meta.env.VITE_API_URL` in individual components.
+export const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
+
 const api = axios.create({
-  baseURL        : import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api',
+  baseURL        : API_BASE,
   timeout        : 15000,
   headers        : { 'Content-Type': 'application/json' },
   withCredentials: true,
@@ -11,9 +15,9 @@ const api = axios.create({
 
 // Cache the CSRF token
 let csrfToken = null;
-async function getCsrfToken() {
+export async function getCsrfToken() {
   if (csrfToken) return csrfToken;
-  const res = await fetch('/api/auth/csrf-token', { credentials: 'include' });
+  const res = await fetch(`${API_BASE}/auth/csrf-token`, { credentials: 'include' });
   const data = await res.json();
   csrfToken = data.csrfToken;
   return csrfToken;
@@ -31,6 +35,10 @@ api.interceptors.request.use(async (config) => {
   if (MUTATING.includes(config.method?.toLowerCase())) {
     config.headers['x-csrf-token'] = await getCsrfToken();
   }
+
+  // FormData needs the browser to set the multipart boundary — drop the default
+  const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;
+  if (isFormData) delete config.headers['Content-Type'];
 
   // Encrypt JSON body for mutating requests
   if (MUTATING.includes(config.method?.toLowerCase()) && config.data) {
@@ -78,5 +86,50 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// ── Error normalisation (mirrors the old apiFetch behaviour) ─────────────────
+async function normalizeError(error) {
+  const status = error.response?.status;
+  if (status === 403) return new Error('Access denied — you do not have permission for this action');
+  if (status === 404) return new Error('Resource not found');
+
+  let data = error.response?.data;
+  // Error envelopes may themselves be encrypted
+  if (data?.encrypted === true && data.iv && data.ciphertext) {
+    try { data = await decryptResponse(data); } catch { /* keep raw */ }
+  }
+
+  const msg = data?.message ?? data?.error
+    ?? (data?.issues?.map((i) => `${i.field}: ${i.message}`).join('; '))
+    ?? error.message;
+  return new Error(msg);
+}
+
+// ── Convenience wrapper over the axios instance ──────────────────────────────
+// Preserves the old apiFetch(url, { method, body, headers }) signature so
+// existing call sites behave identically: it returns parsed JSON, a Blob for
+// `responseType: 'blob'`, an ArrayBuffer for `responseType: 'arraybuffer'`,
+// or null on 401. Every request still flows through the axios interceptors
+// above (CSRF, encryption, auth attachment), so this is the single client.
+export async function apiFetch(url, options = {}) {
+  const { method = 'GET', body, headers, responseType, ...rest } = options;
+
+  const config = {
+    url,
+    method   : method.toLowerCase(),
+    headers  : headers ?? {},
+    ...rest,
+  };
+  if (responseType) config.responseType = responseType;
+  if (body !== undefined) config.data = body;
+
+  try {
+    const response = await api(config);
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 401) return null;
+    throw await normalizeError(error);
+  }
+}
 
 export default api;

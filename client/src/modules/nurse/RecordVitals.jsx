@@ -4,11 +4,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import PatientAllergies from '../../shared/components/PatientAllergies.jsx';
 import styles from './RecordVitals.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 // Alert thresholds (mirrors server-side)
 const ALERTS = {

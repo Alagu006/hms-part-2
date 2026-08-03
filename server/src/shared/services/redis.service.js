@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
 // Connection factory — shared config for all Redis clients
@@ -15,21 +16,21 @@ function createClient(overrides = {}) {
     // Reconnect strategy: exponential back-off capped at 30s
     retryStrategy(times) {
       if (times > 20) {
-        console.error('[redis] Max reconnect attempts reached. Giving up.');
+        logger.error('[redis] Max reconnect attempts reached. Giving up.');
         return null; // stop retrying
       }
       const delay = Math.min(100 * 2 ** times, 30_000);
-      console.warn(`[redis] Reconnecting in ${delay}ms (attempt ${times})...`);
+      logger.warn(`[redis] Reconnecting in ${delay}ms (attempt ${times})...`);
       return delay;
     },
     ...overrides,
   });
 
-  client.on('connect',           () => console.log('[redis] Connected'));
-  client.on('ready',             () => console.log('[redis] Ready'));
-  client.on('error',  (err)      => console.error('[redis] Error:', err.message));
-  client.on('close',             () => console.warn('[redis] Connection closed'));
-  client.on('reconnecting', (ms) => console.warn(`[redis] Reconnecting in ${ms}ms`));
+  client.on('connect',           () => logger.info('[redis] Connected'));
+  client.on('ready',             () => logger.info('[redis] Ready'));
+  client.on('error',  (err)      => logger.error('[redis] Error:', { message: err.message }));
+  client.on('close',             () => logger.warn('[redis] Connection closed'));
+  client.on('reconnecting', (ms) => logger.warn(`[redis] Reconnecting in ${ms}ms`));
 
   return client;
 }

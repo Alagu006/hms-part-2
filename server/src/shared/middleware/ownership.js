@@ -10,14 +10,16 @@ const OWNERSHIP_QUERIES = {
   `,
 
   prescription: `
-    SELECT pr.patient_id
+    SELECT p.user_id
     FROM prescriptions pr
+    JOIN patients p ON p.id = pr.patient_id
     WHERE pr.id = $1 AND pr.deleted_at IS NULL
   `,
 
   bill: `
-    SELECT b.patient_id
+    SELECT p.user_id
     FROM bills b
+    JOIN patients p ON p.id = b.patient_id
     WHERE b.id = $1 AND b.deleted_at IS NULL
   `,
 
@@ -35,9 +37,16 @@ const OWNERSHIP_QUERIES = {
     JOIN patients p ON p.id = lo.patient_id
     WHERE lr.id = $1 AND lr.deleted_at IS NULL
   `,
+
+  appointment: `
+    SELECT p.user_id
+    FROM appointments a
+    JOIN patients p ON p.id = a.patient_id
+    WHERE a.id = $1 AND a.deleted_at IS NULL
+  `,
 };
 
-export function checkOwnership(entityType) {
+export function checkOwnership(entityType, paramName = 'id') {
   const sql = OWNERSHIP_QUERIES[entityType];
   if (!sql) {
     throw new Error(`Unknown entity type for ownership check: "${entityType}"`);
@@ -49,7 +58,7 @@ export function checkOwnership(entityType) {
     }
 
     try {
-      const { rows } = await query(sql, [req.params.id]);
+      const { rows } = await query(sql, [req.params[paramName]]);
 
       if (!rows[0]) {
         return res.status(404).json({ error: 'Resource not found' });

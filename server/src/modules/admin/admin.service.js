@@ -4,6 +4,8 @@ import { pgEncrypt } from '../../shared/db/pgcrypto.js';
 import { sendTempPassword } from '../../shared/services/email.service.js';
 import { getOrCreateDepartmentGroup } from '../messaging/messaging.service.js';
 import argon2 from 'argon2';
+import crypto from 'crypto';
+import { logger } from '../../shared/logger.js';
 
 // Normalize PostgreSQL array_agg results which can come back as '{VAL1,VAL2}' strings
 function normalizePgArray(val) {
@@ -225,12 +227,27 @@ export async function getUsers({ role, department, status, search, page = 1, lim
 
 
 export async function createUser({ firstName, lastName, email, phone, role, departmentId, dateOfBirth, gender, bloodGroup, address, emergencyContact, specialization, licenseNumber, shiftType }, actorId) {
-  const DEFAULT_PASSWORD = 'hospital@pass@12345';
+  const tempPassword = crypto.randomBytes(16).toString('base64url');
+
+  // Privileged roles may only be granted by a SUPER_ADMIN (prevents HR/admin
+  // privilege escalation via /admin/users).
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN') {
+    const { rows: actorRows } = await pool.query(
+      `SELECT 1 FROM user_roles WHERE user_id = $1 AND role = 'SUPER_ADMIN' AND revoked_at IS NULL LIMIT 1`,
+      [actorId]
+    );
+    if (!actorRows[0]) {
+      throw Object.assign(
+        new Error('Only a SUPER_ADMIN can create ADMIN accounts'),
+        { status: 403 }
+      );
+    }
+  }
 
   const [emailEnc, phoneEnc, passwordHash] = await Promise.all([
     pgEncrypt(email),
     phone ? pgEncrypt(phone) : Promise.resolve(null),
-    argon2.hash(DEFAULT_PASSWORD, { type: argon2.argon2id, memoryCost: 65536, timeCost: 3, parallelism: 4 }),
+    argon2.hash(tempPassword, { type: argon2.argon2id, memoryCost: 65536, timeCost: 3, parallelism: 4 }),
   ]);
 
   const employeeId = `${role.slice(0, 3).toUpperCase()}${Date.now().toString().slice(-6)}`;
@@ -271,23 +288,23 @@ export async function createUser({ firstName, lastName, email, phone, role, depa
     await client.query('COMMIT');
 
     // Send welcome email with temp password (fire-and-forget)
-    sendTempPassword(email, user.employee_id, DEFAULT_PASSWORD).catch(err =>
-      console.error('[admin] Failed to queue welcome email:', err.message)
+    sendTempPassword(email, user.employee_id, tempPassword).catch(err =>
+      logger.error('[admin] Failed to queue welcome email', { message: err.message })
     );
 
     // Auto-join department group if user has a department (fire-and-forget)
     if (departmentId && role !== 'PATIENT') {
       getOrCreateDepartmentGroup(departmentId, user.id, actorId)
-        .catch(err => console.error('[admin] Dept group auto-join failed:', err.message));
+        .catch(err => logger.error('[admin] Dept group auto-join failed', { message: err.message }));
     }
 
     // Auto-join General Staff group for all non-patient staff
     if (role !== 'PATIENT') {
       getOrCreateDepartmentGroup(null, user.id, actorId, 'General Staff')
-        .catch(err => console.error('[admin] General group auto-join failed:', err.message));
+        .catch(err => logger.error('[admin] General group auto-join failed', { message: err.message }));
     }
 
-    return { ...user, role, email };
+    return { ...user, role, email, tempPassword };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -441,7 +458,7 @@ export async function getActiveSessions() {
   }).filter(Boolean);
 }
 
-export async function forceLogout(sessionId) {
+export async function forceLogout(sessionId, io) {
   const key = `refresh:${sessionId}`;
   const raw = await redis.get(key);
   if (!raw) {
@@ -453,15 +470,16 @@ export async function forceLogout(sessionId) {
   try { ({ userId } = JSON.parse(raw)); } catch { userId = raw; }
   await redis.del(key);
 
-  // Push force:logout to all socket namespaces the user may be connected to
-  try {
-    const { io } = await import('../../app.js');
-    const rooms = [`user:${userId}`];
-    for (const ns of ['/', '/messaging', '/notifications', '/telemedicine']) {
-      io.of(ns).to(rooms).emit('force:logout', { reason: 'Session terminated by administrator' });
+  // Push force:logout via the io instance passed from the controller
+  if (io) {
+    try {
+      const rooms = [`user:${userId}`];
+      for (const ns of ['/', '/messaging', '/notifications', '/telemedicine']) {
+        io.of(ns).to(rooms).emit('force:logout', { reason: 'Session terminated by administrator' });
+      }
+    } catch (e) {
+      logger.error('[forceLogout] socket push failed', { message: e.message });
     }
-  } catch (e) {
-    console.error('[forceLogout] socket push failed:', e.message);
   }
 
   return { sessionId, userId };
@@ -556,8 +574,22 @@ export async function unblockIp(id, actorId) {
 }
 
 export async function isIpBlocked(ipAddress) {
-  // Check Redis cache first
-  const cached = await redis.get(BLOCKED_IPS_CACHE_KEY);
+  // Redis is only a cache — blocked_ips in Postgres is the source of truth.
+  // A Redis outage must NOT fail or hang the check. With the BullMQ-required
+  // maxRetriesPerRequest:null, a command against an unavailable Redis would
+  // block in the offline queue for the whole reconnect backoff (~minutes), so
+  // when the client is not ready we skip the cache read entirely and go
+  // straight to Postgres. Any other cache read error logs and falls through
+  // the same way.
+  let cached = null;
+  if (redis.status === 'ready') {
+    try {
+      cached = await redis.get(BLOCKED_IPS_CACHE_KEY);
+    } catch (err) {
+      logger.error('[ipblock] Redis cache read failed — falling through to Postgres:', { message: err.message });
+    }
+  }
+
   if (cached) {
     try {
       const list = JSON.parse(cached);
@@ -571,6 +603,15 @@ export async function isIpBlocked(ipAddress) {
        AND (expires_at IS NULL OR expires_at > NOW())`,
   );
   const blockedList = rows.map((r) => r.ip_address);
-  await redis.setex(BLOCKED_IPS_CACHE_KEY, BLOCKED_IPS_CACHE_TTL, JSON.stringify(blockedList));
+
+  // Best-effort cache re-population — skip it when the client is not ready
+  // (same offline-queue hang) and never let a cache write fail the check.
+  if (redis.status === 'ready') {
+    try {
+      await redis.setex(BLOCKED_IPS_CACHE_KEY, BLOCKED_IPS_CACHE_TTL, JSON.stringify(blockedList));
+    } catch (err) {
+      logger.error('[ipblock] Redis cache write failed (best-effort):', { message: err.message });
+    }
+  }
   return blockedList.includes(ipAddress);
 }

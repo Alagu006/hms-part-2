@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import LabTestsPanel from './LabTestsPanel.jsx';
 import CDSInsightsPanel from '../cds/CDSInsightsPanel.jsx';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import StatCard from '../../shared/components/StatCard.jsx';
 import PageHeader from '../../shared/components/PageHeader.jsx';
 import styles from './DoctorDashboard.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 function today() {
   return new Date().toISOString().split('T')[0];
@@ -167,8 +165,9 @@ function AppointmentCard({ appt, onStartConsultation }) {
 // ---------------------------------------------------------------------------
 // Recent patient row
 // ---------------------------------------------------------------------------
-function PatientRow({ patient }) {
+function PatientRow({ patient, onSelectCds, cdsPatientId }) {
   const navigate = useNavigate();
+  const isSelected = cdsPatientId === patient.id;
   return (
     <tr className={styles.patientRow}>
       <td>
@@ -183,10 +182,23 @@ function PatientRow({ patient }) {
       </td>
       <td>{patient.room_number ? `${patient.room_number} — Bed ${patient.bed_number}` : '—'}</td>
       <td>
-        <button className={styles.vitalsBtn}
-          onClick={() => navigate('/doctor/patient-vitals', { state: { patientId: patient.id, patientName: `${patient.first_name} ${patient.last_name}` } })}>
-          📊 Vitals
-        </button>
+        <div className={styles.patientActions}>
+          <button className={styles.vitalsBtn}
+            onClick={() => navigate('/doctor/patient-vitals', { state: { patientId: patient.id, patientName: `${patient.first_name} ${patient.last_name}` } })}>
+            📊 Vitals
+          </button>
+          <button
+            className={`${styles.vitalsBtn} ${isSelected ? styles.cdsActive : ''}`}
+            onClick={() => onSelectCds(isSelected ? null : patient.id)}
+            title={isSelected ? 'Hide CDS insights' : 'Show CDS insights'}
+          >
+            🧠 CDS
+          </button>
+          <button className={styles.vitalsBtn}
+            onClick={() => navigate('/doctor/patient-history', { state: { patientId: patient.id, patientName: `${patient.first_name} ${patient.last_name}` } })}>
+            📋 History
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -213,6 +225,7 @@ function SectionCard({ title, children, action }) {
 export default function DoctorDashboard() {
   const navigate = useNavigate();
   const [dateFilter] = useState(today());
+  const [cdsPatientId, setCdsPatientId] = useState(null);
 
   const {
     data: appointments = [],
@@ -333,8 +346,11 @@ export default function DoctorDashboard() {
         <button className={styles.qaBtn} onClick={() => navigate('/doctor/patient-vitals')}>
           📊 Patient Vitals <kbd className={styles.qaKey}>V</kbd>
         </button>
+        <button className={styles.qaBtn} onClick={() => navigate('/doctor/patient-history')}>
+          📋 Patient History <kbd className={styles.qaKey}>H</kbd>
+        </button>
         <button className={styles.qaBtn} onClick={() => navigate('/doctor/discharge')}>
-          📋 Discharge <kbd className={styles.qaKey}>D</kbd>
+          🏥 Discharge <kbd className={styles.qaKey}>D</kbd>
         </button>
         <button className={styles.qaBtn} onClick={() => navigate('/doctor/telemedicine')}>
           📹 Telemedicine <kbd className={styles.qaKey}>T</kbd>
@@ -417,12 +433,12 @@ export default function DoctorDashboard() {
                 <th>DOB</th>
                 <th>Status</th>
                 <th>Room</th>
-                <th>Vitals</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {recentPatients.map((p) => (
-                <PatientRow key={p.id} patient={p} />
+                <PatientRow key={p.id} patient={p} onSelectCds={setCdsPatientId} cdsPatientId={cdsPatientId} />
               ))}
             </tbody>
           </table>
@@ -434,11 +450,11 @@ export default function DoctorDashboard() {
         <LabTestsPanel />
       </SectionCard>
 
-      {/* CDS Insights — shown when a patient is selected from recent patients */}
-      {recentPatients.length > 0 && (
+      {/* CDS Insights — shown for whichever patient the doctor selects */}
+      {cdsPatientId && (
         <CDSInsightsPanel
-          patientId={recentPatients[0]?.id}
-          collapsed={true}
+          patientId={cdsPatientId}
+          collapsed={false}
         />
       )}
     </div>

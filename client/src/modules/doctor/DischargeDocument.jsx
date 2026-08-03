@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './DischargeDocument.module.scss';
-
-const API = import.meta.env.VITE_API_URL ?? '/api';
 
 export default function DischargeDocument({ patientId, summaryId }) {
   const [summaries, setSummaries] = useState([]);
@@ -12,7 +10,7 @@ export default function DischargeDocument({ patientId, summaryId }) {
 
   useEffect(() => {
     if (!patientId) return;
-    apiFetch(`${API}/discharge-summaries/${patientId}`)
+    apiFetch(`${API_BASE}/discharge-summaries/${patientId}`)
       .then((data) => setSummaries(data))
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));

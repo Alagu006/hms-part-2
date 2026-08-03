@@ -1,6 +1,7 @@
 import { redis }       from '../../shared/services/redis.service.js';
 import { query }       from '../../shared/db/pool.js';
 import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
+import { logger }      from '../../shared/logger.js';
 
 // ---------------------------------------------------------------------------
 // Redis key helpers
@@ -84,7 +85,7 @@ async function getPatientContext(userId) {
       prescriptions: rxRows,
     };
   } catch (err) {
-    console.error('[chatbot] Failed to fetch patient context:', err.message);
+    logger.error('[chatbot] Failed to fetch patient context', { message: err.message });
     return null;
   }
 }
@@ -147,7 +148,7 @@ async function handleBookAppointment(userId, patientCtx, extractedData) {
 
     return `✅ Your appointment has been booked!\n\n**Department:** ${deptRows[0].name}\n**Doctor:** Dr. ${docRows[0].first_name} ${docRows[0].last_name}\n**Date:** ${dateStr}\n\nYou'll receive a confirmation notification shortly.`;
   } catch (err) {
-    console.error('[chatbot] Book appointment error:', err.message);
+    logger.error('[chatbot] Book appointment error', { message: err.message });
     return 'I was unable to book the appointment automatically. Please contact reception at the hospital front desk or call our helpline.';
   }
 }
@@ -182,7 +183,7 @@ async function handleHandoff(userId, patientCtx, io) {
 
     return '📞 I\'ve notified the reception team. A receptionist will reach out to you shortly. You can also call our front desk directly if it\'s urgent.';
   } catch (err) {
-    console.error('[chatbot] Handoff error:', err.message);
+    logger.error('[chatbot] Handoff error', { message: err.message });
     return 'Please contact our reception desk directly. They\'ll be happy to assist you.';
   }
 }
@@ -236,7 +237,7 @@ async function callGemini(messages, systemPrompt) {
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
 
   const model   = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-  const url     = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url     = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   // Convert history to Gemini format
   const contents = messages.map((m) => ({
@@ -261,7 +262,10 @@ async function callGemini(messages, systemPrompt) {
 
   const res = await fetch(url, {
     method : 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type'  : 'application/json',
+      'x-goog-api-key': apiKey,
+    },
     body   : JSON.stringify(body),
     signal : AbortSignal.timeout(15_000),
   });
@@ -388,7 +392,7 @@ export async function sendMessage(userId, userMessage, io) {
     rawReply = await callLLM(messages, systemPrompt);
     if (!rawReply) throw new Error('Empty response from LLM');
   } catch (err) {
-    console.error('[chatbot] LLM error:', err.message);
+    logger.error('[chatbot] LLM error', { message: err.message });
     rawReply = getFallbackReply(intent, patientCtx);
   }
 

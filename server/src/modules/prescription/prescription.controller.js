@@ -194,5 +194,10 @@ export async function downloadPrescriptionPdf(req, res, next) {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', buffer.length);
     return res.send(buffer);
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err?.code === 'PDF_UNAVAILABLE' || err?.code === 'PDF_GENERATION_FAILED') {
+      return res.status(err.status ?? 500).json({ error: err.message });
+    }
+    next(err);
+  }
 }

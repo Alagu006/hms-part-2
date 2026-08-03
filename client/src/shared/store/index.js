@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { useShallow } from 'zustand/react/shallow';
+import { clearGroupKeyCache } from '../utils/groupKeyCache.js';
+import { setClearAuthCallback } from '../utils/auth.js';
 
 // ---------------------------------------------------------------------------
 // Auth slice
@@ -11,12 +13,12 @@ const authSlice = (set, get) => ({
   permissions: [],     // derived from roles if needed
 
   setAuth: ({ user, accessToken }) => {
-    sessionStorage.setItem('accessToken', accessToken);
     set({ user, accessToken, permissions: user?.roles ?? [] });
   },
 
   clearAuth: () => {
-    sessionStorage.removeItem('accessToken');
+    // Clear in-memory group key cache on logout
+    clearGroupKeyCache();
     set({ user: null, accessToken: null, permissions: [] });
   },
 
@@ -131,6 +133,19 @@ if (stored) {
     // Corrupt storage — ignore
   }
 }
+
+// Single source of truth for the access token. Mirrors what setAuth/clearAuth
+// persist to sessionStorage, and is hydrated synchronously on startup above,
+// so components should read the token here instead of touching
+// sessionStorage directly.
+export function getAccessToken() {
+  return useStore.getState().accessToken;
+}
+
+// Register the clearAuth callback to avoid dynamic imports
+setClearAuthCallback(() => {
+  useStore.getState().clearAuth();
+});
 
 // Convenience selectors
 export const useAuth         = () => useStore(useShallow((s) => ({ user: s.user, accessToken: s.accessToken, setAuth: s.setAuth, clearAuth: s.clearAuth, hasRole: s.hasRole, hasAnyRole: s.hasAnyRole })));

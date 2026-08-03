@@ -75,6 +75,13 @@ export async function getBillsByPatientHandler(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function listAllBillsHandler(req, res, next) {
+  try {
+    const bills = await svc.listAllBills(req.query);
+    res.json({ data: bills });
+  } catch (err) { next(err); }
+}
+
 export async function getBillHandler(req, res, next) {
   try {
     const bill = await svc.getBillById(req.params.id);
@@ -334,5 +341,10 @@ export async function downloadBillPdf(req, res, next) {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', buffer.length);
     return res.send(buffer);
-  } catch (err) { next(err); }
+  } catch (err) {
+    if (err?.code === 'PDF_UNAVAILABLE' || err?.code === 'PDF_GENERATION_FAILED') {
+      return res.status(err.status ?? 500).json({ error: err.message });
+    }
+    next(err);
+  }
 }

@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import { useStore } from '../../shared/store/index.js';
 import styles from './Chatbot.module.scss';
 
-const API_BASE      = import.meta.env.VITE_API_URL ?? '/api';
 const SESSION_KEY   = (userId) => `chatbot_msgs_${userId}`;
 const DISCLAIMER    = 'chatbot_disclaimer_shown';
 const MAX_LOCAL_MSG = 60;

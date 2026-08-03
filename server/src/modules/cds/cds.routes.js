@@ -36,6 +36,7 @@ router.get(
       const insights = await getInsights(req.params.patientId, req.user.id);
       res.json({ data: insights });
     } catch (err) {
+      console.error('CDS Insights Error:', err);
       res.status(err.status ?? 500).json({ error: err.message });
     }
   }

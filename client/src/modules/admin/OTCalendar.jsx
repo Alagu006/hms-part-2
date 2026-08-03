@@ -1,8 +1,7 @@
 import { useEffect, useState, useCallback, Fragment } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './OTCalendar.module.scss';
 
-const API      = import.meta.env.VITE_API_URL ?? '/api';
 const THEATRES = ['OT-1', 'OT-2', 'OT-3'];
 const STATUSES = ['SCHEDULED','IN_PROGRESS','COMPLETED','CANCELLED','POSTPONED'];
 
@@ -37,7 +36,7 @@ export default function OTCalendar() {
     setLoading(true);
     setError(null);
     try {
-      const json = await apiFetch(`${API}/ot-schedules?date=${d}`);
+      const json = await apiFetch(`${API_BASE}/ot-schedules?date=${d}`);
       setSchedules(Array.isArray(json) ? json : (json?.schedules ?? []));
     } catch (e) {
       setError(e.message);

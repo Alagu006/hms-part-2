@@ -1,5 +1,6 @@
 import { query } from '../../shared/db/pool.js';
 import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
+import { logger } from '../../shared/logger.js';
 
 export async function listAppointments({ doctorId, patientId, date, status, page, limit }) {
   const offset = (page - 1) * limit;
@@ -156,7 +157,7 @@ export async function createAppointment(data, createdBy) {
         );
       }
     } catch (err) {
-      console.error('[appointments] Post-create notification failed:', err.message);
+      logger.error('[appointments] Post-create notification failed', { message: err.message });
     }
   });
 

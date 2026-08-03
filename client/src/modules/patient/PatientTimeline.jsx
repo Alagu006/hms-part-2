@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './PatientTimeline.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 const TYPE_LABELS = {
   appointment   : 'Appointment',

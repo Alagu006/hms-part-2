@@ -4,6 +4,7 @@ import { auditLog } from '../../shared/middleware/audit.js';
 import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
 import { emailQueue } from '../../shared/jobs/queue.js';
 import { Queue } from 'bullmq';
+import { logger } from '../../shared/logger.js';
 
 const redisConnection = {
   host: process.env.REDIS_HOST || '127.0.0.1',
@@ -107,7 +108,7 @@ export async function createSession(data, createdBy, ip, userAgent, io) {
             { delay: reminderDelay, jobId: 'reminder:' + session.id });
         }
       } catch (err) {
-        console.error('[tele] Post-create notifications failed:', err.message);
+        logger.error('[tele] Post-create notifications failed', { message: err.message });
       }
     });
 

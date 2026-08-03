@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './HRDashboard.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 // ---------------------------------------------------------------------------
 // API calls

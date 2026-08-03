@@ -1,14 +1,15 @@
-import { createHmac } from 'crypto';
+import crypto, { createHmac } from 'crypto';
 import { pool } from '../../shared/db/pool.js';
 import { auditLog } from '../../shared/middleware/audit.js';
 import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
+import { logger } from '../../shared/logger.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 function generateBillNumber() {
   const ts  = Date.now().toString(36).toUpperCase();
-  const rnd = Math.random().toString(36).slice(2, 6).toUpperCase();
+  const rnd = crypto.randomBytes(3).toString('hex').toUpperCase();
   return `BILL-${ts}-${rnd}`;
 }
 
@@ -141,7 +142,7 @@ export async function createBill({ patientId, items, taxPercent, notes, dueDate,
           );
         }
       } catch (err) {
-        console.error('[billing] Notification failed:', err.message);
+        logger.error('[billing] Notification failed', { message: err.message });
       }
     });
 
@@ -179,6 +180,59 @@ export async function getBillsByPatient(patientId) {
     [patientId]
   );
   return bills;
+}
+
+// ---------------------------------------------------------------------------
+// List all bills (admin)
+// ---------------------------------------------------------------------------
+export async function listAllBills(filters = {}) {
+  const { page = 1, limit = 50, status, patientId } = filters;
+  const offset = (page - 1) * limit;
+  
+  let whereClause = 'WHERE b.deleted_at IS NULL';
+  const params = [];
+  let paramCount = 0;
+  
+  if (status) {
+    paramCount++;
+    whereClause += ` AND b.status = $${paramCount}`;
+    params.push(status);
+  }
+  
+  if (patientId) {
+    paramCount++;
+    whereClause += ` AND b.patient_id = $${paramCount}`;
+    params.push(patientId);
+  }
+  
+  paramCount++;
+  const limitParam = paramCount;
+  paramCount++;
+  const offsetParam = paramCount;
+  params.push(limit, offset);
+  
+  const { rows: bills } = await pool.query(
+    `SELECT b.*,
+            p.first_name || ' ' || p.last_name AS patient_name,
+            p.mrn,
+            u.first_name || ' ' || u.last_name AS issued_by_name,
+            COUNT(*) OVER() AS total_count
+     FROM bills b
+     LEFT JOIN patients p ON p.id = b.patient_id
+     LEFT JOIN users u ON u.id = b.issued_by
+     ${whereClause}
+     ORDER BY b.created_at DESC
+     LIMIT $${limitParam} OFFSET $${offsetParam}`,
+    params
+  );
+  
+  const total = bills[0]?.total_count ?? 0;
+  return {
+    bills: bills.map(({ total_count, ...bill }) => bill),
+    total: parseInt(total, 10),
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -407,7 +461,7 @@ export async function deleteInsurance(id) {
     [id]
   );
   if (!policy) { const e = new Error('Insurance policy not found'); e.status = 404; throw e; }
-  await auditLog(id, 'UPDATE', 'insurance_policies', policy[0].id, prev, { deleted: true });
+  await auditLog(id, 'UPDATE', 'insurance_policies', policy.id, prev, { deleted: true });
   return { deleted: true };
 }
 
@@ -510,6 +564,13 @@ function generateSignature(orderId, paymentId) {
     .digest('hex');
 }
 
+function safeEqual(a, b) {
+  const bufA = Buffer.from(a ?? '', 'utf8');
+  const bufB = Buffer.from(b ?? '', 'utf8');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 // ---------------------------------------------------------------------------
 // Create Razorpay order for a bill
 // ---------------------------------------------------------------------------
@@ -561,8 +622,8 @@ export async function createRazorpayOrder(billId) {
 // ---------------------------------------------------------------------------
 export async function verifyAndRecordRazorpayPayment({ billId, razorpayOrderId, razorpayPaymentId, razorpaySignature }) {
   const expectedSig = generateSignature(razorpayOrderId, razorpayPaymentId);
-  if (expectedSig !== razorpayPaymentId) {
-    const e = new Error('Payment verification failed');
+  if (!safeEqual(expectedSig, razorpaySignature)) {
+    const e = new Error('Payment verification failed — signature mismatch');
     e.status = 400;
     throw e;
   }

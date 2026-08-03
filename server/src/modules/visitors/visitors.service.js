@@ -66,10 +66,11 @@ export async function getVisitorHistory(patientId, { page, limit }) {
 }
 
 export async function checkoutVisitor(id, approvedBy) {
-  const [before] = await query(
+  const { rows: beforeRows } = await query(
     `SELECT * FROM visitor_logs WHERE id = $1 AND checked_out_at IS NULL`,
     [id]
   );
+  const before = beforeRows[0];
 
   const { rows } = await query(
     `UPDATE visitor_logs

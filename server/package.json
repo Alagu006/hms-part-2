@@ -6,12 +6,18 @@
   "scripts": {
     "dev": "nodemon src/app.js",
     "start": "node src/app.js",
-    "seed": "node src/db/seed.js"
+    "seed": "node src/db/seed.js",
+    "migrate": "node src/db/migrate.js",
+    "db:setup-roles": "node src/db/setup-roles.js",
+    "db:verify": "node src/db/verify-privileges.js",
+    "verify:workers": "node scripts/verify-workers.mjs",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --run --coverage"
   },
   "dependencies": {
     "argon2": "^0.44.0",
     "axios": "^1.14.0",
-    "bcrypt": "^6.0.0",
     "bullmq": "^5.0.0",
     "clamscan": "^2.4.0",
     "cookie-parser": "^1.4.6",
@@ -25,7 +31,6 @@
     "helmet": "^8.0.0",
     "ioredis": "^5.10.1",
     "jsonwebtoken": "^9.0.3",
-    "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.0",
     "pg": "^8.20.0",
@@ -39,6 +44,8 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@vitest/coverage-v8": "^4.1.10",
+    "nodemon": "^3.1.14",
+    "vitest": "^4.1.5"
   }
 }

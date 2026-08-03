@@ -1,8 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './BloodBank.module.scss';
-
-const API = import.meta.env.VITE_API_URL ?? '/api';
 
 const BLOOD_GROUPS = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
 const STATUSES     = ['AVAILABLE','RESERVED','USED','EXPIRED'];
@@ -21,8 +19,8 @@ export default function BloodBank() {
   const fetchAll = useCallback(async () => {
     try {
       const [av, un] = await Promise.all([
-        apiFetch(`${API}/blood-bank/availability`),
-        apiFetch(`${API}/blood-bank`),
+        apiFetch(`${API_BASE}/blood-bank/availability`),
+        apiFetch(`${API_BASE}/blood-bank`),
       ]);
       setAvailability(Array.isArray(av) ? av : (av?.data ?? []));
       setUnits(Array.isArray(un) ? un : (un?.data ?? un?.units ?? []));
@@ -39,7 +37,7 @@ export default function BloodBank() {
     e.preventDefault();
     setSaving(true);
     try {
-      const url    = editId ? `${API}/blood-bank/${editId}` : `${API}/blood-bank`;
+      const url    = editId ? `${API_BASE}/blood-bank/${editId}` : `${API_BASE}/blood-bank`;
       const method = editId ? 'PATCH' : 'POST';
       const res = await apiFetch(url, {
         method,
@@ -68,7 +66,7 @@ export default function BloodBank() {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this blood unit record?')) return;
-    await apiFetch(`${API}/blood-bank/${id}`, { method: 'DELETE' });
+    await apiFetch(`${API_BASE}/blood-bank/${id}`, { method: 'DELETE' });
     await fetchAll();
   };
 

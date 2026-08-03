@@ -5,6 +5,7 @@ import fs          from 'fs';
 import { registerNotificationSocket } from './modules/notifications/notification.socket.js';
 import { registerMessagingSocket }    from './modules/messaging/messaging.socket.js';
 import { registerTelemedicineSocket } from './modules/telemedicine/telemedicine.socket.js';
+import { corsOriginCheck }            from './shared/utils/corsOriginCheck.js';
 
 // ---------------------------------------------------------------------------
 // Load RS256 public key once at startup
@@ -48,19 +49,7 @@ export function socketAuthMiddleware(socket, next) {
 export function initSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: (origin, callback) => {
-        // Allow requests with no origin (e.g. mobile apps, curl)
-        if (!origin) return callback(null, true);
-        const allowed = (process.env.CLIENT_ORIGIN ?? 'http://localhost:5173')
-          .split(',')
-          .map(o => o.trim());
-        // Also allow any https:// origin in development
-        if (process.env.NODE_ENV !== 'production' && origin.startsWith('https://')) {
-          return callback(null, true);
-        }
-        if (allowed.includes(origin)) return callback(null, true);
-        callback(new Error(`CORS blocked: ${origin}`));
-      },
+      origin: corsOriginCheck,
       credentials: true,
     },
     // Prefer WebSocket, fall back to polling

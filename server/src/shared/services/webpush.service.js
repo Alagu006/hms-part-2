@@ -1,12 +1,13 @@
 import webpush from 'web-push';
 import { query } from '../db/pool.js';
+import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
 // VAPID config — keys must be generated once and stored in env:
 //   npx web-push generate-vapid-keys
 // ---------------------------------------------------------------------------
 if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-  console.warn('[webpush] VAPID keys not set — push notifications disabled');
+  logger.warn('[webpush] VAPID keys not set — push notifications disabled');
 } else {
   webpush.setVapidDetails(
     `mailto:${process.env.VAPID_CONTACT_EMAIL ?? 'admin@hms.local'}`,
@@ -78,9 +79,9 @@ export async function sendPushNotification(userId, payload) {
           await query(
             `DELETE FROM push_subscriptions WHERE endpoint = $1`,
             [sub.endpoint]
-          ).catch(() => {});
+          ).catch(() => {}); // best-effort cleanup — the push already failed
         } else {
-          console.warn('[webpush] Send failed:', err.message);
+          logger.warn('[webpush] Send failed:', { message: err.message });
         }
       }
     })

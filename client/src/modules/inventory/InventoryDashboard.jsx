@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import BedMatrix    from './BedMatrix.jsx';
 import QRScanner    from './QRScanner.jsx';
 import GenerateQR   from './GenerateQR.jsx';
-import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles       from './InventoryDashboard.module.scss';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 const TABS     = ['Medicines', 'Equipment', 'Beds', 'Rooms'];
 const CATEGORIES = ['MEDICINE', 'EQUIPMENT', 'CONSUMABLE', 'LINEN', 'CHEMICAL', 'OTHER'];
 
@@ -55,10 +54,8 @@ function ItemRow({ item, onEdit, onDelete }) {
 function ItemModal({ item, onSave, onClose }) {
   const isEdit = !!item?.id;
   const [form, setForm] = useState({
-    name: '', sku: '', category: 'MEDICINE', unit: 'pcs',
-    quantityInStock: 0, reorderLevel: 0, unitCost: '',
-    expiryDate: '', supplier: '', location: '',
-    ...item,
+    name: item?.name ?? '', sku: item?.sku ?? '', category: item?.category ?? 'MEDICINE', unit: item?.unit ?? 'pcs',
+    supplier: item?.supplier ?? '', location: item?.location ?? '',
     quantityInStock: item?.quantity_in_stock ?? 0,
     reorderLevel   : item?.reorder_level    ?? 0,
     unitCost       : item?.unit_cost        ?? '',
@@ -151,7 +148,6 @@ function CsvImport({ onDone }) {
       fd.append('file', file);
       const json  = await apiFetch(`${API_BASE}/inventory/import`, {
         method : 'POST',
-        headers: authHeaders(),
         body   : fd,
       });
       setResult(json.data);

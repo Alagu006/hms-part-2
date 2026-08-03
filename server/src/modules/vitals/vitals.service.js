@@ -1,6 +1,7 @@
 import { query }        from '../../shared/db/pool.js';
 import { auditLog }     from '../../shared/middleware/audit.js';
 import { notificationQueue } from '../../shared/jobs/queue.js';
+import { logger }       from '../../shared/logger.js';
 
 // ---------------------------------------------------------------------------
 // Alert thresholds
@@ -120,25 +121,21 @@ export async function recordVitals(data, recordedBy, ip, userAgent) {
     `INSERT INTO vitals
        (id, medical_record_id, patient_id, recorded_by,
         temperature_c, pulse_bpm, bp_systolic, bp_diastolic,
-        spo2_pct, weight_kg, respiratory_rate, bmi, notes, recorded_at, created_at)
+        spo2_pct, weight_kg, respiratory_rate, bmi, blood_glucose_mmol, notes, recorded_at, created_at)
      VALUES
-       (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+       (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
      RETURNING *`,
     [
       resolvedRecordId, patientId, recordedBy,
       temperature ?? null, pulseBpm ?? null,
       bpSystolic ?? null, bpDiastolic ?? null,
       spo2 ?? null, weightKg ?? null,
-      respiratoryRate ?? null, bmi, notes ?? null,
+      respiratoryRate ?? null, bmi,
+      bloodGlucose ?? null, notes ?? null,
     ]
   );
 
-  // Store blood_glucose in notes JSON since it's not a schema column
-  // (extend schema or use notes field for extra vitals)
   const vital = rows[0];
-  if (bloodGlucose !== undefined) {
-    vital.blood_glucose = bloodGlucose;
-  }
 
   await auditLog({
     userId  : recordedBy,
@@ -153,7 +150,7 @@ export async function recordVitals(data, recordedBy, ip, userAgent) {
   // Fire-and-forget alert check
   const patientName = `${patient.first_name} ${patient.last_name}`;
   triggerAlerts(data, patientId, patientName, recordedBy).catch((err) =>
-    console.error('[vitals] Alert trigger failed:', err.message)
+    logger.error('[vitals] Alert trigger failed', { message: err.message })
   );
 
   return vital;

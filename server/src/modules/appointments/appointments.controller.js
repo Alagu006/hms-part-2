@@ -4,10 +4,9 @@ import { query } from '../../shared/db/pool.js';
 export async function listAppointments(req, res, next) {
   try {
     const filters = { ...(req.parsedQuery ?? req.query) };
-    if (filters.doctorId === 'me') {
-      filters.doctorId = req.user.id;
-    }
-    if (filters.patientId === 'me') {
+
+    // Patients can only ever list their own appointments.
+    if (req.user.roles?.includes('PATIENT')) {
       const { rows } = await query(
         `SELECT id FROM patients WHERE user_id = $1 AND deleted_at IS NULL`,
         [req.user.id]
@@ -16,7 +15,22 @@ export async function listAppointments(req, res, next) {
         return res.status(403).json({ error: 'No patient record found' });
       }
       filters.patientId = rows[0].id;
+    } else {
+      if (filters.doctorId === 'me') {
+        filters.doctorId = req.user.id;
+      }
+      if (filters.patientId === 'me') {
+        const { rows } = await query(
+          `SELECT id FROM patients WHERE user_id = $1 AND deleted_at IS NULL`,
+          [req.user.id]
+        );
+        if (!rows[0]) {
+          return res.status(403).json({ error: 'No patient record found' });
+        }
+        filters.patientId = rows[0].id;
+      }
     }
+
     const result = await apptService.listAppointments(filters);
     return res.status(200).json(result);
   } catch (err) {

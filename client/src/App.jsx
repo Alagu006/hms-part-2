@@ -37,6 +37,7 @@ const PrescriptionForm  = lazy(() => import('./modules/doctor/PrescriptionForm.j
 const DischargeForm     = lazy(() => import('./modules/doctor/DischargeForm.jsx'));
 const DischargeDocument = lazy(() => import('./modules/doctor/DischargeDocument.jsx'));
 const PatientVitalsView = lazy(() => import('./modules/doctor/PatientVitalsView.jsx'));
+const PatientHistory    = lazy(() => import('./modules/doctor/PatientHistory.jsx'));
 
 // Nurse
 const NurseDashboard = lazy(() => import('./modules/nurse/NurseDashboard.jsx'));
@@ -79,6 +80,7 @@ const GenerateBill = lazy(() => import('./modules/billing/GenerateBill.jsx'));
 
 // HR (dedicated dashboard)
 const HRManagerDashboard = lazy(() => import('./modules/hr/HRManagerDashboard.jsx'));
+const PayrollManagement  = lazy(() => import('./modules/hr/PayrollManagement.jsx'));
 
 // IT Admin
 const ITAdminDashboard = lazy(() => import('./modules/it/ITAdminDashboard.jsx'));
@@ -229,6 +231,7 @@ export default function App() {
             <Route path="/doctor/telemedicine"        element={<UpcomingSession />} />
             <Route path="/doctor/telemedicine/:roomId" element={<TeleRoom />} />
             <Route path="/doctor/patient-vitals"      element={<PatientVitalsView />} />
+            <Route path="/doctor/patient-history"     element={<PatientHistory />} />
             <Route path="/doctor/leaves"              element={<ApplyLeave />} />
             <Route path="/doctor/incidents"           element={<IncidentReport />} />
           </Route>
@@ -297,6 +300,7 @@ export default function App() {
             <Route path="/admin/departments" element={<DepartmentsManagement />} />
             <Route path="/admin/shifts"     element={<ShiftsManagement />} />
             <Route path="/admin/leaves"     element={<ApplyLeave />} />
+            <Route path="/admin/payroll"    element={<PayrollManagement />} />
           </Route>
 
           {/* ── OT CALENDAR — all clinical + admin roles ─────────────────────── */}
@@ -309,11 +313,12 @@ export default function App() {
 
           {/* ── HR ───────────────────────────────────────────────────────────── */}
           <Route element={<RequireAuth allowedRoles={['HR']} />}>
-            <Route path="/hr"           element={<HRManagerDashboard />} />
-            <Route path="/hr/staff"     element={<UserManagement />} />
-            <Route path="/hr/shifts"    element={<ShiftsManagement />} />
-            <Route path="/hr/leaves"    element={<ApplyLeave />} />
-            <Route path="/hr/incidents" element={<IncidentReport />} />
+            <Route path="/hr"              element={<HRManagerDashboard />} />
+            <Route path="/hr/staff"        element={<UserManagement />} />
+            <Route path="/hr/shifts"       element={<ShiftsManagement />} />
+            <Route path="/hr/leaves"       element={<ApplyLeave />} />
+            <Route path="/hr/incidents"    element={<IncidentReport />} />
+            <Route path="/hr/payroll"      element={<PayrollManagement />} />
           </Route>
 
           {/* ── IT_ADMIN ─────────────────────────────────────────────────────── */}

@@ -46,6 +46,6 @@ export const downloadKeySchema = z.object({
     key: z.string()
       .min(1)
       .max(200)
-      .regex(/^report_[a-z]+_[0-9a-z]+_\d+\.(csv|json)$/, 'Invalid download key'),
+      .regex(/^report_[a-z]+_[0-9a-z]+_\d+\.(csv|json|pdf)$/, 'Invalid download key'),
   }),
 });

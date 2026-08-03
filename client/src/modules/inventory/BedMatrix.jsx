@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './BedMatrix.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 const STATUS_LABELS = {
   AVAILABLE  : 'Available',

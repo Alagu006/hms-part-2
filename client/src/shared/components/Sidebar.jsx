@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/index.js';
-import { apiFetch } from '../utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../utils/api.js';
 import { useDarkMode } from '../hooks/useDarkMode.js';
 import { clearSessionKey } from '../utils/sessionKey.js';
 import styles from './Sidebar.module.scss';
@@ -95,16 +95,18 @@ const NAV = {
     { label: 'My Profile',      to: '/profile',             icon: 'profile' },
   ],
   DOCTOR: [
-    { label: 'Dashboard',      to: '/doctor',                    icon: 'dashboard' },
-    { label: 'Prescriptions',  to: '/doctor/prescriptions',      icon: 'prescription' },
-    { label: 'Discharge',      to: '/doctor/discharge',          icon: 'discharge' },
-    { label: 'OT Schedule',    to: '/admin/ot',                  icon: 'ot' },
-    { label: 'Telemedicine',   to: '/doctor/telemedicine',       icon: 'telemedicine' },
-    { label: 'Broadcasts',     to: '/broadcasts',                icon: 'broadcast' },
-    { label: 'Messaging',      to: '/messaging',                 icon: 'messaging' },
-    { label: 'Apply Leave',    to: '/doctor/leaves',             icon: 'leave' },
-    { label: 'Incident Report',to: '/doctor/incidents',          icon: 'incident' },
-    { label: 'My Profile',     to: '/profile',                   icon: 'profile' },
+    { label: 'Dashboard',       to: '/doctor',                    icon: 'dashboard' },
+    { label: 'Prescriptions',   to: '/doctor/prescriptions',      icon: 'prescription' },
+    { label: 'Patient Vitals',  to: '/doctor/patient-vitals',     icon: 'vitals' },
+    { label: 'Patient History', to: '/doctor/patient-history',    icon: 'history' },
+    { label: 'Discharge',       to: '/doctor/discharge',          icon: 'discharge' },
+    { label: 'OT Schedule',     to: '/admin/ot',                  icon: 'ot' },
+    { label: 'Telemedicine',    to: '/doctor/telemedicine',       icon: 'telemedicine' },
+    { label: 'Broadcasts',      to: '/broadcasts',                icon: 'broadcast' },
+    { label: 'Messaging',       to: '/messaging',                 icon: 'messaging' },
+    { label: 'Apply Leave',     to: '/doctor/leaves',             icon: 'leave' },
+    { label: 'Incident Report', to: '/doctor/incidents',          icon: 'incident' },
+    { label: 'My Profile',      to: '/profile',                   icon: 'profile' },
   ],
   NURSE: [
     { label: 'Dashboard',      to: '/nurse',            icon: 'dashboard' },
@@ -276,7 +278,7 @@ export default function Sidebar({ onOpenSearch }) {
   const navItems = NAV[primaryRole] ?? FALLBACK_NAV;
 
   const handleLogout = async () => {
-    try { await apiFetch(`${import.meta.env.VITE_API_URL ?? '/api'}/auth/logout`, { method: 'POST' }); } catch { /* ignore */ }
+    try { await apiFetch(`${API_BASE}/auth/logout`, { method: 'POST' }); } catch { /* ignore */ }
     clearSessionKey();
     clearAuth();
     navigate('/login');

@@ -22,7 +22,7 @@ export function uuidv7() {
   const rand = randomBytes(10);
   const randA = ((rand[0] & 0x0f) << 8) | rand[1];          // 12 bits
   const randBHi = ((rand[2] & 0x3f) << 8) | rand[3];        // 14 bits (variant + 12)
-  const randBLo = (rand[4] << 24) | (rand[5] << 16) | (rand[6] << 8) | rand[7]; // 32 bits
+  const randBLo = (rand[4] * 0x1000000) + (rand[5] << 16) + (rand[6] << 8) + rand[7]; // 32 bits (unsigned — avoid << overflow past bit 31)
   const randBEx = (rand[8] << 8) | rand[9];                  // 16 bits
 
   const hex = [

@@ -1,6 +1,7 @@
 import { Worker }  from 'bullmq';
 import { query }   from '../../shared/db/pool.js';
 import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
+import { logger }  from '../../shared/logger.js';
 
 const redisConnection = {
   host    : process.env.REDIS_HOST || '127.0.0.1',
@@ -49,13 +50,13 @@ export function startTelemedicineWorker(io) {
         ),
       ]);
 
-      console.log(`[tele-worker] Sent 15-min reminders for session ${sessionId}`);
+      logger.info('[tele-worker] Sent 15-min reminders', { sessionId });
     },
     { connection: redisConnection, concurrency: 5 }
   );
 
   worker.on('failed', (job, err) => {
-    console.error(`[tele-worker] Job ${job?.id} failed: ${err.message}`);
+    logger.error('[tele-worker] Job failed', { jobId: job?.id, message: err.message });
   });
 
   return worker;

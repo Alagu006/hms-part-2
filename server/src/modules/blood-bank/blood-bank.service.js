@@ -32,11 +32,13 @@ export async function getBloodUnits({ bloodGroup, status, page = 1, limit = 50 }
   const offset = (page - 1) * limit;
   params.push(limit, offset);
 
+  const limitIdx  = p++;
+  const offsetIdx = p++;
   const { rows } = await pool.query(
     `SELECT * FROM blood_bank
      WHERE ${conditions.join(' AND ')}
      ORDER BY created_at DESC
-     LIMIT $${p++} OFFSET $${p++}`,
+     LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
     params
   );
   return rows;
@@ -231,6 +233,6 @@ async function checkLowStock(bloodGroup, io, admins) {
       `${bloodGroup} blood units are critically low (${total} available). Immediate restocking required.`,
       { entityType: 'blood_bank', bloodGroup },
       io
-    ).catch(() => {});
+    ).catch(() => {}); // best-effort alert — a notification failure must not fail stock checks
   }
 }

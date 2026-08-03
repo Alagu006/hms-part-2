@@ -1,4 +1,5 @@
 import * as svc from './lab-orders.service.js';
+import { query } from '../../shared/db/pool.js';
 
 export async function listLabOrders(req, res, next) {
   try {
@@ -45,8 +46,9 @@ export async function getPatientLabResults(req, res, next) {
 
     // Patients can only view their own results
     if (req.user.roles.includes('PATIENT')) {
-      const { rows } = await import('../../shared/db/pool.js').then(m =>
-        m.query(`SELECT id FROM patients WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`, [patientId, req.user.id])
+      const { rows } = await query(
+        `SELECT id FROM patients WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+        [patientId, req.user.id]
       );
       if (!rows[0]) return res.status(403).json({ error: 'Access denied' });
     }

@@ -1,10 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './CDSInsightsPanel.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 // ── Severity config ───────────────────────────────────────────────────────────
 const SEVERITY_CONFIG = {
@@ -53,8 +51,12 @@ function AlertCard({ alert, onAcknowledge, onDismiss }) {
       transition={{ duration: 0.25 }}
       layout
     >
-      <div className={styles.alertHeader} onClick={() => setExpanded(e => !e)}>
-        <div className={styles.alertLeft}>
+      <div className={styles.alertHeader}>
+        <div 
+          className={styles.alertLeft}
+          onClick={() => setExpanded(e => !e)}
+          style={{ cursor: 'pointer', flex: 1 }}
+        >
           <span className={styles.alertIcon} aria-hidden="true">{cfg.icon}</span>
           <div className={styles.alertMeta}>
             <span className={styles.alertType}>{TYPE_LABELS[alert.type] ?? alert.type}</span>
@@ -65,6 +67,7 @@ function AlertCard({ alert, onAcknowledge, onDismiss }) {
         </div>
         <button
           className={styles.expandBtn}
+          onClick={() => setExpanded(e => !e)}
           aria-label={expanded ? 'Collapse' : 'Expand'}
           aria-expanded={expanded}
         >
@@ -199,14 +202,17 @@ export default function CDSInsightsPanel({ patientId, collapsed: initCollapsed =
         </div>
         <div className={styles.headerRight}>
           {!collapsed && (
-            <button
+            <span
               className={styles.refreshBtn}
               onClick={e => { e.stopPropagation(); refetch(); }}
               title="Refresh insights"
               aria-label="Refresh CDS insights"
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); refetch(); } }}
             >
               ↻
-            </button>
+            </span>
           )}
           <span className={styles.chevron} aria-hidden="true">
             {collapsed ? '▼' : '▲'}

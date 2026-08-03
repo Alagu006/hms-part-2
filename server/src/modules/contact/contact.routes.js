@@ -1,26 +1,44 @@
 import { Router } from 'express';
-import { sendMail, FROM } from '../../shared/services/mailer.js';
+import { z }      from 'zod';
+import { sendMail } from '../../shared/services/mailer.js';
+import { rateLimiter } from '../../shared/middleware/rateLimiter.js';
 
 const router = Router();
 
+// ── Zod schema ────────────────────────────────────────────────────────────────
+const CRLF_PATTERN = /[\r\n]/;
+
+const contactSchema = z.object({
+  name   : z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or fewer'),
+  email  : z.string()
+    .email('Invalid email address')
+    .max(254, 'Email must be 254 characters or fewer')
+    .refine((v) => !CRLF_PATTERN.test(v), { message: 'Email must not contain newline characters' }),
+  subject: z.string().min(1, 'Subject is required').max(200, 'Subject must be 200 characters or fewer'),
+  message: z.string().min(1, 'Message is required').max(2000, 'Message must be 2000 characters or fewer'),
+});
+
+// ── Dedicated rate limiter: 5 req / 15 min per IP ────────────────────────────
+const contactRateLimiter = rateLimiter({
+  windowSecs: 15 * 60,
+  max       : 5,
+  keyFn     : (req) => `contact:${req.ip}`,
+});
+
 // POST /api/contact
 // Public — no authentication required.
-// Rate-limited by the global apiRateLimiter already applied in app.js.
-router.post('/', async (req, res, next) => {
+router.post('/', contactRateLimiter, async (req, res, next) => {
   try {
-    const { name, email, subject, message } = req.body ?? {};
+    const result = contactSchema.safeParse(req.body ?? {});
 
-    // ── Basic validation ──────────────────────────────────────────────────────
-    const errors = {};
-    if (!name?.trim())    errors.name    = 'Name is required.';
-    if (!email?.trim())   errors.email   = 'Email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Invalid email address.';
-    if (!subject?.trim()) errors.subject = 'Subject is required.';
-    if (!message?.trim()) errors.message = 'Message is required.';
-
-    if (Object.keys(errors).length) {
+    if (!result.success) {
+      const errors = Object.fromEntries(
+        result.error.errors.map((e) => [e.path[0] ?? 'unknown', e.message])
+      );
       return res.status(422).json({ errors });
     }
+
+    const { name, email, subject, message } = result.data;
 
     const hospitalName = process.env.HOSPITAL_NAME || 'City General Hospital';
     const contactEmail = process.env.HMS_CONTACT   || process.env.SMTP_FROM || process.env.SMTP_USER;

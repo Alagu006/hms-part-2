@@ -14,7 +14,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectManifest: {
         swSrc: 'src/sw.js',  // your custom SW
-        swDest: 'sw.js',     // output at root
+        swDest: 'dist/sw.js',     // output at dist root
         globDirectory: 'dist',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
       },
@@ -25,6 +25,14 @@ export default defineConfig({
       },
     }),
   ],
+  css: {
+    preprocessorOptions: {
+      scss: {
+        api: 'modern-compiler', // Use modern Sass API instead of legacy
+        silenceDeprecations: ['legacy-js-api'], // Silence legacy API warnings during transition
+      },
+    },
+  },
   server: {
     https: true,
     host: true,

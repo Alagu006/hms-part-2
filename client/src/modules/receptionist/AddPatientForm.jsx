@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './AddPatientForm.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 const INITIAL = {
   firstName: '', lastName: '', dateOfBirth: '', gender: '',

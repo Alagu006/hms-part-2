@@ -7,12 +7,20 @@
     <meta name="theme-color" content="#00a896" />
     <link rel="manifest" href="/manifest.json" />
     <title>Hospital Management System</title>
-    <script type="module" crossorigin src="/assets/index-BO-M441k.js"></script>
+    <!-- Apply theme before first paint to prevent flash -->
+    <script>
+      (function () {
+        var stored = localStorage.getItem('hms-theme');
+        var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-Du8NQyjN.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-Cp3p_fzW.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-state-CcRD2pW3.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-motion-COQilas3.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-socket-BcxXcwBL.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-C_t5BfzP.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-jp4ZCVvP.css">
   <script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
   <body>
     <div id="root"></div>

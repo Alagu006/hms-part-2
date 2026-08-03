@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './ShiftsManagement.module.scss';
-
-const API = import.meta.env.VITE_API_URL ?? '/api';
 
 const ROLES = [
   'DOCTOR','NURSE','RECEPTIONIST','LAB_TECH','PHARMACIST',
@@ -13,7 +11,7 @@ const ROLES = [
 
 async function fetchShifts(params = {}) {
   const q = new URLSearchParams(params).toString();
-  const data = await apiFetch(`${API}/shifts?${q}`);
+  const data = await apiFetch(`${API_BASE}/shifts?${q}`);
   return data?.shifts ?? data ?? [];
 }
 
@@ -21,13 +19,13 @@ async function fetchUsers(search, role) {
   const params = new URLSearchParams({ limit: 30 });
   if (search) params.set('search', search);
   if (role)   params.set('role', role);
-  const data = await apiFetch(`${API}/admin/users?${params}`);
+  const data = await apiFetch(`${API_BASE}/admin/users?${params}`);
   // endpoint returns a plain array
   return Array.isArray(data) ? data : (data?.users ?? []);
 }
 
 async function createShift(body) {
-  return apiFetch(`${API}/shifts`, {
+  return apiFetch(`${API_BASE}/shifts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -35,7 +33,7 @@ async function createShift(body) {
 }
 
 async function deleteShift(id) {
-  return apiFetch(`${API}/shifts/${id}`, { method: 'DELETE' });
+  return apiFetch(`${API_BASE}/shifts/${id}`, { method: 'DELETE' });
 }
 
 function formatTime(t) {

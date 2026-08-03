@@ -4,8 +4,13 @@ import crypto      from 'crypto';
 import { fileTypeFromBuffer } from 'file-type';
 import { query }              from '../../shared/db/pool.js';
 import { auditLog }           from '../../shared/middleware/audit.js';
+import { logger }             from '../../shared/logger.js';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
+
+// ClamAV clamd daemon endpoint (docker-compose exposes 3310 on localhost)
+const CLAMAV_HOST = process.env.CLAMAV_HOST || '127.0.0.1';
+const CLAMAV_PORT = parseInt(process.env.CLAMAV_PORT || '3310', 10);
 
 // Ensure upload directory exists
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -21,22 +26,70 @@ const ALLOWED_MIME = new Set([
 ]);
 
 // ---------------------------------------------------------------------------
+// Download access control — explicit per-role / per-entity-type grants.
+// Route-level authorize() is defense-in-depth only; the service is the gate.
+// ---------------------------------------------------------------------------
+// Any of these roles may view any user's profile image (staff identification need).
+const PROFILE_VIEW_ROLES = [
+  'ADMIN','SUPER_ADMIN','DOCTOR','NURSE','RECEPTIONIST','LAB_TECH',
+  'PHARMACIST','INVENTORY','BILLING','HR','IT_ADMIN','RADIOLOGIST',
+  'ANESTHETIST','DIETITIAN','PHYSIO','SOCIAL_WORKER','SECURITY_OFC','ORDERLY',
+];
+
+// Roles that may download patient-clinical documents regardless of owner.
+const CLINICAL_DOC_ROLES = ['DOCTOR','NURSE','LAB_TECH','ADMIN','SUPER_ADMIN'];
+
+// Roles that may view incident attachments (matches incident.routes.js viewers).
+const INCIDENT_VIEW_ROLES = ['ADMIN','SUPER_ADMIN','HR','SECURITY_OFC'];
+
+function hasDownloadAccess(requestingUser, file) {
+  const roles = requestingUser.roles ?? [];
+  const isAdmin = roles.includes('ADMIN') || roles.includes('SUPER_ADMIN');
+
+  switch (file.entity_type) {
+    case 'MEDICAL_RECORD':
+    case 'LAB_RESULT':
+    case 'PRESCRIPTION':
+    case 'PATIENT':
+      return roles.some((r) => CLINICAL_DOC_ROLES.includes(r));
+    case 'MESSAGE':
+      // Attachments are group-scoped: uploader, group member, or admin.
+      return isAdmin || file.uploaded_by === requestingUser.id || file.msg_is_member === true;
+    case 'INCIDENT':
+      // Reporter/uploader or staff that may view incidents.
+      return roles.some((r) => INCIDENT_VIEW_ROLES.includes(r)) || file.uploaded_by === requestingUser.id;
+    case 'USER_PROFILE':
+      return roles.some((r) => PROFILE_VIEW_ROLES.includes(r));
+    default:
+      return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // ClamAV scan — graceful skip if not installed
 // ---------------------------------------------------------------------------
 async function clamScan(filePath) {
   try {
-    const { createClam } = await import('clamscan');
-    const clam = await createClam({
+    const mod    = await import('clamscan');
+    const NodeClam = mod.default ?? mod;
+    const clam   = await new NodeClam().init({
       removeInfected: false,
       scanLog       : null,
       debugMode     : false,
-      clamscan      : { active: true },
+      clamdscan     : {
+        active        : true,
+        host          : CLAMAV_HOST,
+        port          : CLAMAV_PORT,
+        timeout       : 30_000,
+        localFallback : false,
+      },
+      clamscan      : { active: false },
     });
     const { isInfected, viruses } = await clam.isInfected(filePath);
     return { isInfected, viruses };
-  } catch {
-    // clamscan not installed — skip gracefully
-    console.warn('[files] ClamAV not available, skipping virus scan');
+  } catch (err) {
+    // clamd not reachable — skip gracefully
+    logger.warn('[files] ClamAV not available, skipping virus scan', { message: err?.message });
     return { isInfected: false, viruses: [] };
   }
 }
@@ -108,13 +161,9 @@ export async function downloadProfileImage(fileId, requestingUser) {
 
   const file = rows[0];
 
-  // Users can only download their own profile image unless admin/staff
-  const isAdminOrStaff = requestingUser.roles.some(r =>
-    ['ADMIN','SUPER_ADMIN','DOCTOR','NURSE','RECEPTIONIST','LAB_TECH',
-     'PHARMACIST','INVENTORY','BILLING','HR','IT_ADMIN','RADIOLOGIST',
-     'ANESTHETIST','DIETITIAN','PHYSIO','SOCIAL_WORKER','SECURITY_OFC','ORDERLY'].includes(r)
-  );
-  if (!isAdminOrStaff && file.entity_id !== requestingUser.id) return 'FORBIDDEN';
+  // Users can only download their own profile image unless staff
+  const isStaff = requestingUser.roles.some(r => PROFILE_VIEW_ROLES.includes(r));
+  if (!isStaff && file.entity_id !== requestingUser.id) return 'FORBIDDEN';
 
   const storagePath = path.join(UPLOAD_DIR, file.storage_key);
   if (!fs.existsSync(storagePath)) {
@@ -262,7 +311,16 @@ export async function downloadFile(fileId, requestingUser) {
        -- for MEDICAL_RECORD entity type
        p_mr.user_id AS mr_patient_user_id,
        -- for PRESCRIPTION entity type
-       p_rx.user_id AS rx_patient_user_id
+       p_rx.user_id AS rx_patient_user_id,
+       -- for MESSAGE entity type — is the requester a member of the group?
+       CASE WHEN f.entity_type = 'MESSAGE' THEN
+         EXISTS (
+           SELECT 1
+           FROM messages m2
+           JOIN message_group_members mgm ON mgm.group_id = m2.group_id AND mgm.left_at IS NULL
+           WHERE m2.id = f.entity_id AND mgm.user_id = $2
+         )
+       ELSE FALSE END AS msg_is_member
      FROM files f
      LEFT JOIN patients p_direct ON p_direct.id = f.entity_id AND f.entity_type = 'PATIENT'
      LEFT JOIN lab_results lr ON lr.id = f.entity_id AND f.entity_type = 'LAB_RESULT'
@@ -272,7 +330,7 @@ export async function downloadFile(fileId, requestingUser) {
      LEFT JOIN prescriptions rx ON rx.id = f.entity_id AND f.entity_type = 'PRESCRIPTION'
      LEFT JOIN patients p_rx ON p_rx.id = rx.patient_id
      WHERE f.id = $1 AND f.is_deleted = FALSE`,
-    [fileId]
+    [fileId, requestingUser.id]
   );
   if (!rows[0]) return null;
 
@@ -286,6 +344,9 @@ export async function downloadFile(fileId, requestingUser) {
       file.mr_patient_user_id ??
       file.rx_patient_user_id;
     if (ownerUserId !== requestingUser.id) return 'FORBIDDEN';
+  } else if (!hasDownloadAccess(requestingUser, file)) {
+    // Every non-patient is granted access explicitly per entity type.
+    return 'FORBIDDEN';
   }
 
   const storagePath = path.join(UPLOAD_DIR, file.storage_key);

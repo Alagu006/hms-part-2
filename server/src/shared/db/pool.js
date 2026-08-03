@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { logger } from '../logger.js';
 
 const { Pool } = pg;
 
@@ -6,6 +7,10 @@ const { Pool } = pg;
 // PgBouncer-compatible pool config
 // statement_timeout and other session-level settings must be avoided when
 // using PgBouncer in transaction pooling mode.
+//
+// The app connects as the LEAST-PRIVILEGE role hms_api (DB_USER/DB_PASSWORD) —
+// DML only, no DDL, no superuser. Schema changes belong to hms_migrator and are
+// applied via `npm run migrate` (src/db/migrate.js), which uses its own pool.
 // ---------------------------------------------------------------------------
 export const pool = new Pool({
   host              : process.env.DB_HOST,
@@ -25,12 +30,12 @@ export const pool = new Pool({
 });
 
 pool.on('error', (err) => {
-  console.error('[pool] Unexpected client error:', err.message);
+  logger.error('[pool] Unexpected client error', { message: err.message });
 });
 
 pool.on('connect', () => {
   if (process.env.NODE_ENV === 'development') {
-    console.debug('[pool] New client connected');
+    logger.debug('[pool] New client connected');
   }
 });
 
@@ -56,16 +61,20 @@ export async function query(sql, params = [], client = null) {
     const elapsed = Date.now() - start;
 
     if (elapsed > SLOW_QUERY_MS) {
-      console.warn(
-        `[pool] Slow query (${elapsed}ms):\n  SQL: ${sql.replace(/\s+/g, ' ').trim()}\n  Params: ${JSON.stringify(params)}`
-      );
+      logger.warn('[pool] Slow query', {
+        elapsed,
+        sql   : sql.replace(/\s+/g, ' ').trim(),
+        params: JSON.stringify(params),
+      });
     }
 
     return result;
   } catch (err) {
-    console.error(
-      `[pool] Query error: ${err.message}\n  SQL: ${sql.replace(/\s+/g, ' ').trim()}\n  Params: ${JSON.stringify(params)}`
-    );
+    logger.error('[pool] Query error', {
+      message: err.message,
+      sql    : sql.replace(/\s+/g, ' ').trim(),
+      params : JSON.stringify(params),
+    });
     throw err;
   }
 }

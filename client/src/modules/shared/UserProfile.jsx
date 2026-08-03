@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { useStore } from '../../shared/store/index.js';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { useStore, getAccessToken } from '../../shared/store/index.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import { encryptProfileImage, decryptProfileImageToUrl } from '../../shared/utils/crypto.js';
 import { storeFileKey, getFileKey } from '../../shared/utils/keyStore.js';
 import styles from './UserProfile.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 // ---------------------------------------------------------------------------
 // Authenticated profile image — decrypt if key is available
@@ -20,7 +18,7 @@ function ProfileImage({ fileId, initials }) {
 
     (async () => {
       try {
-        const token = sessionStorage.getItem('accessToken');
+        const token = getAccessToken();
         const res = await fetch(`${API_BASE}/files/profile-image/${fileId}`, {
           credentials: 'include',
           headers: { Authorization: `Bearer ${token}` },
@@ -141,7 +139,7 @@ export default function UserProfile() {
       const form = new FormData();
       form.append('file', encryptedBlob, file.name);
 
-      const token = sessionStorage.getItem('accessToken');
+      const token = getAccessToken();
       const csrfRes = await fetch('/api/auth/csrf-token', { credentials: 'include' });
       const { csrfToken } = await csrfRes.json();
 

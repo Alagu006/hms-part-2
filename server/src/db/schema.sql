@@ -230,6 +230,44 @@ CREATE TABLE vitals (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Add missing columns for CDS sepsis screening
+ALTER TABLE vitals ADD COLUMN IF NOT EXISTS temperature NUMERIC(4,1);
+ALTER TABLE vitals ADD COLUMN IF NOT EXISTS heart_rate INT;
+ALTER TABLE vitals ADD COLUMN IF NOT EXISTS blood_glucose_mmol NUMERIC(5,1) CHECK (blood_glucose_mmol > 0);
+ALTER TABLE vitals ADD COLUMN IF NOT EXISTS respiratory_rate INT;
+ALTER TABLE vitals ADD COLUMN IF NOT EXISTS systolic_bp INT;
+ALTER TABLE vitals ADD COLUMN IF NOT EXISTS wbc_count INT;
+
+-- =============================================================================
+-- DIAGNOSES (for CDS)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS diagnoses (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code            TEXT NOT NULL UNIQUE,  -- ICD-10 code
+    name            TEXT NOT NULL,
+    category        TEXT,
+    description     TEXT,
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS patient_diagnoses (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id      UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    diagnosis_id    UUID NOT NULL REFERENCES diagnoses(id) ON DELETE CASCADE,
+    diagnosed_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+    diagnosed_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','resolved','chronic')),
+    notes           TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (patient_id, diagnosis_id, status)
+);
+
+CREATE INDEX IF NOT EXISTS idx_patient_diagnoses_patient ON patient_diagnoses(patient_id);
+CREATE INDEX IF NOT EXISTS idx_patient_diagnoses_diagnosis ON patient_diagnoses(diagnosis_id);
+
 -- =============================================================================
 -- MEDICINES
 -- =============================================================================
@@ -894,3 +932,18 @@ CREATE TABLE IF NOT EXISTS patient_allergies (
 );
 
 CREATE INDEX IF NOT EXISTS idx_patient_allergies_patient ON patient_allergies(patient_id);
+
+-- =============================================================================
+-- PUSH SUBSCRIPTIONS (Web Push / PWA)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint    TEXT        NOT NULL UNIQUE,
+  p256dh      TEXT        NOT NULL,
+  auth        TEXT        NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);

@@ -2,6 +2,7 @@ import jwt                from 'jsonwebtoken';
 import fs                 from 'fs';
 import { redis, subscriber } from '../../shared/services/redis.service.js';
 import * as svc           from './messaging.service.js';
+import { logger }         from '../../shared/logger.js';
 
 const PUBLIC_KEY = fs.readFileSync(process.env.JWT_PUBLIC_KEY_PATH, 'utf8');
 
@@ -43,7 +44,11 @@ function authenticateSocket(socket, next) {
 function markOnline(userId, socketId) {
   if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
   onlineUsers.get(userId).add(socketId);
-  redis.setex(`presence:${userId}`, 120, '1');
+  // Fire-and-forget presence write — best-effort; a Redis outage must never
+  // crash the socket connection (in-memory presence still works).
+  redis.setex(`presence:${userId}`, 120, '1').catch((err) => {
+    logger.warn('[socket] presence set failed (best-effort):', { message: err.message });
+  });
 }
 
 function markOffline(userId, socketId) {
@@ -52,7 +57,10 @@ function markOffline(userId, socketId) {
     sockets.delete(socketId);
     if (sockets.size === 0) {
       onlineUsers.delete(userId);
-      redis.del(`presence:${userId}`);
+      // Fire-and-forget presence delete — best-effort (see markOnline).
+      redis.del(`presence:${userId}`).catch((err) => {
+        logger.warn('[socket] presence del failed (best-effort):', { message: err.message });
+      });
     }
   }
 }
@@ -70,7 +78,11 @@ export function registerMessagingSocket(io) {
   msgNs.use(authenticateSocket);
 
   // ── Redis subscriber: fan-out events from other server instances ──────────
-  subscriber.subscribe(svc.PUBSUB_CHANNEL);
+  // Best-effort: if Redis is unreachable the subscribe promise rejects — catch
+  // it so the process never crashes on a Redis outage (unhandled rejection).
+  subscriber.subscribe(svc.PUBSUB_CHANNEL).catch((err) => {
+    logger.warn('[socket] Redis subscribe failed (best-effort):', { message: err.message });
+  });
   subscriber.on('message', (_channel, raw) => {
     try {
       const { event, payload } = JSON.parse(raw);
@@ -81,7 +93,7 @@ export function registerMessagingSocket(io) {
         msgNs.to(`user:${payload.targetUserId}`).emit(event, payload);
       }
     } catch (err) {
-      console.error('[socket] Redis fan-out parse error:', err.message);
+      logger.error('[socket] Redis fan-out parse error', { message: err.message });
     }
   });
 
@@ -134,7 +146,7 @@ export function registerMessagingSocket(io) {
 
         ack?.({ ok: true, messageId: message.id });
       } catch (err) {
-        console.error('[socket] message:send error:', err.message);
+        logger.error('[socket] message:send error', { message: err.message });
         ack?.({ error: 'Failed to send message' });
       }
     });
@@ -160,7 +172,7 @@ export function registerMessagingSocket(io) {
           lastReadMessageId,
         });
       } catch (err) {
-        console.error('[socket] message:read error:', err.message);
+        logger.error('[socket] message:read error', { message: err.message });
       }
     });
 

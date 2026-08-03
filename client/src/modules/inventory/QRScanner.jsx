@@ -7,10 +7,8 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
-import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './QRScanner.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 export default function QRScanner({ onClose }) {
   const [cameras,    setCameras]    = useState([]);

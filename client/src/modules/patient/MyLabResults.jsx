@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import EncryptedFileDownload from '../../shared/components/EncryptedFileDownload.jsx';
 import styles from './MyLabResults.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 function formatDate(iso) {
   if (!iso) return '—';
@@ -10,29 +9,6 @@ function formatDate(iso) {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   }).format(new Date(iso));
-}
-
-async function downloadLabFile(fileId, fileName) {
-  try {
-    const token = sessionStorage.getItem('accessToken');
-    const csrfRes = await fetch('/api/auth/csrf-token', { credentials: 'include' });
-    const { csrfToken } = await csrfRes.json();
-    const res = await fetch(`${API_BASE}/files/${fileId}/download`, {
-      credentials: 'include',
-      headers: { Authorization: `Bearer ${token}`, 'x-csrf-token': csrfToken },
-    });
-    if (!res.ok) throw new Error('Download failed');
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = fileName ?? 'lab-result';
-    a.click();
-    URL.revokeObjectURL(url);
-  } catch (err) {
-    console.error('[downloadLabFile]', err);
-    alert('Could not download file. Please try again.');
-  }
 }
 
 export default function MyLabResults() {
@@ -104,12 +80,10 @@ export default function MyLabResults() {
                     <td>{formatDate(r.performed_at)}</td>
                     <td>
                       {r.file_id
-                        ? <button
-                            className={styles.fileBtn}
-                            onClick={() => downloadLabFile(r.file_id, r.file_name)}
-                          >
-                            📎 {r.file_name}
-                          </button>
+                        ? <EncryptedFileDownload
+                            fileId={r.file_id}
+                            fileName={r.file_name ?? `lab-result_${r.id}`}
+                          />
                         : '—'
                       }
                     </td>

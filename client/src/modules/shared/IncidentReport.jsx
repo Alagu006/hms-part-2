@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './IncidentReport.module.scss';
-
-const API = import.meta.env.VITE_API_URL ?? '/api';
 
 const TYPES = [
   { value: 'NEAR_MISS',          label: 'Near Miss' },
@@ -35,7 +33,7 @@ export default function IncidentReport() {
           .map(s => s.trim())
           .filter(Boolean),
       };
-      await apiFetch(`${API}/incidents`, {
+      await apiFetch(`${API_BASE}/incidents`, {
         method: 'POST',
         body: JSON.stringify(body),
       });

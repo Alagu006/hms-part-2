@@ -13,6 +13,10 @@ yarn-error.log*
 .env.*
 !.env.example
 
+# Secrets / keys
+server/keys/
+*.pem
+
 # Build folders
 dist/
 build/

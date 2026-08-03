@@ -3,6 +3,7 @@ import { pgEncrypt, pgDecrypt } from '../db/pgcrypto.js';
 import { redis }        from './redis.service.js';
 import { sendPushNotification } from './webpush.service.js';
 import { auditLog } from '../middleware/audit.js';
+import { logger } from '../logger.js';
 
 // ---------------------------------------------------------------------------
 // Notification type enum
@@ -100,7 +101,7 @@ export async function createNotification(userId, type, title, body, metadata = {
     title,
     body : body.slice(0, 120),
     data : { type, ...metadata },
-  }).catch((err) => console.warn('[notification] Push failed:', err.message));
+  }).catch((err) => logger.warn('[notification] Push failed:', { message: err.message }));
 
   await auditLog({
     userId,
@@ -163,7 +164,8 @@ export async function getUnreadCount(userId) {
     const cached = await redis.get(UNREAD_KEY(userId));
     if (cached !== null) return parseInt(cached, 10);
   } catch {
-    // Redis unavailable — fall through to DB
+    // Redis unavailable — fall through to DB (intentional fail-open read path:
+    // unread count is not an authorization control).
   }
 
   const { rows } = await query(
@@ -208,6 +210,8 @@ export async function getNotifications(userId, { page = 1, limit = 20, type } = 
         ]);
         return { ...n, title, body };
       } catch {
+        // Row failed to decrypt — return placeholder text rather than
+        // crashing the whole list (intentional best-effort read path).
         return { ...n, title: '[Encrypted]', body: '[Encrypted]' };
       }
     })

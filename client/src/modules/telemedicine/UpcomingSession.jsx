@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import { useAuth } from '../../shared/store/index.js';
 import styles from './UpcomingSession.module.scss';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 const JOIN_WINDOW_MS = 5 * 60 * 1000;
 
 function useCountdown(targetDate) {

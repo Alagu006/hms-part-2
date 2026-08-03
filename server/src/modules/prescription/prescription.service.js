@@ -4,6 +4,7 @@ import { redis }                  from '../../shared/services/redis.service.js';
 import { auditLog }               from '../../shared/middleware/audit.js';
 import { notificationQueue }      from '../../shared/jobs/queue.js';
 import { checkInteractions, checkAllergies } from './interactions.js';
+import { logger }                 from '../../shared/logger.js';
 
 const MEDICINE_CACHE_TTL = 60 * 60; // 1 hour
 
@@ -43,7 +44,7 @@ async function fetchFromOpenFda(q) {
     clearTimeout(timer);
 
     if (!res.ok) {
-      console.error(`[openfda] Non-200 response: ${res.status} for query "${q}"`);
+      logger.warn('[openfda] Non-200 response', { status: res.status, query: q });
       return [];
     }
 
@@ -55,9 +56,9 @@ async function fetchFromOpenFda(q) {
     return results;
   } catch (err) {
     if (err.name === 'AbortError') {
-      console.warn(`[openfda] Timeout fetching results for "${q}"`);
+      logger.warn('[openfda] Timeout fetching results', { query: q });
     } else {
-      console.error(`[openfda] Error fetching results for "${q}":`, err.message);
+      logger.error('[openfda] Error fetching results', { query: q, message: err.message });
     }
     return [];
   }
@@ -121,7 +122,7 @@ export async function importOpenFdaMedicines(queryStr) {
     const data = await res.json();
     openfdaResults = (data.results ?? []).map(mapOpenFdaResult).filter(Boolean);
   } catch (err) {
-    console.error(`[openfda] Import failed for "${queryStr}":`, err.message);
+    logger.error('[openfda] Import failed', { query: queryStr, message: err.message });
     throw Object.assign(new Error(`OpenFDA import failed: ${err.message}`), { status: 502 });
   }
 
@@ -145,7 +146,7 @@ export async function importOpenFdaMedicines(queryStr) {
       );
       imported++;
     } catch (err) {
-      console.warn(`[openfda] Skipped "${med.name}":`, err.message);
+      logger.warn('[openfda] Skipped medicine', { name: med.name, message: err.message });
       skipped++;
     }
   }
@@ -170,8 +171,8 @@ export async function createPrescription(data, doctorId, ip, userAgent) {
   const patient      = patRows[0];
   const medicineNames = items.map((i) => i.medicineName);
 
-  // 2. Drug interaction check
-  const interactions = checkInteractions(medicineNames);
+  // 2. Drug interaction check (now async)
+  const interactions = await checkInteractions(medicineNames);
   const contraindicated = interactions.filter((i) => i.severity === 'CONTRAINDICATED');
   if (contraindicated.length) {
     const msg = contraindicated.map((i) => `${i.drug1} + ${i.drug2}: ${i.description}`).join('; ');
@@ -441,7 +442,7 @@ export async function dispensePrescription(id, { dispensedItems, notes }, pharma
   for (const { itemId, dispensed } of dispensedItems) {
     if (dispensed) {
       await query(
-        `UPDATE prescription_items SET quantity = quantity WHERE id = $1 AND prescription_id = $2`,
+        `UPDATE prescription_items SET dispensed_at = NOW() WHERE id = $1 AND prescription_id = $2`,
         [itemId, id]
       );
     }

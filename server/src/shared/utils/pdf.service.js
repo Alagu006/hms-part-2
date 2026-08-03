@@ -1,6 +1,24 @@
 /**
  * PDF generation using Puppeteer.
  * Single function: generatePdf(htmlString) → Promise<Buffer>
+ *
+ * SYSTEM DEPENDENCIES (minimal / Docker environments)
+ * ---------------------------------------------------
+ * Puppeteer downloads its own Chromium at `npm install` time, but Chromium
+ * still needs shared system libraries. On Debian/Ubuntu install:
+ *
+ *   apt-get update && apt-get install -y \
+ *     libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+ *     libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+ *     libgbm1 libgtk-3-0 libasound2 libpangocairo-1.0-0 libpango-1.0-0
+ *
+ * Alternative: deploy with `puppeteer-core` and point CHROME_PATH at a pinned
+ * system Chrome/Chromium binary (no bundled Chromium download needed):
+ *
+ *   CHROME_PATH=/usr/bin/chromium-browser
+ *
+ * When Chrome cannot be launched (missing binary / shared libs), functions
+ * throw a clear PdfUnavailableError instead of an unhandled rejection.
  */
 
 import puppeteer from 'puppeteer';
@@ -9,12 +27,30 @@ import { dirname } from 'path';
 
 let _browser = null;
 
+/**
+ * Launch (and cache) the headless browser.
+ *
+ * @returns {Promise<import('puppeteer').Browser>}
+ * @throws {Error} PdfUnavailableError when Chrome fails to launch.
+ */
 async function getBrowser() {
   if (!_browser || !_browser.connected) {
-    _browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    try {
+      _browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        ...(process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : {}),
+      });
+    } catch (err) {
+      _browser = null;
+      const error = new Error(
+        `PDF generation is unavailable — Chrome failed to launch: ${err?.message ?? String(err)}`
+      );
+      error.name   = 'PdfUnavailableError';
+      error.code   = 'PDF_UNAVAILABLE';
+      error.status = 503;
+      throw error;
+    }
   }
   return _browser;
 }
@@ -27,11 +63,14 @@ async function getBrowser() {
  * @returns {Promise<Buffer>} - PDF buffer
  */
 export async function generatePdf(htmlString) {
-  const browser = await getBrowser();
-  const page = await browser.newPage();
-
+  let page = null;
   try {
-    await page.setContent(htmlString, { waitUntil: 'networkidle0' });
+    const browser = await getBrowser();
+    page = await browser.newPage();
+
+    // waitUntil: 'load' (not 'networkidle0', which can hang indefinitely when
+    // Chromium keeps a background connection open).
+    await page.setContent(htmlString, { waitUntil: 'load' });
 
     const pdfBuffer = await page.pdf({
       format              : 'A4',
@@ -46,8 +85,20 @@ export async function generatePdf(htmlString) {
     });
 
     return Buffer.from(pdfBuffer);
+  } catch (err) {
+    // Launch failures already carry a clear, specific message — pass through.
+    if (err?.code === 'PDF_UNAVAILABLE') throw err;
+
+    const error = new Error(`PDF generation failed: ${err?.message ?? String(err)}`);
+    error.name   = 'PdfGenerationError';
+    error.code   = 'PDF_GENERATION_FAILED';
+    error.status = 500;
+    error.cause  = err;
+    throw error;
   } finally {
-    await page.close();
+    if (page) {
+      try { await page.close(); } catch { /* page already torn down */ }
+    }
   }
 }
 

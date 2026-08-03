@@ -6,17 +6,29 @@
 
 const KEY = 'hms-theme';
 
+/** Returns system preference: 'dark' or 'light' */
+function getSystemTheme() {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+/** Returns stored theme, falling back to system preference */
 export function getStoredTheme() {
-  return localStorage.getItem(KEY) ?? 'light';
+  return localStorage.getItem(KEY) ?? getSystemTheme();
+}
+
+/** Returns true if the user prefers reduced motion */
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 export function applyTheme(theme) {
-  // Add smooth transition class
-  document.body.classList.add('theme-transitioning');
+  // Only animate if user hasn't opted out of motion
+  if (!prefersReducedMotion()) {
+    document.body.classList.add('theme-transitioning');
+    setTimeout(() => document.body.classList.remove('theme-transitioning'), 350);
+  }
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem(KEY, theme);
-  // Remove transition class after animation completes
-  setTimeout(() => document.body.classList.remove('theme-transitioning'), 350);
 }
 
 export function cycleTheme() {

@@ -1,6 +1,7 @@
 import { query, withTransaction } from '../../shared/db/pool.js';
 import { auditLog }               from '../../shared/middleware/audit.js';
 import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
+import { logger } from '../../shared/logger.js';
 
 const BATCH_SIZE = 50; // fan-out in batches to avoid overwhelming the queue
 
@@ -66,7 +67,7 @@ export async function createBroadcast(data, sentBy, ip, userAgent, io) {
     senderName,
     sentBy,
     io,
-  }).catch((err) => console.error('[broadcast] Fan-out error:', err.message));
+  }).catch((err) => logger.error('[broadcast] Fan-out error', { message: err.message }));
 
   return { broadcast, totalCount };
 }
@@ -116,7 +117,7 @@ export async function listBroadcasts({ page, limit, priority }) {
 
   if (priority) {
     params.push(priority);
-    where.push(`b.body LIKE $${params.length}`); // priority stored in notification title prefix
+    where.push(`b.priority = $${params.length}`);
   }
 
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';

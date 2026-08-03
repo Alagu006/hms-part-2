@@ -1,10 +1,10 @@
 import { useState, useRef } from 'react';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { getAccessToken } from '../../shared/store/index.js';
 import { generateKey, exportKey, encryptFile, bufferToBase64 } from '../../shared/utils/crypto.js';
 import { storeFileKey } from '../../shared/utils/keyStore.js';
 import styles from './PatientFileUpload.module.scss';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
@@ -67,7 +67,7 @@ export default function PatientFileUpload({ assignments, loading = false }) {
       setStatus('uploading');
 
       // 5. Upload (apiFetch handles auth headers; use raw fetch for FormData)
-      const token = sessionStorage.getItem('accessToken');
+      const token = getAccessToken();
       const csrfRes = await fetch('/api/auth/csrf-token', { credentials: 'include' });
       const { csrfToken } = await csrfRes.json();
 

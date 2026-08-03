@@ -45,7 +45,7 @@ export async function createIncident(
         `Type: ${type}. ${description.slice(0, 120)}`,
         { entityType: 'incidents', entityId: incident.id },
         io
-      ).catch(() => {});
+      ).catch(() => {}); // best-effort alert — must not fail incident creation
     }
   }
 

@@ -117,7 +117,8 @@ router.patch(
 
 router.get(
   '/:id/download',
-  authorize('DOCTOR', 'NURSE', 'LAB_TECH', 'PATIENT', 'ADMIN', 'SUPER_ADMIN'),
+  // Service-level grants gate access per entity type + role (see file.service.js).
+  authorize('*'),
   downloadFile
 );
 

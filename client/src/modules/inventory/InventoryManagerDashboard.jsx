@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, authHeaders } from '../../shared/utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import styles from './InventoryManagerDashboard.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 // ---------------------------------------------------------------------------
 // API calls

@@ -4,11 +4,10 @@ import {
   exportKey,
   bufferToBase64,
 } from '../utils/crypto.js';
-import { authHeaders, apiFetch, getCsrfToken } from '../utils/authHeaders.js';
+import { apiFetch, getCsrfToken, API_BASE } from '../utils/api.js';
+import { getAccessToken } from '../store/index.js';
 import { storeFileKey } from '../utils/keyStore.js';
 import styles from './EncryptedFileUpload.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 const IV_LENGTH  = 12; // 96-bit for AES-GCM
 const MAX_BYTES  = 20 * 1024 * 1024; // 20 MB
@@ -105,7 +104,7 @@ export default function EncryptedFileUpload({
 
         xhr.open('POST', `${API_BASE}/files/upload`);
         xhr.withCredentials = true;
-        xhr.setRequestHeader('Authorization', authHeaders().Authorization);
+        xhr.setRequestHeader('Authorization', `Bearer ${getAccessToken()}`);
         xhr.setRequestHeader('x-csrf-token', csrfToken);
         xhr.setRequestHeader('x-client-encrypted', 'true');
         xhr.setRequestHeader('x-original-mime', originalMime);

@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { importKey, base64ToBuffer } from '../utils/crypto.js';
-import { authHeaders } from '../utils/authHeaders.js';
+import api, { API_BASE } from '../utils/api.js';
 import { getFileKey } from '../utils/keyStore.js';
 import styles from './EncryptedFileDownload.module.scss';
-
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api';
 
 /**
  * Decrypt an AES-256-GCM encrypted ArrayBuffer.
@@ -58,21 +56,14 @@ export default function EncryptedFileDownload({ fileId, fileName, mimeType }) {
 
     try {
       // ── Step 1: Fetch encrypted file from server ──────────────────────────
-      const res = await fetch(`${API_BASE}/files/${fileId}/download`, {
-        headers: authHeaders(),
-      });
-
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error ?? `Download failed: ${res.status}`);
-      }
+      const res = await api.get(`${API_BASE}/files/${fileId}/download`, { responseType: 'arraybuffer' });
 
       // ── Step 2: Extract IV from response header ───────────────────────────
-      const ivB64        = res.headers.get('X-Encryption-IV');
-      const isEncrypted  = res.headers.get('X-Encrypted') === 'true';
-      const serverMime   = mimeType ?? res.headers.get('Content-Type') ?? 'application/octet-stream';
+      const ivB64        = res.headers['x-encryption-iv'];
+      const isEncrypted  = res.headers['x-encrypted'] === 'true';
+      const serverMime   = mimeType ?? res.headers['content-type'] ?? 'application/octet-stream';
 
-      const cipherBuffer = await res.arrayBuffer();
+      const cipherBuffer = res.data;
 
       // ── Step 3: Retrieve AES key from session storage ─────────────────────
       if (!isEncrypted || !ivB64) {
@@ -100,7 +91,7 @@ export default function EncryptedFileDownload({ fileId, fileName, mimeType }) {
       // ── Step 5: Verify integrity (optional SHA-256 check) ─────────────────
       // Server sends X-Checksum-SHA256 of the encrypted bytes.
       // We verify the ciphertext checksum before decryption.
-      const serverChecksum = res.headers.get('X-Checksum-SHA256');
+      const serverChecksum = res.headers['x-checksum-sha256'];
       if (serverChecksum) {
         const hashBuffer = await crypto.subtle.digest('SHA-256', cipherBuffer);
         const hashArray  = Array.from(new Uint8Array(hashBuffer));
@@ -118,7 +109,15 @@ export default function EncryptedFileDownload({ fileId, fileName, mimeType }) {
       setTimeout(() => setStatus('idle'), 3000);
     } catch (err) {
       console.error('[EncryptedFileDownload]', err);
-      setErrorMsg(err.message);
+      let msg = err.message;
+      // Axios error payload for an ArrayBuffer response is raw JSON bytes
+      if (err.response?.data && typeof err.response.data === 'object') {
+        try {
+          const text = new TextDecoder().decode(err.response.data);
+          msg = JSON.parse(text).error ?? msg;
+        } catch { /* keep axios message */ }
+      }
+      setErrorMsg(msg);
       setStatus('error');
     }
   }

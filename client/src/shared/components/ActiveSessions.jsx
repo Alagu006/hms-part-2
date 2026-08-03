@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../store/index.js';
 import { useNotificationStore } from '../hooks/useNotifications.js';
+import { apiFetch, API_BASE } from '../utils/api.js';
 import { decodeJwtPayload } from '../utils/crypto.js';
 import styles from './ActiveSessions.module.scss';
-
-const API = import.meta.env.VITE_API_URL ?? '/api';
 
 function formatRelative(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -108,24 +107,12 @@ export default function ActiveSessions({ onClose }) {
 
   const { data: sessions = [], isLoading, error } = useQuery({
     queryKey: ['active-sessions'],
-    queryFn: async () => {
-      const res = await fetch(`${API}/auth/sessions`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!res.ok) throw new Error('Failed to load sessions');
-      return res.json();
-    },
+    queryFn: () => apiFetch(`${API_BASE}/auth/sessions`),
     enabled: !!accessToken,
   });
 
   const revokeMutation = useMutation({
-    mutationFn: async (sessionId) => {
-      const res = await fetch(`${API}/auth/sessions/${sessionId}`, {
-        method  : 'DELETE',
-        headers : { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!res.ok) throw new Error('Failed to revoke session');
-    },
+    mutationFn: (sessionId) => apiFetch(`${API_BASE}/auth/sessions/${sessionId}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
       addToast({ title: 'Session revoked', body: 'That device has been signed out.', type: 'SESSION_REVOKED' });
@@ -136,14 +123,7 @@ export default function ActiveSessions({ onClose }) {
   });
 
   const signOutAllMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`${API}/auth/sessions`, {
-        method  : 'DELETE',
-        headers : { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!res.ok) throw new Error('Failed to sign out');
-      return res.json();
-    },
+    mutationFn: () => apiFetch(`${API_BASE}/auth/sessions`, { method: 'DELETE' }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
       addToast({

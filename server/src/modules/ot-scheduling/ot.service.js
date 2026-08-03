@@ -231,6 +231,6 @@ async function notifyOTParties(schedule, doctorId, anesthetistId, patientId, io,
   for (const uid of targets) {
     await createNotification(uid, 'OT_SCHEDULED', 'OT Scheduled', msg,
       { entityType: 'ot_schedules', entityId: schedule.id }, io
-    ).catch(() => {});
+    ).catch(() => {}); // best-effort notification — must not fail the OT schedule
   }
 }

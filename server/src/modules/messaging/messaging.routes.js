@@ -50,12 +50,17 @@ const markReadSchema = z.object({
 });
 
 // GET /messages/users — list all non-patient staff (for DM picker + group creation)
-router.get('/users', async (req, res, next) => {
-  try {
-    const users = await svc.getMessagingUsers(req.user.id);
-    res.json({ data: users });
-  } catch (err) { next(err); }
-});
+router.get(
+  '/users',
+  authorize('SUPER_ADMIN','ADMIN','DOCTOR','NURSE','RECEPTIONIST',
+            'LAB_TECH','PHARMACIST','HR','IT_ADMIN'),
+  async (req, res, next) => {
+    try {
+      const users = await svc.getMessagingUsers(req.user.id);
+      res.json({ data: users });
+    } catch (err) { next(err); }
+  }
+);
 
 // GET /messages/groups
 router.get('/groups', async (req, res, next) => {
@@ -94,6 +99,8 @@ router.get('/groups/:groupId/key', async (req, res, next) => {
 // GET /messages/groups/:groupId/members
 router.get('/groups/:groupId/members', async (req, res, next) => {
   try {
+    const member = await svc.isMember(req.params.groupId, req.user.id);
+    if (!member) return res.status(403).json({ error: 'Not a member of this group' });
     const members = await svc.getGroupMembers(req.params.groupId);
     res.json({ data: members });
   } catch (err) { next(err); }
@@ -129,6 +136,8 @@ router.get(
 // GET /messages/groups/:groupId/pinned
 router.get('/groups/:groupId/pinned', async (req, res, next) => {
   try {
+    const member = await svc.isMember(req.params.groupId, req.user.id);
+    if (!member) return res.status(403).json({ error: 'Not a member of this group' });
     const pinned = await svc.getPinnedMessages(req.params.groupId);
     res.json({ data: pinned });
   } catch (err) { next(err); }
@@ -137,6 +146,8 @@ router.get('/groups/:groupId/pinned', async (req, res, next) => {
 // GET /messages/direct/:userId/history
 router.get(
   '/direct/:userId/history',
+  authorize('SUPER_ADMIN','ADMIN','DOCTOR','NURSE','RECEPTIONIST',
+            'LAB_TECH','PHARMACIST','HR','IT_ADMIN'),
   validate(dmHistorySchema),
   async (req, res, next) => {
     try {
@@ -179,5 +190,31 @@ router.post('/:id/read', validate(markReadSchema), async (req, res, next) => {
     return res.status(200).json({ ok: true });
   } catch (err) { next(err); }
 });
+
+// DELETE /messages/groups/:groupId/purge-old — admin-only bulk cleanup
+router.delete(
+  '/groups/:groupId/purge-old',
+  authorize('SUPER_ADMIN', 'ADMIN', 'IT_ADMIN'),
+  async (req, res, next) => {
+    try {
+      const { beforeDate } = req.query;
+      if (!beforeDate) {
+        return res.status(422).json({ error: 'beforeDate query parameter required (ISO 8601 format)' });
+      }
+      
+      const isMember = await svc.isMember(req.params.groupId, req.user.id);
+      if (!isMember) {
+        return res.status(403).json({ error: 'Not a member of this group' });
+      }
+
+      const result = await svc.purgeOldMessages(req.params.groupId, beforeDate, req.user.id);
+      res.json({ 
+        ok: true, 
+        deletedCount: result.deletedCount,
+        message: `Deleted ${result.deletedCount} old messages from before ${beforeDate}` 
+      });
+    } catch (err) { next(err); }
+  }
+);
 
 export default router;

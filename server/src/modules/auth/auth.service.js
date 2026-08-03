@@ -5,6 +5,7 @@ import fs from 'fs';
 import { pool } from '../../shared/db/pool.js';
 import { redis } from '../../shared/services/redis.service.js';
 import { pgDecryptFields } from '../../shared/db/pgcrypto.js';
+import { logger } from '../../shared/logger.js';
 
 // ---------------------------------------------------------------------------
 // Email service (lazy import to avoid circular dependency)
@@ -41,8 +42,8 @@ function generateOpaqueToken() {
 }
 
 function generateOtp() {
-  // 6-digit numeric OTP
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // 6-digit numeric OTP — CSPRNG (crypto.randomInt is inclusive on min, exclusive on max)
+  return String(crypto.randomInt(100000, 1000000));
 }
 
 async function getUserByUsername(username) {
@@ -90,6 +91,7 @@ export async function login(username, password, ip, userAgent = '') {
     const ttl = await redis.ttl(attemptKey);
     const err  = new Error(`Too many login attempts. Try again in ${Math.ceil(ttl / 60)} minutes.`);
     err.status = 429;
+    logger.warn('LOGIN_RATE_LIMITED', { event: 'LOGIN_RATE_LIMITED', username, ip });
     throw err;
   }
 
@@ -102,6 +104,7 @@ export async function login(username, password, ip, userAgent = '') {
 
   const user = await getUserByUsername(username);
   if (!user) {
+    logger.warn('LOGIN_FAILURE', { event: 'LOGIN_FAILURE', username, ip });
     const err = new Error('Invalid credentials');
     err.status = 401;
     throw err;
@@ -109,6 +112,7 @@ export async function login(username, password, ip, userAgent = '') {
 
   const valid = await argon2.verify(user.password_hash, password);
   if (!valid) {
+    logger.warn('LOGIN_FAILURE', { event: 'LOGIN_FAILURE', username, ip });
     const err = new Error('Invalid credentials');
     err.status = 401;
     throw err;
@@ -148,6 +152,7 @@ export async function login(username, password, ip, userAgent = '') {
   const sessionId = ses[0].id;
 
   const tokens = await issueTokenPair(user, sessionId);
+  logger.info('LOGIN_SUCCESS', { event: 'LOGIN_SUCCESS', userId: user.id, ip });
   return { user: sanitizeUser(user), ...tokens };
 }
 
@@ -224,7 +229,9 @@ export async function refresh(oldRefreshToken) {
     throw err;
   }
 
-  return issueTokenPair(user, sessionId);
+  const tokens = await issueTokenPair(user, sessionId);
+  logger.info('TOKEN_REFRESH', { event: 'TOKEN_REFRESH', userId });
+  return tokens;
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +241,7 @@ export async function logout(refreshToken) {
   if (refreshToken) {
     await redis.del(refreshKey(refreshToken));
   }
+  logger.info('LOGOUT', { event: 'LOGOUT' });
 }
 
 // ---------------------------------------------------------------------------
@@ -252,7 +260,7 @@ export async function requestOtp(username) {
   }
 
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV] OTP for ${user.id}: ${otp}`);
+    logger.debug(`[DEV] OTP for ${user.id}: ${otp}`);
   }
 }
 
@@ -301,7 +309,7 @@ export async function flushAllRefreshTokens() {
   if (keys.length > 0) {
     await redis.del(...keys);
   }
-  console.log(`[cron] Flushed ${keys.length} refresh tokens`);
+  logger.info(`[cron] Flushed ${keys.length} refresh tokens`);
 }
 
 // ---------------------------------------------------------------------------
@@ -393,7 +401,7 @@ async function sendLockoutNotification(user, ip) {
       );
     }
   } catch (err) {
-    console.error('[auth] Failed to send lockout notification:', err.message);
+    logger.error('[auth] Failed to send lockout notification:', { message: err.message });
   }
 }
 
@@ -417,46 +425,67 @@ export async function getSessions(userId) {
 }
 
 export async function revokeSession(sessionId, userId) {
+  // DB revocation is AUTHORITATIVE — the auth middleware checks
+  // sessions.revoked_at, so this alone invalidates the session.
   await pool.query(
     `UPDATE sessions SET revoked_at = NOW()
      WHERE id = $1 AND user_id = $2`,
     [sessionId, userId]
   );
 
-  const keys = await redis.keys('refresh:*');
-  for (const key of keys) {
-    const val = await redis.get(key);
-    if (val) {
-      try {
-        const { sessionId: sid } = JSON.parse(val);
-        if (sid === sessionId) {
-          await redis.del(key);
-          break;
+  // Redis refresh-token cleanup is BEST-EFFORT: it only shortens the lifetime
+  // of an already-revoked token. If Redis is unreachable we must not fail the
+  // revocation — log and move on (the DB revoke above is what matters).
+  try {
+    const keys = await redis.keys('refresh:*');
+    for (const key of keys) {
+      const val = await redis.get(key);
+      if (val) {
+        try {
+          const { sessionId: sid } = JSON.parse(val);
+          if (sid === sessionId) {
+            await redis.del(key);
+            break;
+          }
+        } catch {
+          // Malformed / non-JSON refresh token value — skip it.
+          // Best-effort cleanup; nothing else reads this value.
         }
-      } catch {}
+      }
     }
+  } catch (err) {
+    logger.warn('[auth] Redis refresh-token cleanup failed (best-effort):', { message: err.message });
   }
 }
 
 export async function revokeAllOtherSessions(currentSessionId, userId) {
+  // DB revocation is AUTHORITATIVE (see revokeSession).
   const { rowCount } = await pool.query(
     `UPDATE sessions SET revoked_at = NOW()
      WHERE user_id = $1 AND id != $2 AND revoked_at IS NULL`,
     [userId, currentSessionId]
   );
 
-  const keys = await redis.keys('refresh:*');
-  const toDelete = [];
-  for (const key of keys) {
-    const val = await redis.get(key);
-    if (val) {
-      try {
-        const { sessionId: sid } = JSON.parse(val);
-        if (sid !== currentSessionId) toDelete.push(key);
-      } catch {}
+  // Redis refresh-token cleanup is BEST-EFFORT — see revokeSession.
+  try {
+    const keys = await redis.keys('refresh:*');
+    const toDelete = [];
+    for (const key of keys) {
+      const val = await redis.get(key);
+      if (val) {
+        try {
+          const { sessionId: sid } = JSON.parse(val);
+          if (sid !== currentSessionId) toDelete.push(key);
+        } catch {
+          // Malformed / non-JSON refresh token value — skip it.
+          // Best-effort cleanup; nothing else reads this value.
+        }
+      }
     }
+    if (toDelete.length > 0) await redis.del(...toDelete);
+  } catch (err) {
+    logger.warn('[auth] Redis refresh-token cleanup failed (best-effort):', { message: err.message });
   }
-  if (toDelete.length > 0) await redis.del(...toDelete);
 
   return rowCount ?? 0;
 }
@@ -516,7 +545,7 @@ export async function requestTwoFaEnable(userId) {
   if (user.email) await sendOTP(user.email, otp);
 
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV] 2FA enable OTP for ${userId}: ${otp}`);
+    logger.debug(`[DEV] 2FA enable OTP for ${userId}: ${otp}`);
   }
 }
 
@@ -566,7 +595,7 @@ export async function requestTwoFaDisable(userId) {
   if (user.email) await sendOTP(user.email, otp);
 
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV] 2FA disable OTP for ${userId}: ${otp}`);
+    logger.debug(`[DEV] 2FA disable OTP for ${userId}: ${otp}`);
   }
 }
 
@@ -636,6 +665,7 @@ export async function verifyTwoFaLogin(userId, otp, ip, userAgent) {
   const sessionId = ses[0].id;
 
   const tokens = await issueTokenPair(user, sessionId);
+  logger.info('TWOFA_VERIFY_SUCCESS', { event: 'TWOFA_VERIFY_SUCCESS', userId, ip });
   return { user: sanitizeUser(user), ...tokens };
 }
 
@@ -651,6 +681,6 @@ export async function sendTwoFaLoginOtp(userId, email) {
   if (email) await sendOTP(email, otp);
 
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`[DEV] 2FA login OTP for ${userId}: ${otp}`);
+    logger.debug(`[DEV] 2FA login OTP for ${userId}: ${otp}`);
   }
 }

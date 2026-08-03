@@ -7,6 +7,14 @@
     <meta name="theme-color" content="#00a896" />
     <link rel="manifest" href="/manifest.json" />
     <title>Hospital Management System</title>
+    <!-- Apply theme before first paint to prevent flash -->
+    <script>
+      (function () {
+        var stored = localStorage.getItem('hms-theme');
+        var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

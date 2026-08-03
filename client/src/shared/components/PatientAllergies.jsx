@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '../utils/authHeaders.js';
+import { apiFetch, API_BASE } from '../utils/api.js';
 import styles from './PatientAllergies.module.scss';
-
-const API = import.meta.env.VITE_API_URL ?? '/api';
 
 const ALLERGY_TYPES = ['DRUG', 'FOOD', 'ENVIRONMENTAL', 'OTHER'];
 const SEVERITY_OPTIONS = [
@@ -171,7 +169,7 @@ export default function PatientAllergies({ patientId, patientName, readOnly = fa
     if (!patientId) return;
     setLoading(true);
     try {
-      const json = await apiFetch(`${API}/patients/${patientId}/allergies`);
+      const json = await apiFetch(`${API_BASE}/patients/${patientId}/allergies`);
       setAllergies(json?.allergies ?? json?.data ?? []);
     } catch { setAllergies([]); }
     finally { setLoading(false); }
@@ -182,7 +180,7 @@ export default function PatientAllergies({ patientId, patientName, readOnly = fa
   async function handleAdd(form) {
     setSaving(true);
     try {
-      const json = await apiFetch(`${API}/patients/${patientId}/allergies`, {
+      const json = await apiFetch(`${API_BASE}/patients/${patientId}/allergies`, {
         method: 'POST',
         body: JSON.stringify(form),
       });
@@ -196,7 +194,7 @@ export default function PatientAllergies({ patientId, patientName, readOnly = fa
   async function handleUpdate(id, form) {
     setSaving(true);
     try {
-      const json = await apiFetch(`${API}/patients/${patientId}/allergies/${id}`, {
+      const json = await apiFetch(`${API_BASE}/patients/${patientId}/allergies/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(form),
       });
@@ -211,7 +209,7 @@ export default function PatientAllergies({ patientId, patientName, readOnly = fa
     if (!window.confirm('Remove this allergy record?')) return;
     setDeleting(id);
     try {
-      await apiFetch(`${API}/patients/${patientId}/allergies/${id}`, { method: 'DELETE' });
+      await apiFetch(`${API_BASE}/patients/${patientId}/allergies/${id}`, { method: 'DELETE' });
       setAllergies(prev => prev.filter(a => a.id !== id));
       showToast('Allergy removed');
     } catch (e) { showToast(e.message, 'error'); }

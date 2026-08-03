@@ -27,18 +27,19 @@ export async function enqueueReport({ type, format, period }, userId) {
   );
 
   // Persist to DB for history — use UUID v7 for time-ordered IDs
+  const reportJobId = uuidv7();
   await pool.query(
     `INSERT INTO report_jobs (id, job_id, user_id, type, format, period, status, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, 'pending', NOW())
      ON CONFLICT DO NOTHING`,
-    [uuidv7(), job.id, userId, type, format, period]
-  ).catch(() => {});
+    [reportJobId, job.id, userId, type, format, period]
+  ).catch(() => {}); // best-effort history row — the job is already queued in Redis
 
   await auditLog({
     userId,
     action  : 'GENERATE_REPORT',
     entity  : 'report_jobs',
-    entityId: job.id,
+    entityId: reportJobId,
     nextData: { type, format, period },
   });
 
@@ -193,7 +194,22 @@ export async function generateReport({ type, format, period, userId }) {
 
     const filename = `report_${type}_${period}_${Date.now()}.pdf`;
     const reportsDir = join(process.cwd(), 'tmp', 'reports');
-    const filePath = await generatePdfToFile(html, join(reportsDir, filename));
+
+    let filePath;
+    try {
+      filePath = await generatePdfToFile(html, join(reportsDir, filename));
+    } catch (err) {
+      // Preserve the clear message from pdf.service; the report worker records
+      // this as a failed job instead of crashing.
+      if (err?.code !== 'PDF_UNAVAILABLE' && err?.code !== 'PDF_GENERATION_FAILED') {
+        const wrapped = new Error(`Report generation failed: ${err?.message ?? String(err)}`);
+        wrapped.code   = 'PDF_GENERATION_FAILED';
+        wrapped.status = 500;
+        wrapped.cause  = err;
+        throw wrapped;
+      }
+      throw err;
+    }
 
     // Store file path in Redis for download
     const downloadKey = `report:file:${filename}`;

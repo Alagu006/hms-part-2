@@ -111,6 +111,7 @@ router.get(
   '/:id/allergies',
   authorize(...ALLERGY_READERS),
   validate(getPatientSchema),
+  checkOwnership('patient'),
   listAllergies
 );
 

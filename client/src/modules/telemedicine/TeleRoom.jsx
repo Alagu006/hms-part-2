@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { apiFetch } from '../../shared/utils/authHeaders.js';
-import { useAuth } from '../../shared/store/index.js';
+import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { useAuth, getAccessToken } from '../../shared/store/index.js';
+import { encryptChatMessage, decryptChatMessage } from './teleCrypto.js';
 import styles from './TeleRoom.module.scss';
 
-const API_BASE   = import.meta.env.VITE_API_URL    ?? '/api';
 import { getSocketUrl } from '../../shared/utils/socketUrl.js';
 const SOCKET_URL = getSocketUrl();
 
@@ -101,6 +101,7 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
 
   const [sessionId, setSessionId]   = useState(sessionIdProp ?? null);
   const [tokenData, setTokenData]   = useState(null);
+  const roomKeyRef = useRef(null); // AES-256 group key for in-call chat (base64)
   const [status, setStatus]         = useState('loading');
   const [error, setError]           = useState('');
   const [peers, setPeers]           = useState([]);   // { socketId, userId, firstName, lastName, role }
@@ -165,7 +166,7 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
 
       // Connect socket
       const socket = io(`${SOCKET_URL}/telemedicine`, {
-        auth: { token: sessionStorage.getItem('accessToken') },
+        auth: { token: getAccessToken() },
         transports: ['websocket'],
       });
       socketRef.current = socket;
@@ -241,8 +242,19 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
         });
       });
 
-      socket.on('tele:chat', ({ firstName, ciphertext }) => {
-        setChat(prev => [...prev, { text: ciphertext, firstName, own: false }]);
+      socket.on('tele:chat', ({ firstName, ciphertext, iv }) => {
+        // Decrypt if we have the room key; otherwise show a placeholder
+        if (roomKeyRef.current && ciphertext && iv) {
+          decryptChatMessage(ciphertext, iv, roomKeyRef.current)
+            .then((text) => {
+              setChat(prev => [...prev, { text, firstName, own: false }]);
+            })
+            .catch(() => {
+              setChat(prev => [...prev, { text: '[encrypted message]', firstName, own: false }]);
+            });
+        } else {
+          setChat(prev => [...prev, { text: '[encrypted message]', firstName, own: false }]);
+        }
       });
     }
 
@@ -374,8 +386,24 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
   }
 
   function handleSendChat(text) {
-    socketRef.current?.emit('tele:chat', { roomId: tokenData.roomId, ciphertext: text, iv: '' });
-    setChat(prev => [...prev, { text, firstName: user?.firstName, own: true }]);
+    if (!tokenData) return;
+
+    // If no room key yet, generate one and store it in memory only
+    if (!roomKeyRef.current) {
+      const rawKey = crypto.getRandomValues(new Uint8Array(32));
+      roomKeyRef.current = btoa(String.fromCharCode(...rawKey));
+    }
+
+    encryptChatMessage(text, roomKeyRef.current)
+      .then(({ ciphertext, iv }) => {
+        socketRef.current?.emit('tele:chat', {
+          roomId: tokenData.roomId,
+          ciphertext,
+          iv,
+        });
+        setChat(prev => [...prev, { text, firstName: user?.firstName, own: true }]);
+      })
+      .catch((err) => console.error('[tele] chat encrypt error:', err.message));
   }
 
   // ── Render ────────────────────────────────────────────────────────────────

@@ -107,7 +107,8 @@ export async function getSessions(req, res, next) {
 
 export async function deleteSession(req, res, next) {
   try {
-    const result = await adminService.forceLogout(req.params.id);
+    const io     = req.app.get('io');
+    const result = await adminService.forceLogout(req.params.id, io);
     await auditLog({
       userId  : req.user.id,
       action  : 'FORCE_LOGOUT',
