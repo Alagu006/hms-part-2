@@ -3,16 +3,23 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { q, auditMock, createNotifMock } = vi.hoisted(() => ({
-  q: vi.fn(),
-  auditMock: vi.fn(),
-  createNotifMock: vi.fn(),
-}));
+const { q, auditMock, createNotifMock, withTxnMock } = vi.hoisted(() => {
+  const q = vi.fn();
+  const txnClient = { query: (...args) => q(...args) };
+  return {
+    q,
+    auditMock: vi.fn(),
+    createNotifMock: vi.fn(),
+    // Execute the transaction body immediately on a client that routes to q,
+    // mirroring withTransaction's semantics (BEGIN/COMMIT not needed here).
+    withTxnMock: vi.fn(async (fn) => fn(txnClient)),
+  };
+});
 
 vi.mock('../src/shared/db/pool.js', () => ({
   query: q,
   pool : { query: q, connect: vi.fn() },
-  withTransaction: vi.fn(),
+  withTransaction: withTxnMock,
 }));
 
 vi.mock('../src/shared/middleware/audit.js', () => ({
@@ -52,7 +59,6 @@ describe('ot.service — createOTSchedule', () => {
 
   it('skips conflict check when the room is not found', async () => {
     q.mockResolvedValueOnce({ rows: [] })  // conflict room lookup — empty
-      .mockResolvedValueOnce({ rows: [] }) // roomId lookup — empty
       .mockResolvedValueOnce({ rows: [{ id: 'ot1', scheduled_start: '2026-08-01T10:00:00.000Z' }] })
       .mockResolvedValueOnce({ rows: [] }) // notify: nurses
       .mockResolvedValueOnce({ rows: [] }); // notify: receptionists
@@ -62,9 +68,9 @@ describe('ot.service — createOTSchedule', () => {
       scheduledAt: '2026-08-01T10:00:00', durationMinutes: 60, procedure: 'Surgery',
     }, 'u1', null, 'ip');
 
-    const insertSql = q.mock.calls[2][0];
+    const insertSql = q.mock.calls[1][0];
     expect(insertSql).toContain('INSERT INTO ot_schedules');
-    expect(q.mock.calls[2][1]).toEqual([
+    expect(q.mock.calls[1][1]).toEqual([
       'p1', 'd1', null, null, 'Surgery',
       expect.any(Date), expect.any(Date), 'SCHEDULED', 'u1',
     ]);
@@ -74,9 +80,8 @@ describe('ot.service — createOTSchedule', () => {
   it('creates a schedule and notifies all parties', async () => {
     const room = { id: 'r1' };
     const scheduleRow = { id: 'ot1', procedure_name: 'Appendectomy', scheduled_start: '2026-08-01T10:00:00.000Z' };
-    q.mockResolvedValueOnce({ rows: [room] })                          // conflict room lookup
+    q.mockResolvedValueOnce({ rows: [room] })                          // conflict room lookup (FOR UPDATE)
       .mockResolvedValueOnce({ rows: [] })                             // conflict query — clear
-      .mockResolvedValueOnce({ rows: [room] })                         // roomId lookup
       .mockResolvedValueOnce({ rows: [scheduleRow] })                  // INSERT
       .mockResolvedValueOnce({ rows: [{ id: 'n1' }, { id: 'n2' }] })   // nurses
       .mockResolvedValueOnce({ rows: [{ id: 'rc1' }] });               // receptionists
@@ -88,7 +93,7 @@ describe('ot.service — createOTSchedule', () => {
       status: 'CONFIRMED',
     }, 'u1', io, 'ip');
 
-    expect(q.mock.calls[3][1]).toEqual(['p1', 'd1', 'a1', 'r1', 'Appendectomy',
+    expect(q.mock.calls[2][1]).toEqual(['p1', 'd1', 'a1', 'r1', 'Appendectomy',
       expect.any(Date), expect.any(Date), 'CONFIRMED', 'u1',
     ]);
     expect(res).toEqual({ ...scheduleRow, theatre: 'OT1' });

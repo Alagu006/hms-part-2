@@ -1,4 +1,4 @@
-import { pool }               from '../../shared/db/pool.js';
+import { pool, withTransaction } from '../../shared/db/pool.js';
 import { auditLog }           from '../../shared/middleware/audit.js';
 import { createNotification } from '../../shared/services/notification.service.js';
 
@@ -12,26 +12,25 @@ export async function createOTSchedule(
   const start = new Date(scheduledAt);
   const end   = new Date(start.getTime() + durationMinutes * 60_000);
 
-  await checkConflict(theatre, start, end, null);
+  // Conflict check + INSERT must be atomic: two concurrent bookings for the
+  // same theatre could otherwise both pass the overlap check and double-book.
+  // Locking the room row FOR UPDATE serialises bookings per theatre.
+  const [row] = await withTransaction(async (client) => {
+    const roomId = await checkConflict(client, theatre, start, end, null);
+    const { rows } = await client.query(
+      `INSERT INTO ot_schedules
+         (id, patient_id, surgeon_id, anesthetist_id, room_id, procedure_name,
+          scheduled_start, scheduled_end, status, created_by, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+       RETURNING *`,
+      [patientId, doctorId, anesthetistId ?? null, roomId, procedure, start, end, status ?? 'SCHEDULED', createdBy]
+    );
+    return rows;
+  });
 
-  // Resolve theatre room_id
-  const { rows: roomRows } = await pool.query(
-    `SELECT id FROM rooms WHERE room_number = $1 AND room_type = 'OT' AND deleted_at IS NULL LIMIT 1`,
-    [theatre]
-  );
-  const roomId = roomRows[0]?.id ?? null;
+  const schedule = { ...row, theatre };
 
-  const { rows } = await pool.query(
-    `INSERT INTO ot_schedules
-       (id, patient_id, surgeon_id, anesthetist_id, room_id, procedure_name,
-        scheduled_start, scheduled_end, status, created_by, created_at, updated_at)
-     VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-     RETURNING *`,
-    [patientId, doctorId, anesthetistId ?? null, roomId, procedure, start, end, status ?? 'SCHEDULED', createdBy]
-  );
-  const schedule = { ...rows[0], theatre };
-
-  await auditLog({ userId: createdBy, action: 'CREATE', entity: 'ot_schedules', entityId: rows[0].id, nextData: rows[0], ip });
+  await auditLog({ userId: createdBy, action: 'CREATE', entity: 'ot_schedules', entityId: row.id, nextData: row, ip });
   await notifyOTParties(schedule, doctorId, anesthetistId, patientId, io, 'OT_SCHEDULED');
 
   return schedule;
@@ -101,60 +100,78 @@ export async function getOTSchedule(id) {
 // Update OT schedule
 // ---------------------------------------------------------------------------
 export async function updateOTSchedule(id, updates, userId, io, ip) {
-  const prev = await getOTSchedule(id);
-
-  // Conflict check if time/theatre changed
-  const theatre = updates.theatre ?? prev.theatre;
-  const start   = updates.scheduledAt ? new Date(updates.scheduledAt) : new Date(prev.scheduled_start);
-  const dur     = updates.durationMinutes ?? Math.round((new Date(prev.scheduled_end) - new Date(prev.scheduled_start)) / 60_000);
-  const end     = new Date(start.getTime() + dur * 60_000);
-
-  if (updates.scheduledAt || updates.theatre || updates.durationMinutes) {
-    await checkConflict(theatre, start, end, id);
-  }
-
-  const fields = [];
-  const params = [];
-  let p = 1;
-
-  const colMap = {
-    patientId: 'patient_id', doctorId: 'surgeon_id', anesthetistId: 'anesthetist_id',
-    procedure: 'procedure_name', status: 'status',
-  };
-
-  for (const [key, val] of Object.entries(updates)) {
-    if (key === 'theatre' || key === 'scheduledAt' || key === 'durationMinutes') continue;
-    const col = colMap[key] ?? key;
-    fields.push(`${col} = $${p++}`);
-    params.push(val);
-  }
-
-  if (updates.scheduledAt || updates.durationMinutes) {
-    fields.push(`scheduled_start = $${p++}`, `scheduled_end = $${p++}`);
-    params.push(start, end);
-  }
-
-  if (updates.theatre) {
-    const { rows: roomRows } = await pool.query(
-      `SELECT id FROM rooms WHERE room_number = $1 AND room_type = 'OT' AND deleted_at IS NULL LIMIT 1`,
-      [updates.theatre]
+  // Conflict check + UPDATE must be atomic (same race as create): the target
+  // schedule row and the theatre room row are locked FOR UPDATE so concurrent
+  // edits cannot both pass the overlap check.
+  const result = await withTransaction(async (client) => {
+    const { rows: prevRows } = await client.query(
+      `SELECT os.*, r.room_number AS theatre
+       FROM ot_schedules os
+       LEFT JOIN rooms r ON r.id = os.room_id
+       WHERE os.id = $1 AND os.deleted_at IS NULL
+       FOR UPDATE OF os`,
+      [id]
     );
-    fields.push(`room_id = $${p++}`);
-    params.push(roomRows[0]?.id ?? null);
-  }
+    if (!prevRows[0]) { const e = new Error('OT schedule not found'); e.status = 404; throw e; }
+    const prev = prevRows[0];
 
-  if (!fields.length) return prev;
-  fields.push(`updated_at = NOW()`);
-  params.push(id);
+    const theatre = updates.theatre ?? prev.theatre;
+    const start   = updates.scheduledAt ? new Date(updates.scheduledAt) : new Date(prev.scheduled_start);
+    const dur     = updates.durationMinutes ?? Math.round((new Date(prev.scheduled_end) - new Date(prev.scheduled_start)) / 60_000);
+    const end     = new Date(start.getTime() + dur * 60_000);
 
-  const { rows } = await pool.query(
-    `UPDATE ot_schedules SET ${fields.join(', ')} WHERE id = $${p} AND deleted_at IS NULL RETURNING *`,
-    params
-  );
-  if (!rows[0]) { const e = new Error('OT schedule not found'); e.status = 404; throw e; }
+    if (updates.scheduledAt || updates.theatre || updates.durationMinutes) {
+      await checkConflict(client, theatre, start, end, id);
+    }
 
-  await auditLog({ userId, action: 'UPDATE', entity: 'ot_schedules', entityId: id, prevData: prev, nextData: rows[0], ip });
-  return rows[0];
+    const fields = [];
+    const params = [];
+    let p = 1;
+
+    const colMap = {
+      patientId: 'patient_id', doctorId: 'surgeon_id', anesthetistId: 'anesthetist_id',
+      procedure: 'procedure_name', status: 'status',
+    };
+
+    for (const [key, val] of Object.entries(updates)) {
+      if (key === 'theatre' || key === 'scheduledAt' || key === 'durationMinutes') continue;
+      const col = colMap[key] ?? key;
+      fields.push(`${col} = $${p++}`);
+      params.push(val);
+    }
+
+    if (updates.scheduledAt || updates.durationMinutes) {
+      fields.push(`scheduled_start = $${p++}`, `scheduled_end = $${p++}`);
+      params.push(start, end);
+    }
+
+    if (updates.theatre) {
+      const { rows: roomRows } = await client.query(
+        `SELECT id FROM rooms WHERE room_number = $1 AND room_type = 'OT' AND deleted_at IS NULL LIMIT 1`,
+        [updates.theatre]
+      );
+      fields.push(`room_id = $${p++}`);
+      params.push(roomRows[0]?.id ?? null);
+    }
+
+    if (!fields.length) return { prev, changed: false };
+
+    fields.push(`updated_at = NOW()`);
+    params.push(id);
+
+    const { rows } = await client.query(
+      `UPDATE ot_schedules SET ${fields.join(', ')} WHERE id = $${p} AND deleted_at IS NULL RETURNING *`,
+      params
+    );
+    if (!rows[0]) { const e = new Error('OT schedule not found'); e.status = 404; throw e; }
+
+    return { prev, next: rows[0], changed: true };
+  });
+
+  if (!result.changed) return result.prev;
+
+  await auditLog({ userId, action: 'UPDATE', entity: 'ot_schedules', entityId: id, prevData: result.prev, nextData: result.next, ip });
+  return result.next;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,20 +188,24 @@ export async function deleteOTSchedule(id, userId, ip) {
 }
 
 // ---------------------------------------------------------------------------
-// Conflict check: no two surgeries in same theatre at same time
+// Conflict check: no two surgeries in same theatre at same time.
+// Runs on the supplied query runner (a transaction client when called from
+// create/update) and locks the theatre room row FOR UPDATE so concurrent
+// bookings for the same room are serialised. Returns the room id (or null if
+// the room does not exist — the check is skipped).
 // ---------------------------------------------------------------------------
-async function checkConflict(theatre, start, end, excludeId) {
-  const { rows: roomRows } = await pool.query(
-    `SELECT id FROM rooms WHERE room_number = $1 AND room_type = 'OT' AND deleted_at IS NULL LIMIT 1`,
+async function checkConflict(db, theatre, start, end, excludeId) {
+  const { rows: roomRows } = await db.query(
+    `SELECT id FROM rooms WHERE room_number = $1 AND room_type = 'OT' AND deleted_at IS NULL LIMIT 1 FOR UPDATE`,
     [theatre]
   );
-  if (!roomRows[0]) return; // room not found — skip check
+  if (!roomRows[0]) return null; // room not found — skip check
 
   const params = [roomRows[0].id, start, end];
   let excludeClause = '';
   if (excludeId) { excludeClause = `AND id != $4`; params.push(excludeId); }
 
-  const { rows } = await pool.query(
+  const { rows } = await db.query(
     `SELECT id FROM ot_schedules
      WHERE room_id = $1
        AND status NOT IN ('CANCELLED','COMPLETED')
@@ -199,6 +220,7 @@ async function checkConflict(theatre, start, end, excludeId) {
     e.status = 409;
     throw e;
   }
+  return roomRows[0].id;
 }
 
 // ---------------------------------------------------------------------------

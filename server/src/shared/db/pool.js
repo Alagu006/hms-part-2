@@ -153,5 +153,17 @@ pool.query = (sql, params) => {
 
 // pool.connect() returns the test client so transaction-owning services
 // (auditLog, refundBill, ...) stay inside the same rollback-able transaction.
+//
+// IMPORTANT: pg's Pool.query() internally calls this.connect(cb) — a
+// CALLBACK-style invocation. The override must keep that contract intact and
+// delegate to the real pool whenever no test client is active, or every
+// production pool.query() hangs waiting for a callback that never fires.
 const poolConnect = pool.connect.bind(pool);
-pool.connect = () => (testClient ? Promise.resolve(testClient) : poolConnect());
+pool.connect = (cb) => {
+  if (!testClient) return poolConnect(cb);
+  if (typeof cb === 'function') {
+    process.nextTick(cb, null, testClient, () => {});
+    return undefined;
+  }
+  return Promise.resolve(testClient);
+};
