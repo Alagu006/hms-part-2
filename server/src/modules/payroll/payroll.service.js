@@ -218,11 +218,20 @@ export async function processPayrollRun(runId, actorId) {
     throw err;
   }
 
-  // Mark as processing
-  await query(
-    `UPDATE payroll_runs SET status = 'PROCESSING', updated_at = NOW() WHERE id = $1`,
-    [runId]
+  // Atomically claim the run (previous status -> PROCESSING). Two concurrent
+  // requests could both pass the checks above; only the first claim succeeds,
+  // the second affects 0 rows and is rejected.
+  const { rows: claimed } = await query(
+    `UPDATE payroll_runs SET status = 'PROCESSING', updated_at = NOW()
+     WHERE id = $1 AND status = $2
+     RETURNING id`,
+    [runId, run.status]
   );
+  if (!claimed[0]) {
+    const err = new Error('Payroll run is already being processed');
+    err.status = 409;
+    throw err;
+  }
 
   const { period_year: year, period_month: month } = run;
 
@@ -247,7 +256,8 @@ export async function processPayrollRun(runId, actorId) {
   let totalNet         = 0;
   let errorCount       = 0;
 
-  await withTransaction(async (client) => {
+  try {
+    await withTransaction(async (client) => {
     // Delete any existing details for this run (re-process support)
     await client.query(
       `DELETE FROM payroll_details WHERE run_id = $1`,
@@ -283,17 +293,24 @@ export async function processPayrollRun(runId, actorId) {
 
         const ss = ssRows[0];
 
-        // Count approved leave days in this month
+        // Count approved leave days that actually fall in THIS month. Leaves
+        // spanning two months must not have their full days_count attributed to
+        // both months (that double-counted them), so each leave contributes only
+        // the business days of its overlap with the run's month.
         const { rows: leaveRows } = await client.query(
-          `SELECT COALESCE(SUM(days_count), 0) AS leave_days
+          `SELECT start_date, end_date
            FROM leaves
            WHERE user_id = $1
              AND status = 'APPROVED'
+             AND deleted_at IS NULL
              AND start_date <= $2
              AND end_date >= $3`,
           [emp.user_id, monthEnd, monthStart]
         );
-        const leaveDays = parseFloat(leaveRows[0]?.leave_days ?? 0);
+        const leaveDays = leaveRows.reduce(
+          (sum, lv) => sum + countBusinessDaysOverlap(lv.start_date, lv.end_date, year, month),
+          0
+        );
 
         // Simplified: no absent tracking — present = working - leave
         const presentDays = Math.max(0, workingDays - leaveDays);
@@ -359,9 +376,21 @@ export async function processPayrollRun(runId, actorId) {
         runId,
       ]
     );
-  });
+  });  // withTransaction
 
-  await auditLog(actorId, 'PROCESS', 'payroll_runs', runId, { status: run.status }, { status: 'PROCESSED' });
+    await auditLog(actorId, 'PROCESS', 'payroll_runs', runId, { status: run.status }, { status: 'PROCESSED' });
+  } catch (err) {
+    // The PROCESSING marker was set before the transaction; if anything above
+    // fails the transaction rolls back and the marker would linger forever,
+    // leaving the run stuck in PROCESSING with no recovery path. Reset it to
+    // the pre-run status so the run can be retried.
+    await query(
+      `UPDATE payroll_runs SET status = $1, updated_at = NOW()
+       WHERE id = $2 AND status = 'PROCESSING'`,
+      [run.status, runId]
+    ).catch(() => {});
+    throw err;
+  }
 
   const { rows: updated } = await query(
     `SELECT * FROM payroll_runs WHERE id = $1`,
@@ -458,6 +487,29 @@ function countWorkingDays(year, month) {
   for (let d = 1; d <= daysInMonth; d++) {
     const day = new Date(year, month - 1, d).getDay(); // 0=Sun, 6=Sat
     if (day !== 0 && day !== 6) count++;
+  }
+  return count;
+}
+
+/** Business days (Mon–Fri) a leave overlaps the given calendar month. */
+function countBusinessDaysOverlap(leaveStart, leaveEnd, year, month) {
+  // Construct month bounds with the LOCAL calendar so comparisons and getDay()
+  // stay consistent with pg's DATE->Date parsing (local midnight).
+  const monthFrom = new Date(year, month - 1, 1);
+  const monthTo   = new Date(year, month, 0);
+  const start     = new Date(leaveStart) > monthFrom ? new Date(leaveStart) : monthFrom;
+  const end       = new Date(leaveEnd) < monthTo ? new Date(leaveEnd) : monthTo;
+  return countBusinessDays(start, end);
+}
+
+/** Count Mon–Fri days between two dates (inclusive). */
+function countBusinessDays(start, end) {
+  let count = 0;
+  const cur = new Date(start);
+  while (cur <= new Date(end)) {
+    const day = cur.getDay();
+    if (day !== 0 && day !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
   }
   return count;
 }

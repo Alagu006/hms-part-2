@@ -174,7 +174,7 @@ const SS  = { id: 'ss1', basic_salary: 10000, hra_pct: 10, transport_allow: 1000
 function mockRunLookup(run = RUN) {
   return q
     .mockResolvedValueOnce({ rows: [run] })       // initial run lookup
-    .mockResolvedValueOnce({})                     // UPDATE status PROCESSING
+    .mockResolvedValueOnce({ rows: [{ id: 'r1' }] }) // claim: DRAFT -> PROCESSING
     .mockResolvedValueOnce({ rows: [{ user_id: 'u1' }] }); // employees
 }
 
@@ -205,7 +205,7 @@ describe('payroll.service — processPayrollRun', () => {
     clientQuery.mockImplementation(async (sql) => {
       if (sql.includes('DELETE FROM payroll_details')) return {};
       if (sql.includes('FROM salary_structures')) return { rows: [SS] };
-      if (sql.includes('SUM(days_count)')) return { rows: [{ leave_days: '0' }] };
+      if (sql.includes('FROM leaves')) return { rows: [] };
       if (sql.includes('INSERT INTO payroll_details')) return {};
       if (sql.includes('UPDATE payroll_runs')) return {};
       return { rows: [] };
@@ -245,7 +245,7 @@ describe('payroll.service — processPayrollRun', () => {
 
   it('marks the run ERROR when every employee fails', async () => {
     q.mockResolvedValueOnce({ rows: [RUN] })
-      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [{ id: 'r1' }] })
       .mockResolvedValueOnce({ rows: [{ user_id: 'u1' }] });
     clientQuery.mockImplementation(async (sql) => {
       if (sql.includes('DELETE FROM payroll_details')) return {};
@@ -275,6 +275,46 @@ describe('payroll.service — processPayrollRun', () => {
     expect(loggerError).toHaveBeenCalledWith('[payroll] Error processing employee', { userId: 'u1', message: 'boom' });
     const errorInsert = clientQuery.mock.calls.find((c) => c[0].includes('INSERT INTO payroll_details'));
     expect(errorInsert[1][3]).toBe('boom');
+  });
+
+  it('rejects a concurrent claim when the run is no longer DRAFT', async () => {
+    q.mockResolvedValueOnce({ rows: [RUN] })  // initial lookup sees DRAFT
+      .mockResolvedValueOnce({ rows: [] });    // claim UPDATE affects 0 rows
+    await expect(payroll.processPayrollRun('r1', 'a')).rejects.toMatchObject({
+      status: 409, message: 'Payroll run is already being processed',
+    });
+  });
+
+  it('resets a run to its prior status when processing fails', async () => {
+    mockRunLookup().mockResolvedValueOnce({ rows: [] }); // reset-on-failure UPDATE
+    withTx.mockImplementationOnce(async () => { throw new Error('txn boom'); });
+    await expect(payroll.processPayrollRun('r1', 'a')).rejects.toThrow('txn boom');
+    const reset = q.mock.calls[q.mock.calls.length - 1];
+    expect(reset[0]).toContain("SET status = $1");
+    expect(reset[0]).toContain("status = 'PROCESSING'");
+    expect(reset[1]).toEqual(['DRAFT', 'r1']);
+  });
+
+  it('attributes a cross-month leave only to the days inside the month', async () => {
+    mockRunLookup();
+    // Leave Fri 2025-03-28 -> Tue 2025-04-01: business days inside March are
+    // Fri 28 and Mon 31 = 2 (Apr 1 belongs to the April run, not March).
+    clientQuery.mockImplementation(async (sql) => {
+      if (sql.includes('DELETE FROM payroll_details')) return {};
+      if (sql.includes('FROM salary_structures')) return { rows: [SS] };
+      if (sql.includes('FROM leaves')) {
+        return { rows: [{ start_date: new Date(2025, 2, 28), end_date: new Date(2025, 3, 1) }] };
+      }
+      if (sql.includes('INSERT INTO payroll_details')) return {};
+      if (sql.includes('UPDATE payroll_runs')) return {};
+      return { rows: [] };
+    });
+    q.mockResolvedValueOnce({ rows: [{ ...RUN, status: 'PROCESSED' }] });
+
+    await payroll.processPayrollRun('r1', 'a');
+    const insert = clientQuery.mock.calls.find((c) => c[0].includes('INSERT INTO payroll_details'));
+    expect(insert[1][5]).toBe(2);   // leave_days: only the March business days
+    expect(insert[1][4]).toBe(19);  // present_days = 21 working days - 2
   });
 });
 
