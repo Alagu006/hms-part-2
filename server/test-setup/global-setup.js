@@ -143,6 +143,13 @@ export async function setup() {
   grants.options.database = TEST_DB_NAME;
   await grants.query(`GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hms_api`);
   await grants.query(`GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hms_api`);
+
+  // Audit-chain + migration-ledger hardening (mirrors setup-roles.js): the app
+  // role may INSERT audit rows and UPDATE only the flag columns, never DELETE
+  // or rewrite data columns; schema_migrations is migrator-only.
+  await grants.query(`REVOKE UPDATE, DELETE ON audit_logs FROM hms_api`);
+  await grants.query(`GRANT UPDATE (flagged, flag_reason, flagged_by, flagged_at) ON audit_logs TO hms_api`);
+  await grants.query(`REVOKE ALL ON schema_migrations FROM hms_api, hms_readonly`);
   await grants.end();
 
   console.log(`[global-setup] provisioned ${TEST_DB_NAME}: ${files.length} migrations (${applied} new) in ${Date.now() - started}ms`);

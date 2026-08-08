@@ -127,6 +127,18 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hms_api;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO hms_api;
 `);
 
+    // ── Audit-chain integrity ──────────────────────────────────────────────
+    // audit_logs carries the tamper-evidence hash chain. The app role may
+    // INSERT (audit middleware) and UPDATE only the flag columns (admin
+    // flag/unflag), but must never DELETE rows or rewrite data columns —
+    // otherwise the chain is editable at the DB role level.
+    await client.query(`REVOKE UPDATE, DELETE ON audit_logs FROM hms_api;`);
+    await client.query(`
+GRANT UPDATE (flagged, flag_reason, flagged_by, flagged_at) ON audit_logs TO hms_api;
+`);
+    // The migration ledger is written only by hms_migrator.
+    await client.query(`REVOKE ALL ON schema_migrations FROM hms_api, hms_readonly;`);
+
     // Read-only role for analytics/reporting.
     await client.query(`
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO hms_readonly;

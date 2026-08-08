@@ -78,12 +78,14 @@ async function checkApiCapabilities() {
     );
     ok('has NO CREATE (DDL) on schema public', createPriv[0]?.can_create === false);
 
-    // DML on every application table.
+    // DML on every application table except the tamper-protected ones.
+    const PROTECTED = new Set(['audit_logs', 'schema_migrations']);
     const { rows: tables } = await c.query(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
     );
     let allDml = true;
     for (const t of tables) {
+      if (PROTECTED.has(t.tablename)) continue;
       for (const priv of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) {
         const r = await c.query(
           `SELECT has_table_privilege(current_user, $1, $2) AS p`,
@@ -92,7 +94,31 @@ async function checkApiCapabilities() {
         if (r.rows[0].p !== true) { allDml = false; console.log(`    missing ${priv} on ${t.tablename}`); }
       }
     }
-    ok(`DML (SELECT/INSERT/UPDATE/DELETE) on all ${tables.length} app tables`, allDml);
+    ok(`DML (SELECT/INSERT/UPDATE/DELETE) on ${tables.length - PROTECTED.size} app tables (audit_logs/schema_migrations excluded)`, allDml);
+
+    // Audit chain posture: INSERT + flag-column UPDATE only — no table-level
+    // UPDATE of data columns, no DELETE.
+    const auditChecks = {
+      'audit_logs SELECT'                : `has_table_privilege(current_user, 'audit_logs', 'SELECT')`,
+      'audit_logs INSERT (audit logging)' : `has_table_privilege(current_user, 'audit_logs', 'INSERT')`,
+      'audit_logs UPDATE (data columns)'  : `has_table_privilege(current_user, 'audit_logs', 'UPDATE')`,
+      'audit_logs DELETE (tamper)'        : `has_table_privilege(current_user, 'audit_logs', 'DELETE')`,
+      'audit_logs.flagged UPDATE (flagging)': `has_column_privilege(current_user, 'audit_logs', 'flagged', 'UPDATE')`,
+      'audit_logs.action UPDATE (rewrite)' : `has_column_privilege(current_user, 'audit_logs', 'action', 'UPDATE')`,
+    };
+    for (const [name, expr] of Object.entries(auditChecks)) {
+      const { rows: r } = await c.query(`SELECT ${expr} AS p`);
+      ok(name, r[0]?.p === true);
+    }
+
+    // Migration ledger: no access for the app role.
+    for (const priv of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) {
+      const r = await c.query(
+        `SELECT has_table_privilege(current_user, 'schema_migrations', $1) AS p`,
+        [priv]
+      );
+      ok(`schema_migrations ${priv} denied`, r.rows[0].p === false);
+    }
 
     const { rows: viewPriv } = await c.query(
       `SELECT has_table_privilege(current_user, 'bill_status_view', 'SELECT') AS p`
@@ -143,7 +169,22 @@ async function checkApiDml() {
         `INSERT INTO audit_logs (user_id, action, entity) VALUES (NULL, 'VERIFY', 'verify') RETURNING id`
       );
       ok('INSERT audit_logs (audit middleware path)', audit.rowCount === 1);
-      await c.query(`DELETE FROM audit_logs WHERE id = $1`, [audit.rows[0].id]);
+      const auditId = audit.rows[0].id;
+
+      const flag = await c.query(
+        `UPDATE audit_logs SET flagged = TRUE, flag_reason = 'verify', flagged_at = NOW()
+         WHERE id = $1`, [auditId]
+      );
+      ok('UPDATE audit_logs flag columns (admin flag/unflag path)', flag.rowCount === 1);
+
+      // Tamper attempts must be rejected by Postgres — kept LAST because an
+      // error aborts the current transaction (ROLLBACK in finally still works).
+      await expectRejected('UPDATE audit_logs data column rejected (chain rewrite)', async () => {
+        await c.query(`UPDATE audit_logs SET action = 'tampered' WHERE id = $1`, [auditId]);
+      });
+      await expectRejected('DELETE audit_logs rejected (covering tracks)', async () => {
+        await c.query(`DELETE FROM audit_logs WHERE id = $1`, [auditId]);
+      });
     } finally {
       await c.query('ROLLBACK');
     }
