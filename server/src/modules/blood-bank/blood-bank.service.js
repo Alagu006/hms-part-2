@@ -107,25 +107,32 @@ export async function deleteBloodUnit(id, userId, ip) {
 // Request blood for patient
 // ---------------------------------------------------------------------------
 export async function requestBlood({ patientId, bloodGroup, units, reason }, doctorId, io, ip) {
-  // Check availability
-  const { rows: avail } = await pool.query(
-    `SELECT id, units FROM blood_bank
-     WHERE blood_group = $1 AND status = 'AVAILABLE' AND deleted_at IS NULL
-     ORDER BY expiry_date ASC`,
-    [bloodGroup]
-  );
-  const totalAvail = avail.reduce((s, r) => s + parseInt(r.units, 10), 0);
-  if (totalAvail < units) {
-    const e = new Error(`Insufficient ${bloodGroup} units. Available: ${totalAvail}, Requested: ${units}`);
-    e.status = 422;
-    throw e;
-  }
-
-  // Reserve units (FIFO by expiry)
-  let remaining = units;
   const client = await pool.connect();
   try {
+    // Availability check + reservation must be atomic AND serialised. Two
+    // concurrent requests for the same blood group used to both read
+    // availability outside any lock, then both reserve — over-reserving stock.
+    // Locking the matching AVAILABLE rows FOR UPDATE means the second request
+    // blocks until the first commits; it then re-reads the row versions, and
+    // rows it locked but that are now RESERVED no longer satisfy the WHERE, so
+    // they are excluded and the availability recheck is correct.
     await client.query('BEGIN');
+    const { rows: avail } = await client.query(
+      `SELECT id, units FROM blood_bank
+       WHERE blood_group = $1 AND status = 'AVAILABLE' AND deleted_at IS NULL
+       ORDER BY expiry_date ASC
+       FOR UPDATE`,
+      [bloodGroup]
+    );
+    const totalAvail = avail.reduce((s, r) => s + parseInt(r.units, 10), 0);
+    if (totalAvail < units) {
+      const e = new Error(`Insufficient ${bloodGroup} units. Available: ${totalAvail}, Requested: ${units}`);
+      e.status = 422;
+      throw e;
+    }
+
+    // Reserve units (FIFO by expiry)
+    let remaining = units;
     for (const row of avail) {
       if (remaining <= 0) break;
       const rowUnits = parseInt(row.units, 10);

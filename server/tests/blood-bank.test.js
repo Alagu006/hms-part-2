@@ -163,20 +163,24 @@ describe('blood-bank.service — deleteBloodUnit', () => {
 });
 
 describe('blood-bank.service — requestBlood', () => {
-  it('throws 422 when availability is insufficient', async () => {
-    q.mockResolvedValueOnce({ rows: [{ id: 'b1', units: '2' }] });
+  it('throws 422 when availability is insufficient (checked inside the txn)', async () => {
+    clientQuery.mockResolvedValueOnce({ rows: [] });                          // BEGIN
+    clientQuery.mockResolvedValueOnce({ rows: [{ id: 'b1', units: '2' }] });  // availability (FOR UPDATE)
     await expect(
       bloodBank.requestBlood({ patientId: 'p1', bloodGroup: 'A+', units: 5, reason: 'Surgery' }, 'd1', null, 'ip')
     ).rejects.toMatchObject({ message: expect.stringContaining('Insufficient A+ units'), status: 422 });
-    expect(poolConnect).not.toHaveBeenCalled();
+    expect(poolConnect).toHaveBeenCalled();
+    expect(clientQuery.mock.calls.map(([sql]) => sql)).toContain('ROLLBACK');
+    expect(client.release).toHaveBeenCalled();
   });
 
-  it('reserves FIFO units and splits partial units', async () => {
-    q.mockResolvedValueOnce({ rows: [{ id: 'b1', units: '10' }, { id: 'b2', units: '20' }] }) // availability
-      .mockResolvedValueOnce({ rows: [{ id: 'ad1' }] })                                      // admins
-      .mockResolvedValueOnce({ rows: [{ total: '10' }] });                                   // low-stock total (sufficient)
+  it('reserves FIFO units, locks availability FOR UPDATE, and splits partial units', async () => {
+    q.mockResolvedValueOnce({ rows: [{ id: 'ad1' }] })                      // admins (post-txn)
+      .mockResolvedValueOnce({ rows: [{ total: '10' }] });                  // low-stock total (sufficient)
 
-    clientQuery.mockResolvedValue({ rows: [] });
+    clientQuery.mockResolvedValueOnce({ rows: [] })                         // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'b1', units: '10' }, { id: 'b2', units: '20' }] }) // availability
+      .mockResolvedValue({ rows: [] });                                     // UPDATEs + INSERT + COMMIT
 
     const io = null;
     const res = await bloodBank.requestBlood(
@@ -185,14 +189,15 @@ describe('blood-bank.service — requestBlood', () => {
 
     const calls = clientQuery.mock.calls.map(([sql]) => sql);
     expect(calls[0]).toBe('BEGIN');
-    expect(calls[1]).toContain("status = 'RESERVED'");
-    expect(calls[2]).toContain('SET units = $1');
-    expect(calls[3]).toContain('INSERT INTO blood_bank');
-    expect(calls[4]).toBe('COMMIT');
+    expect(calls[1]).toContain('FOR UPDATE');                               // availability is lock-read
+    expect(calls[2]).toContain("status = 'RESERVED'");
+    expect(calls[3]).toContain('SET units = $1');
+    expect(calls[4]).toContain('INSERT INTO blood_bank');
+    expect(calls[5]).toBe('COMMIT');
 
-    expect(clientQuery.mock.calls[1][1]).toEqual(['b1']);
-    expect(clientQuery.mock.calls[2][1]).toEqual([15, 'b2']);
-    expect(clientQuery.mock.calls[3][1]).toEqual([5, 'b2']);
+    expect(clientQuery.mock.calls[2][1]).toEqual(['b1']);
+    expect(clientQuery.mock.calls[3][1]).toEqual([15, 'b2']);
+    expect(clientQuery.mock.calls[4][1]).toEqual([5, 'b2']);
     expect(client.release).toHaveBeenCalled();
 
     expect(createNotifMock).toHaveBeenCalledWith(
@@ -209,9 +214,9 @@ describe('blood-bank.service — requestBlood', () => {
   });
 
   it('rolls back the transaction on failure', async () => {
-    q.mockResolvedValueOnce({ rows: [{ id: 'b1', units: '10' }] });
-    clientQuery.mockResolvedValueOnce({ rows: [] });  // BEGIN
-    clientQuery.mockRejectedValueOnce(new Error('db down'));
+    clientQuery.mockResolvedValueOnce({ rows: [] })                         // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 'b1', units: '10' }] })         // availability
+      .mockRejectedValueOnce(new Error('db down'));                         // UPDATE fails
 
     await expect(
       bloodBank.requestBlood({ patientId: 'p1', bloodGroup: 'A+', units: 5 }, 'd1', null, 'ip')
