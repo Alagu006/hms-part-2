@@ -3,7 +3,12 @@ import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { apiFetch, API_BASE } from '../../shared/utils/api.js';
 import { useAuth, getAccessToken } from '../../shared/store/index.js';
-import { encryptChatMessage, decryptChatMessage } from './teleCrypto.js';
+import {
+  encryptChatMessage,
+  decryptChatMessage,
+  generateRoomKeyPair,
+  deriveRoomKey,
+} from './teleCrypto.js';
 import styles from './TeleRoom.module.scss';
 
 import { getSocketUrl } from '../../shared/utils/socketUrl.js';
@@ -102,6 +107,10 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
   const [sessionId, setSessionId]   = useState(sessionIdProp ?? null);
   const [tokenData, setTokenData]   = useState(null);
   const roomKeyRef = useRef(null); // AES-256 group key for in-call chat (base64)
+  const ecdhRef       = useRef(null);   // { keyPair, publicKeyJwk } — chat key agreement
+  const sentKeyToRef  = useRef(new Set()); // peer userIds we've replied our public key to
+  const pendingOutRef = useRef([]);        // outgoing texts queued until the key is derived
+  const pendingInRef  = useRef([]);        // incoming ciphertexts queued until the key is derived
   const [status, setStatus]         = useState('loading');
   const [error, setError]           = useState('');
   const [peers, setPeers]           = useState([]);   // { socketId, userId, firstName, lastName, role }
@@ -180,14 +189,23 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
             setPeers(prev => prev.find(p => p.socketId === peer.socketId) ? prev : [...prev, peer]);
             await sendOffer(peer.socketId);
           }
+          // Begin chat key agreement: broadcast our ECDH public key so peers
+          // already in the room can derive the shared AES key with us.
+          await ensureKeyPair();
+          sendPublicKey();
         });
       });
 
       // New peer joined — add to list; they will send us an offer
       socket.on('tele:peer-joined', ({ socketId, userId, firstName, lastName, role }) => {
         setPeers(prev => prev.find(p => p.socketId === socketId) ? prev : [...prev, { socketId, userId, firstName, lastName, role }]);
+        // They may have missed our key exchange broadcast — send ours to them
+        if (ecdhRef.current) sendPublicKey(socketId);
         // The joining peer sends the offer; we just wait
       });
+
+      // Peer's ECDH public key → derive the shared room chat key
+      socket.on('tele:key-exchange', handleKeyExchange);
 
       // Receive signal
       socket.on('tele:signal', async ({ signal, fromSocketId, fromUserId, firstName, lastName, role }) => {
@@ -243,8 +261,8 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
       });
 
       socket.on('tele:chat', ({ firstName, ciphertext, iv }) => {
-        // Decrypt if we have the room key; otherwise show a placeholder
-        if (roomKeyRef.current && ciphertext && iv) {
+        if (!ciphertext || !iv) return;
+        if (roomKeyRef.current) {
           decryptChatMessage(ciphertext, iv, roomKeyRef.current)
             .then((text) => {
               setChat(prev => [...prev, { text, firstName, own: false }]);
@@ -253,9 +271,65 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
               setChat(prev => [...prev, { text: '[encrypted message]', firstName, own: false }]);
             });
         } else {
-          setChat(prev => [...prev, { text: '[encrypted message]', firstName, own: false }]);
+          // Key not derived yet — hold the message until it arrives
+          pendingInRef.current.push({ firstName, ciphertext, iv });
         }
       });
+    }
+
+    // ── Chat key agreement helpers ───────────────────────────────────────────
+    async function ensureKeyPair() {
+      if (!ecdhRef.current) ecdhRef.current = await generateRoomKeyPair();
+      return ecdhRef.current;
+    }
+
+    function sendPublicKey(targetSocketId) {
+      if (!ecdhRef.current) return;
+      socketRef.current?.emit('tele:key-exchange', {
+        roomId     : tokenData.roomId,
+        publicKey  : ecdhRef.current.publicKeyJwk,
+        ...(targetSocketId ? { targetSocketId } : {}),
+      });
+    }
+
+    async function handleKeyExchange({ fromUserId, publicKey }) {
+      if (!fromUserId || !publicKey) return;
+      try {
+        const { keyPair } = await ensureKeyPair();
+        const keyBase64 = await deriveRoomKey(keyPair.privateKey, publicKey);
+        roomKeyRef.current = keyBase64;
+        // Reply with our public key once per peer — this is how a peer that
+        // joined before us (and missed our join broadcast) learns our key.
+        if (!sentKeyToRef.current.has(fromUserId)) {
+          sentKeyToRef.current.add(fromUserId);
+          sendPublicKey();
+        }
+        flushPendingChat();
+      } catch (e) {
+        console.error('[tele] key exchange failed:', e.message);
+      }
+    }
+
+    // Send/decrypt anything that arrived before the shared key existed.
+    function flushPendingChat() {
+      if (!roomKeyRef.current) return;
+
+      const outgoing = pendingOutRef.current.splice(0);
+      for (const text of outgoing) {
+        encryptChatMessage(text, roomKeyRef.current)
+          .then(({ ciphertext, iv }) => {
+            socketRef.current?.emit('tele:chat', { roomId: tokenData.roomId, ciphertext, iv });
+            setChat(prev => [...prev, { text, firstName: user?.firstName, own: true }]);
+          })
+          .catch(err => console.error('[tele] chat encrypt error:', err.message));
+      }
+
+      const incoming = pendingInRef.current.splice(0);
+      for (const msg of incoming) {
+        decryptChatMessage(msg.ciphertext, msg.iv, roomKeyRef.current)
+          .then((text) => setChat(prev => [...prev, { text, firstName: msg.firstName, own: false }]))
+          .catch(() => setChat(prev => [...prev, { text: '[encrypted message]', firstName: msg.firstName, own: false }]));
+      }
     }
 
     async function sendOffer(targetSocketId) {
@@ -328,6 +402,11 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
       screenStreamRef.current?.getTracks().forEach(t => t.stop());
       Object.values(pcsRef.current).forEach(pc => pc.close());
       pcsRef.current = {};
+      roomKeyRef.current = null;
+      ecdhRef.current    = null;
+      sentKeyToRef.current.clear();
+      pendingOutRef.current = [];
+      pendingInRef.current  = [];
       socketRef.current?.disconnect();
     };
   }, [tokenData]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -388,10 +467,11 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
   function handleSendChat(text) {
     if (!tokenData) return;
 
-    // If no room key yet, generate one and store it in memory only
+    // If the shared key is not ready yet, hold the message — it is sent
+    // automatically the moment both sides finish the ECDH key exchange.
     if (!roomKeyRef.current) {
-      const rawKey = crypto.getRandomValues(new Uint8Array(32));
-      roomKeyRef.current = btoa(String.fromCharCode(...rawKey));
+      pendingOutRef.current.push(text);
+      return;
     }
 
     encryptChatMessage(text, roomKeyRef.current)

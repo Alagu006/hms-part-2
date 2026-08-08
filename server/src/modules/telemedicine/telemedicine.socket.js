@@ -148,6 +148,24 @@ export function registerTelemedicineSocket(io) {
       });
     });
 
+    // ── tele:key-exchange — relay ECDH public keys for chat key agreement ──
+    // The public key is public by design; the derived AES key never travels.
+    // Room membership is gated by tele:join (validateParticipant), so only
+    // authenticated session participants receive each other's public keys.
+    socket.on('tele:key-exchange', ({ roomId, publicKey, targetSocketId }) => {
+      if (!roomId || !publicKey) return;
+      const payload = {
+        fromSocketId: socket.id,
+        fromUserId  : user.id,
+        publicKey,
+      };
+      if (targetSocketId) {
+        teleNs.to(targetSocketId).emit('tele:key-exchange', payload);
+      } else {
+        socket.to(`tele:${roomId}`).emit('tele:key-exchange', payload);
+      }
+    });
+
     // ── tele:leave ────────────────────────────────────────────────────────
     socket.on('tele:leave', ({ roomId }) => {
       if (!roomId) return;
