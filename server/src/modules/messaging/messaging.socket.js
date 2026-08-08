@@ -39,6 +39,22 @@ function authenticateSocket(socket, next) {
 }
 
 // ---------------------------------------------------------------------------
+// R15 guards — never trust a client-supplied groupId/messageId. Every handler
+// must prove the user is still a member of the group it names, and message
+// events must point at the message's REAL group (resolved server-side).
+// ---------------------------------------------------------------------------
+async function isMember(groupId, userId) {
+  if (!groupId) return false;
+  return svc.isMember(groupId, userId);
+}
+
+async function canAccessMessage(userId, messageId, groupId) {
+  const msg = await svc.getMessageGroup(messageId);
+  if (!msg || msg.group_id !== groupId) return false;
+  return svc.isMember(groupId, userId);
+}
+
+// ---------------------------------------------------------------------------
 // Track online presence
 // ---------------------------------------------------------------------------
 function markOnline(userId, socketId) {
@@ -154,6 +170,8 @@ export function registerMessagingSocket(io) {
     // ── message:delivered ────────────────────────────────────────────────────
     socket.on('message:delivered', async ({ messageId, groupId }) => {
       if (!messageId || !groupId) return;
+      // R15: only members of the message's real group may emit delivery events
+      if (!(await canAccessMessage(user.id, messageId, groupId))) return;
       await svc.publishEvent('message:delivered', {
         messageId,
         groupId,
@@ -164,6 +182,7 @@ export function registerMessagingSocket(io) {
     // ── message:read ─────────────────────────────────────────────────────────
     socket.on('message:read', async ({ groupId, lastReadMessageId }) => {
       if (!groupId) return;
+      if (!(await isMember(groupId, user.id))) return;
       try {
         await svc.markGroupRead(groupId, user.id);
         await svc.publishEvent('message:read', {
@@ -177,8 +196,9 @@ export function registerMessagingSocket(io) {
     });
 
     // ── typing:start / typing:stop ───────────────────────────────────────────
-    socket.on('typing:start', ({ groupId }) => {
+    socket.on('typing:start', async ({ groupId }) => {
       if (!groupId) return;
+      if (!(await isMember(groupId, user.id))) return;
       socket.to(`group:${groupId}`).emit('typing:start', {
         groupId,
         userId   : user.id,
@@ -198,8 +218,9 @@ export function registerMessagingSocket(io) {
       typingTimers.set(timerKey, timer);
     });
 
-    socket.on('typing:stop', ({ groupId }) => {
+    socket.on('typing:stop', async ({ groupId }) => {
       if (!groupId) return;
+      if (!(await isMember(groupId, user.id))) return;
       const timerKey = `${user.id}:${groupId}`;
       if (typingTimers.has(timerKey)) {
         clearTimeout(typingTimers.get(timerKey));
@@ -214,6 +235,10 @@ export function registerMessagingSocket(io) {
     // ── message:react ────────────────────────────────────────────────────────
     socket.on('message:react', async ({ messageId, groupId, emoji }, ack) => {
       if (!messageId || !emoji || !groupId) return ack?.({ error: 'Missing fields' });
+      // R15: only members of the message's real group may react
+      if (!(await canAccessMessage(user.id, messageId, groupId))) {
+        return ack?.({ error: 'Forbidden' });
+      }
       try {
         const reactions = await svc.addReaction(messageId, user.id, emoji);
         await svc.publishEvent('message:reactions', { groupId, messageId, reactions });
@@ -225,6 +250,9 @@ export function registerMessagingSocket(io) {
 
     socket.on('message:unreact', async ({ messageId, groupId, emoji }, ack) => {
       if (!messageId || !emoji || !groupId) return ack?.({ error: 'Missing fields' });
+      if (!(await canAccessMessage(user.id, messageId, groupId))) {
+        return ack?.({ error: 'Forbidden' });
+      }
       try {
         await svc.removeReaction(messageId, user.id, emoji);
         const { rows } = await svc.getReactions(messageId);
@@ -239,13 +267,19 @@ export function registerMessagingSocket(io) {
     socket.on('message:delete', async ({ messageId, groupId }, ack) => {
       if (!messageId || !groupId) return ack?.({ error: 'Missing fields' });
       try {
+        // R15: fan-out must target the message's REAL group, never the
+        // client-supplied groupId — resolve it server-side and require a match.
+        const msg = await svc.getMessageGroup(messageId);
+        if (!msg)                 return ack?.({ error: 'Message not found' });
+        if (msg.group_id !== groupId) return ack?.({ error: 'Forbidden' });
+
         const result = await svc.deleteMessage(messageId, user.id);
         if (!result)              return ack?.({ error: 'Message not found' });
         if (result === 'FORBIDDEN') return ack?.({ error: 'Not your message' });
 
         if (result.deleteForEveryone) {
           await svc.publishEvent('message:deleted', {
-            groupId,
+            groupId: msg.group_id,
             messageId,
             deleteForEveryone: true,
           });

@@ -167,6 +167,15 @@ export async function isMember(groupId, userId) {
   return rows.length > 0;
 }
 
+export async function getMessageGroup(messageId) {
+  const { rows } = await query(
+    `SELECT id, group_id, sender_id FROM messages
+     WHERE id = $1 AND is_deleted = FALSE`,
+    [messageId]
+  );
+  return rows[0] ?? null;
+}
+
 export async function addMember(groupId, userId) {
   await query(
     `INSERT INTO message_group_members (id, group_id, user_id, role, joined_at)
