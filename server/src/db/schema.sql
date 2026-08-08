@@ -294,8 +294,11 @@ CREATE TABLE prescriptions (
     medical_record_id   UUID NOT NULL REFERENCES medical_records(id),
     patient_id          UUID NOT NULL REFERENCES patients(id),
     prescribed_by       UUID NOT NULL REFERENCES users(id),
+    nurse_id            UUID REFERENCES users(id),
+    nurse_instructions  TEXT,
     prescribed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     status              TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','DISPENSED','PARTIALLY_DISPENSED','CANCELLED')),
+    dispensed_at        TIMESTAMPTZ,
     notes               TEXT,   -- pgp_sym_encrypt at app layer
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -311,6 +314,7 @@ CREATE TABLE prescription_items (
     duration_days   INT CHECK (duration_days > 0),
     quantity        INT NOT NULL CHECK (quantity > 0),
     instructions    TEXT,   -- pgp_sym_encrypt at app layer
+    dispensed_at    TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
