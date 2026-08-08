@@ -35,7 +35,7 @@ function authenticateSocket(socket, next) {
 // ---------------------------------------------------------------------------
 // Validate that the user is a participant in the session for this roomId
 // ---------------------------------------------------------------------------
-async function validateParticipant(roomId, userId) {
+export async function validateParticipant(roomId, userId) {
   const { rows } = await query(
     `SELECT ts.id, ts.doctor_id, ts.status,
             a.scheduled_at, a.duration_minutes,
@@ -59,6 +59,14 @@ async function validateParticipant(roomId, userId) {
   if (Date.now() > expiry && session.status === 'COMPLETED') return null;
 
   return { session, role: isDoctor ? 'doctor' : 'patient' };
+}
+
+// R16: a socket may only relay events into the room it actually joined via
+// tele:join — the ONLY place socket.data.roomId is set, after validateParticipant
+// confirmed the user is a participant. The client-supplied roomId on any other
+// event is never trusted.
+function inRoom(socket, roomId) {
+  return !!roomId && socket.data?.roomId === roomId;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,7 +119,7 @@ export function registerTelemedicineSocket(io) {
 
     // ── tele:signal — relay WebRTC signaling data ─────────────────────────
     socket.on('tele:signal', ({ roomId, signal, targetSocketId, role }) => {
-      if (!roomId || !signal) return;
+      if (!roomId || !signal || !inRoom(socket, roomId)) return;
 
       const payload = {
         signal,
@@ -131,13 +139,13 @@ export function registerTelemedicineSocket(io) {
 
     // ── tele:admit — doctor admits patient (kept for compatibility) ──────────
     socket.on('tele:admit', ({ roomId, targetUserId }) => {
-      if (!roomId || !targetUserId) return;
+      if (!roomId || !targetUserId || !inRoom(socket, roomId)) return;
       teleNs.to(`tele:${roomId}`).emit('tele:admitted', { admittedBy: user.id, targetUserId });
     });
 
     // ── tele:chat — in-call encrypted chat message ────────────────────────
     socket.on('tele:chat', ({ roomId, ciphertext, iv }) => {
-      if (!roomId || !ciphertext || !iv) return;
+      if (!roomId || !ciphertext || !iv || !inRoom(socket, roomId)) return;
       // Relay ciphertext only — never log content
       socket.to(`tele:${roomId}`).emit('tele:chat', {
         fromUserId  : user.id,
@@ -153,7 +161,7 @@ export function registerTelemedicineSocket(io) {
     // Room membership is gated by tele:join (validateParticipant), so only
     // authenticated session participants receive each other's public keys.
     socket.on('tele:key-exchange', ({ roomId, publicKey, targetSocketId }) => {
-      if (!roomId || !publicKey) return;
+      if (!roomId || !publicKey || !inRoom(socket, roomId)) return;
       const payload = {
         fromSocketId: socket.id,
         fromUserId  : user.id,
@@ -168,13 +176,14 @@ export function registerTelemedicineSocket(io) {
 
     // ── tele:leave ────────────────────────────────────────────────────────
     socket.on('tele:leave', ({ roomId }) => {
-      if (!roomId) return;
+      if (!roomId || !inRoom(socket, roomId)) return;
       socket.to(`tele:${roomId}`).emit('tele:peer-left', {
         userId   : user.id,
         firstName: user.firstName,
         role     : socket.data.role,
       });
       socket.leave(`tele:${roomId}`);
+      socket.data.roomId = null; // no further relays allowed after leaving
     });
 
     // ── disconnect ────────────────────────────────────────────────────────

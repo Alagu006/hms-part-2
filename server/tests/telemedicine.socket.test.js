@@ -62,6 +62,7 @@ beforeEach(() => {
 describe('telemedicine socket — tele:key-exchange relay', () => {
   it('broadcasts a participant public key to the room', () => {
     const { captured, socket } = setup();
+    socket.data.roomId = 'room1'; // simulated prior validated tele:join
     socket.emit('tele:key-exchange', { roomId: 'room1', publicKey: PUBKEY });
 
     expect(captured).toHaveLength(1);
@@ -74,6 +75,7 @@ describe('telemedicine socket — tele:key-exchange relay', () => {
 
   it('targets a specific socket when targetSocketId is provided', () => {
     const { captured, socket } = setup();
+    socket.data.roomId = 'room1';
     socket.emit('tele:key-exchange', { roomId: 'room1', publicKey: PUBKEY, targetSocketId: 'sockA' });
 
     expect(captured).toHaveLength(1);
@@ -84,7 +86,55 @@ describe('telemedicine socket — tele:key-exchange relay', () => {
 
   it('ignores payloads without a public key', () => {
     const { captured, socket } = setup();
+    socket.data.roomId = 'room1';
     socket.emit('tele:key-exchange', { roomId: 'room1' });
     expect(captured).toHaveLength(0);
+  });
+});
+
+describe('telemedicine socket — R16 room-membership guard', () => {
+  it('drops key-exchange/signal/chat/admit for a room the socket never joined', () => {
+    const { captured, socket } = setup();
+    // No tele:join → socket.data.roomId is unset. All relays must be dropped.
+    socket.emit('tele:key-exchange', { roomId: 'room1', publicKey: PUBKEY });
+    socket.emit('tele:signal', { roomId: 'room1', signal: 'SDP' });
+    socket.emit('tele:chat', { roomId: 'room1', ciphertext: 'x', iv: 'iv' });
+    socket.emit('tele:admit', { roomId: 'room1', targetUserId: 'user2' });
+    expect(captured).toHaveLength(0);
+  });
+
+  it('drops relays that name a different room than the one joined', () => {
+    const { captured, socket } = setup();
+    socket.data.roomId = 'room1'; // joined room1 via validated tele:join
+
+    // Attacker tries to inject into a room they are NOT in.
+    socket.emit('tele:signal', { roomId: 'room2', signal: 'SDP' });
+    socket.emit('tele:chat', { roomId: 'room2', ciphertext: 'x', iv: 'iv' });
+    socket.emit('tele:key-exchange', { roomId: 'room2', publicKey: PUBKEY });
+    socket.emit('tele:admit', { roomId: 'room2', targetUserId: 'user2' });
+    socket.emit('tele:leave', { roomId: 'room2' });
+    expect(captured).toHaveLength(0);
+  });
+
+  it('relays only into the room the socket actually joined', () => {
+    const { captured, socket } = setup();
+    socket.data.roomId = 'room1';
+
+    socket.emit('tele:signal', { roomId: 'room1', signal: 'SDP' });
+    socket.emit('tele:chat', { roomId: 'room1', ciphertext: 'x', iv: 'iv' });
+    expect(captured.map((c) => c.event)).toEqual(['tele:signal', 'tele:chat']);
+    expect(captured.every((c) => c.room === 'tele:room1')).toBe(true);
+  });
+
+  it('clears the room on leave so no further relays are accepted', () => {
+    const { captured, socket } = setup();
+    socket.data.roomId = 'room1';
+
+    socket.emit('tele:leave', { roomId: 'room1' });
+    expect(captured.some((c) => c.event === 'tele:peer-left')).toBe(true);
+    expect(socket.data.roomId).toBeNull();
+
+    socket.emit('tele:key-exchange', { roomId: 'room1', publicKey: PUBKEY });
+    expect(captured.filter((c) => c.event === 'tele:key-exchange')).toHaveLength(0);
   });
 });
