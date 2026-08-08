@@ -184,7 +184,7 @@ describe('vitals.service — recordVitals', () => {
 
     await vitals.recordVitals({ patientId: 'p1', medicalRecordId: 'mr1', spo2: 90 }, 'n1', 'ip', 'ua');
     await flush();
-    expect(loggerError).toHaveBeenCalledWith('[vitals] Alert trigger failed', expect.anything());
+    expect(loggerError).toHaveBeenCalledWith('[vitals] CRITICAL alert failed to fire — patient safety check', expect.anything());
   });
 });
 

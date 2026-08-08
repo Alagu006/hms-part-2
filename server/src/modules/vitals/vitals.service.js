@@ -41,12 +41,15 @@ async function triggerAlerts(vitals, patientId, patientName, recordedBy) {
   if (!alerts.length) return;
 
   // Find assigned doctor(s) for this patient via latest medical record
+  // NOTE: with SELECT DISTINCT, ORDER BY must reference a select-list column.
+  // DISTINCT ON (u.id) returns one row per doctor (their most recent visit),
+  // which is what this alert path needs.
   const { rows: doctors } = await query(
-    `SELECT DISTINCT u.id, u.first_name, u.last_name
+    `SELECT DISTINCT ON (u.id) u.id, u.first_name, u.last_name
      FROM medical_records mr
      JOIN users u ON u.id = mr.attending_doctor_id
      WHERE mr.patient_id = $1 AND mr.deleted_at IS NULL
-     ORDER BY mr.visit_date DESC
+     ORDER BY u.id, mr.visit_date DESC
      LIMIT 3`,
     [patientId]
   );
@@ -147,10 +150,18 @@ export async function recordVitals(data, recordedBy, ip, userAgent) {
     userAgent,
   });
 
-  // Fire-and-forget alert check
+  // Fire-and-forget alert check. This is patient-safety critical: a failure to
+  // alert must be LOUD, not silently swallowed — log full context (stack, code,
+  // constraint, patientId) so operators can see that an alert did not fire.
   const patientName = `${patient.first_name} ${patient.last_name}`;
   triggerAlerts(data, patientId, patientName, recordedBy).catch((err) =>
-    logger.error('[vitals] Alert trigger failed', { message: err.message })
+    logger.error('[vitals] CRITICAL alert failed to fire — patient safety check', {
+      message  : err.message,
+      code     : err.code,
+      constraint: err.constraint,
+      stack    : err.stack,
+      patientId,
+    })
   );
 
   return vital;
