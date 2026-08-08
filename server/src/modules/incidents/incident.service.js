@@ -1,6 +1,11 @@
 import { pool }               from '../../shared/db/pool.js';
+import { pgEncrypt, pgDecrypt } from '../../shared/db/pgcrypto.js';
 import { auditLog }           from '../../shared/middleware/audit.js';
 import { createNotification } from '../../shared/services/notification.service.js';
+
+async function decryptSafe(value) {
+  try { return await pgDecrypt(value); } catch { return null; }
+}
 
 // ---------------------------------------------------------------------------
 // Report incident
@@ -12,12 +17,12 @@ export async function createIncident(
   const { rows } = await pool.query(
     `INSERT INTO incidents
        (id, reported_by, patient_id, incident_type, severity, description,
-        occurred_at, status, created_at, updated_at)
+         occurred_at, status, created_at, updated_at)
      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), 'OPEN', NOW(), NOW())
      RETURNING *`,
-    [reportedBy, patientId ?? null, type, severity, description]
+    [reportedBy, patientId ?? null, type, severity, description != null ? await pgEncrypt(description) : null]
   );
-  const incident = rows[0];
+  const incident = { ...rows[0], description: await decryptSafe(rows[0]?.description) };
 
   // Store witnesses
   if (witnessIds?.length) {
@@ -79,5 +84,5 @@ export async function getIncidents({ type, severity, status, page = 1, limit = 2
      LIMIT $${p++} OFFSET $${p++}`,
     params
   );
-  return rows;
+  return Promise.all(rows.map(async (r) => ({ ...r, description: await decryptSafe(r.description) })));
 }

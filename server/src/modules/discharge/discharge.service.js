@@ -1,7 +1,22 @@
 import { pool }                from '../../shared/db/pool.js';
+import { pgEncrypt, pgDecrypt } from '../../shared/db/pgcrypto.js';
 import { auditLog }            from '../../shared/middleware/audit.js';
 import { createNotification }  from '../../shared/services/notification.service.js';
 import { sendNotification } from '../../shared/services/email.service.js';
+
+const ENCRYPTED_FIELDS = ['final_diagnosis', 'treatment_summary', 'follow_up_notes', 'medications_on_discharge'];
+
+async function decryptSafe(value) {
+  try { return await pgDecrypt(value); } catch { return null; }
+}
+
+async function decryptSummary(summary) {
+  if (!summary) return null;
+  const decrypted = await Promise.all(ENCRYPTED_FIELDS.map((f) => decryptSafe(summary[f])));
+  const out = { ...summary };
+  ENCRYPTED_FIELDS.forEach((f, i) => { out[f] = decrypted[i]; });
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Create discharge summary
@@ -27,21 +42,24 @@ export async function createDischargeSummary(
   const { rows } = await pool.query(
     `INSERT INTO discharge_summaries
        (id, patient_id, discharged_by, discharge_date, final_diagnosis,
-        treatment_summary, medications_on_discharge, follow_up_date,
-        follow_up_notes, discharge_type, discharge_condition, medical_record_id, created_at, updated_at)
+         treatment_summary, medications_on_discharge, follow_up_date,
+         follow_up_notes, discharge_type, discharge_condition, medical_record_id, created_at, updated_at)
      VALUES
        (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8,
-        'REGULAR', 'STABLE',
-        (SELECT id FROM medical_records WHERE patient_id = $1 ORDER BY created_at DESC LIMIT 1),
-        NOW(), NOW())
+         'REGULAR', 'STABLE',
+         (SELECT id FROM medical_records WHERE patient_id = $1 ORDER BY created_at DESC LIMIT 1),
+         NOW(), NOW())
      RETURNING *`,
     [
-      patientId, doctorId, dischargeDate, diagnosis,
-      treatmentSummary ?? null, dischargeMedications ?? null,
-      followUpDate ?? null, instructions ?? null,
+      patientId, doctorId, dischargeDate,
+      await pgEncrypt(diagnosis),
+      treatmentSummary != null ? await pgEncrypt(treatmentSummary) : null,
+      dischargeMedications != null ? await pgEncrypt(dischargeMedications) : null,
+      followUpDate ?? null,
+      instructions != null ? await pgEncrypt(instructions) : null,
     ]
   );
-  const summary = rows[0];
+  const summary = await decryptSummary(rows[0]);
 
   await auditLog({ userId: doctorId, action: 'CREATE', entity: 'discharge_summaries', entityId: summary.id, nextData: summary, ip });
 
@@ -83,7 +101,7 @@ export async function getPatientDischargeSummaries(patientId) {
      ORDER BY ds.discharge_date DESC`,
     [patientId]
   );
-  return rows;
+  return Promise.all(rows.map(decryptSummary));
 }
 
 // ---------------------------------------------------------------------------

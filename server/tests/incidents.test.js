@@ -17,6 +17,11 @@ vi.mock('../src/shared/db/pool.js', () => ({
   withTransaction: vi.fn(),
 }));
 
+vi.mock('../src/shared/db/pgcrypto.js', () => ({
+  pgEncrypt: async (v) => (v == null ? null : `enc(${v})`),
+  pgDecrypt: async (v) => (v == null ? null : (typeof v === 'string' && v.startsWith('enc(') ? v.slice(4, -1) : v)),
+}));
+
 vi.mock('../src/shared/middleware/audit.js', () => ({
   auditLog      : auditMock,
   auditMiddleware: vi.fn(),
@@ -43,7 +48,7 @@ describe('incident.service — createIncident', () => {
       'u1', null, 'ip'
     );
 
-    expect(q.mock.calls[0][1]).toEqual(['u1', 'p1', 'FALL', 2, 'slip']);
+    expect(q.mock.calls[0][1]).toEqual(['u1', 'p1', 'FALL', 2, 'enc(slip)']);
     const witnessSql = q.mock.calls[1][0];
     expect(witnessSql).toContain('INSERT INTO incident_witnesses');
     expect(witnessSql).toContain('(gen_random_uuid(), $2, $1)');
@@ -97,7 +102,7 @@ describe('incident.service — getIncidents', () => {
     const [sql, params] = q.mock.calls[0];
     expect(sql).toContain('WHERE i.deleted_at IS NULL');
     expect(params).toEqual([20, 0]);
-    expect(res).toEqual([{ id: 'i1' }]);
+    expect(res).toEqual([{ id: 'i1', description: null }]);
   });
 
   it('filters by type, severity and status', async () => {

@@ -102,6 +102,11 @@ for (const file of files) {
     // Run the migration and record it atomically: if the SQL fails, the
     // ROLLBACK undoes both the schema change and the tracking insert.
     await client.query('BEGIN');
+    // Expose PG_CRYPTO_KEY to data migrations (e.g. at-rest plaintext backfills)
+    // as a transaction-local GUC, so pgp_sym_encrypt/decrypt can be re-keyed.
+    if (process.env.PG_CRYPTO_KEY) {
+      await client.query('SELECT set_config($1, $2, true)', ['app.pgcrypto_key', process.env.PG_CRYPTO_KEY]);
+    }
     await client.query(sql);
     await client.query(
       'INSERT INTO schema_migrations (filename) VALUES ($1)',

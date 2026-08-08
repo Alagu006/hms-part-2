@@ -21,6 +21,11 @@ vi.mock('../src/shared/db/pool.js', () => ({
   withTransaction: vi.fn(),
 }));
 
+vi.mock('../src/shared/db/pgcrypto.js', () => ({
+  pgEncrypt: async (v) => (v == null ? null : `enc(${v})`),
+  pgDecrypt: async (v) => (v == null ? null : (typeof v === 'string' && v.startsWith('enc(') ? v.slice(4, -1) : v)),
+}));
+
 vi.mock('../src/shared/services/notification.service.js', () => ({
   createNotification: createNotifMock,
   NotificationType  : {
@@ -132,7 +137,7 @@ describe('appointments.service — updateAppointmentStatus', () => {
     expect(res.status).toBe('CANCELLED');
     const [sql, params] = q.mock.calls[0];
     expect(sql).toContain("cancelled_at = CASE WHEN $1 = 'CANCELLED' THEN NOW() ELSE cancelled_at END");
-    expect(params).toEqual(['CANCELLED', 'nope', 'u-staff', 'a1']);
+    expect(params).toEqual(['CANCELLED', 'enc(nope)', 'u-staff', 'a1']);
   });
 
   it('uses existing notes when no new notes are provided', async () => {
@@ -160,7 +165,7 @@ describe('appointments.service — patientUpdateAppointment', () => {
     expect(res.status).toBe('CANCELLED');
     const [sql, params] = q.mock.calls[1];
     expect(sql).toContain("cancelled_by = (SELECT id FROM patients WHERE user_id = $2)");
-    expect(params).toEqual(['busy', 'u-pat', 'a1']);
+    expect(params).toEqual(['enc(busy)', 'u-pat', 'a1']);
   });
 
   it('updates only provided fields via COALESCE', async () => {
@@ -195,7 +200,7 @@ describe('appointments.service — createAppointment', () => {
     expect(res.id).toBe('a1');
     const [sql, params] = q.mock.calls[0];
     expect(sql).toContain("VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 'SCHEDULED', $7, $8, NOW(), NOW())");
-    expect(params).toEqual(['p1', 'd1', 'dep1', '2026-01-02T10:00:00Z', 30, 'IN_PERSON', 'fever', 'u-staff']);
+    expect(params).toEqual(['p1', 'd1', 'dep1', '2026-01-02T10:00:00Z', 30, 'IN_PERSON', 'enc(fever)', 'u-staff']);
   });
 
   it('notifies the patient after the insert completes', async () => {

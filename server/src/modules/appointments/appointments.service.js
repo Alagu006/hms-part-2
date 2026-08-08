@@ -1,6 +1,21 @@
 import { query } from '../../shared/db/pool.js';
+import { pgEncrypt, pgDecrypt } from '../../shared/db/pgcrypto.js';
 import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
 import { logger } from '../../shared/logger.js';
+
+async function decryptSafe(value) {
+  try { return await pgDecrypt(value); } catch { return null; }
+}
+
+async function decryptApptRow(row) {
+  if (!row) return null;
+  const [reason, notes, cancellationReason] = await Promise.all([
+    decryptSafe(row.reason),
+    decryptSafe(row.notes),
+    decryptSafe(row.cancellation_reason),
+  ]);
+  return { ...row, reason, notes, cancellation_reason: cancellationReason };
+}
 
 export async function listAppointments({ doctorId, patientId, date, status, page, limit }) {
   const offset = (page - 1) * limit;
@@ -48,7 +63,7 @@ export async function listAppointments({ doctorId, patientId, date, status, page
 
   const { rows } = await query(sql, params);
   const total    = rows[0]?.total_count ?? 0;
-  const items    = rows.map(({ total_count, ...r }) => r);
+  const items    = await Promise.all(rows.map(({ total_count, ...r }) => decryptApptRow(r)));
 
   return { appointments: items, total: parseInt(total, 10), page, limit };
 }
@@ -67,7 +82,7 @@ export async function getAppointmentById(id) {
      WHERE a.id = $1 AND a.deleted_at IS NULL`,
     [id]
   );
-  return rows[0] ?? null;
+  return decryptApptRow(rows[0] ?? null);
 }
 
 export async function updateAppointmentStatus(id, { status, notes }, cancelledBy) {
@@ -80,9 +95,9 @@ export async function updateAppointmentStatus(id, { status, notes }, cancelledBy
          updated_at = NOW()
      WHERE id = $4 AND deleted_at IS NULL
      RETURNING *`,
-    [status, notes ?? null, cancelledBy ?? null, id]
+    [status, notes != null ? await pgEncrypt(notes) : null, cancelledBy ?? null, id]
   );
-  return rows[0] ?? null;
+  return decryptApptRow(rows[0] ?? null);
 }
 
 export async function patientUpdateAppointment(id, patientUserId, { action, cancellationReason, scheduledAt, type, reason }) {
@@ -102,9 +117,9 @@ export async function patientUpdateAppointment(id, patientUserId, { action, canc
            cancelled_by = (SELECT id FROM patients WHERE user_id = $2),
            cancelled_at = NOW(), updated_at = NOW()
        WHERE id = $3 RETURNING *`,
-      [cancellationReason ?? null, patientUserId, id]
+      [cancellationReason != null ? await pgEncrypt(cancellationReason) : null, patientUserId, id]
     );
-    return rows[0] ?? null;
+    return decryptApptRow(rows[0] ?? null);
   }
 
   // action === 'update'
@@ -115,9 +130,9 @@ export async function patientUpdateAppointment(id, patientUserId, { action, canc
          reason       = COALESCE($3, reason),
          updated_at   = NOW()
      WHERE id = $4 RETURNING *`,
-    [scheduledAt ?? null, type ?? null, reason ?? null, id]
+    [scheduledAt ?? null, type ?? null, reason != null ? await pgEncrypt(reason) : null, id]
   );
-  return rows[0] ?? null;
+  return decryptApptRow(rows[0] ?? null);
 }
 
 export async function createAppointment(data, createdBy) {
@@ -129,9 +144,9 @@ export async function createAppointment(data, createdBy) {
      RETURNING *`,
     [data.patientId, data.doctorId, data.departmentId ?? null,
      data.scheduledAt, data.durationMinutes, data.type,
-     data.reason ?? null, createdBy]
+     data.reason != null ? await pgEncrypt(data.reason) : null, createdBy]
   );
-  const appt = rows[0];
+  const appt = await decryptApptRow(rows[0]);
 
   // Notify patient
   setImmediate(async () => {

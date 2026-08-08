@@ -16,6 +16,11 @@ vi.mock('../src/shared/db/pool.js', () => ({
   withTransaction: vi.fn(),
 }));
 
+vi.mock('../src/shared/db/pgcrypto.js', () => ({
+  pgEncrypt: async (v) => (v == null ? null : `enc(${v})`),
+  pgDecrypt: async (v) => (v == null ? null : (typeof v === 'string' && v.startsWith('enc(') ? v.slice(4, -1) : v)),
+}));
+
 vi.mock('../src/shared/middleware/audit.js', () => ({
   auditLog: auditMock,
   auditMiddleware: vi.fn(),
@@ -72,15 +77,15 @@ describe('discharge.service — createDischargeSummary', () => {
     expect(q.mock.calls[1][0]).toContain("'REGULAR'");
     expect(q.mock.calls[1][0]).toContain("'STABLE'");
     expect(q.mock.calls[1][1]).toEqual([
-      'p1', 'd1', '2026-08-01', 'Pneumonia', 'Antibiotics', 'Amoxicillin',
-      '2026-09-01', 'Rest and hydrate',
+      'p1', 'd1', '2026-08-01', 'enc(Pneumonia)', 'enc(Antibiotics)', 'enc(Amoxicillin)',
+      '2026-09-01', 'enc(Rest and hydrate)',
     ]);
-    expect(res).toBe(summary);
+    expect(res).toMatchObject({ id: 's1', discharge_date: '2026-08-01', final_diagnosis: 'Pneumonia' });
 
-    expect(auditMock).toHaveBeenCalledWith({
+    expect(auditMock).toHaveBeenCalledWith(expect.objectContaining({
       userId: 'd1', action: 'CREATE', entity: 'discharge_summaries',
-      entityId: 's1', nextData: summary, ip: '1.2.3.4',
-    });
+      entityId: 's1', ip: '1.2.3.4',
+    }));
 
     expect(createNotifMock).toHaveBeenCalledWith(
       'u9', 'SYSTEM', 'Discharge Summary Ready',
@@ -121,6 +126,8 @@ describe('discharge.service — getPatientDischargeSummaries', () => {
     expect(sql).toContain('JOIN users u ON u.id = ds.discharged_by');
     expect(sql).toContain('ORDER BY ds.discharge_date DESC');
     expect(params).toEqual(['p1']);
-    expect(res).toEqual([{ id: 's1', doctor_first: 'Sam' }]);
+    expect(res).toEqual([
+      { id: 's1', doctor_first: 'Sam', final_diagnosis: null, treatment_summary: null, follow_up_notes: null, medications_on_discharge: null },
+    ]);
   });
 });
