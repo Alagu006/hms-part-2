@@ -135,6 +135,68 @@ describe('interactions — checkInteractions', () => {
   });
 });
 
+describe('interactions — drug-class rules match real drugs (R24)', () => {
+  beforeEach(() => {
+    fetchMock.mockResolvedValue({ ok: false }); // local-table only
+  });
+
+  it('flags an SSRI class member + tramadol', async () => {
+    const res = await checkInteractions(['Escitalopram', 'Tramadol']);
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ severity: 'HIGH', source: 'local' });
+    expect(res[0].description.toLowerCase()).toContain('serotonin');
+  });
+
+  it('flags linezolid + an SSRI member as CONTRAINDICATED', async () => {
+    const res = await checkInteractions(['Linezolid', 'Fluoxetine']);
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ severity: 'CONTRAINDICATED', source: 'local' });
+  });
+
+  it('flags a PDE5 inhibitor + a nitrate member as CONTRAINDICATED', async () => {
+    const res = await checkInteractions(['Sildenafil', 'Nitroglycerin']);
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ severity: 'CONTRAINDICATED', source: 'local' });
+  });
+
+  it('flags methotrexate + an NSAID member as HIGH', async () => {
+    const res = await checkInteractions(['Methotrexate', 'Ibuprofen']);
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ severity: 'HIGH', source: 'local' });
+  });
+
+  it('flags metformin + an iodinated contrast agent as HIGH', async () => {
+    const res = await checkInteractions(['Metformin', 'Iohexol']);
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ severity: 'HIGH', source: 'local' });
+  });
+
+  it('keeps the explicit (more specific) rule when a pair matches twice', async () => {
+    // Fluoxetine + Tramadol matches BOTH the ['ssri','tramadol'] class rule and
+    // the explicit ['fluoxetine','tramadol'] rule — dedupe must keep one, the
+    // explicit rule.
+    const res = await checkInteractions(['Fluoxetine', 'Tramadol']);
+    expect(res).toHaveLength(1);
+    expect(res[0].description.toLowerCase()).toContain('cyp2d6');
+  });
+
+  it('still matches explicit drug rules unchanged', async () => {
+    const res = await checkInteractions(['Warfarin', 'Ibuprofen']);
+    expect(res).toHaveLength(1);
+    expect(res[0]).toMatchObject({ severity: 'HIGH', source: 'local' });
+  });
+
+  it('does not invent interactions for unrelated drugs', async () => {
+    const res = await checkInteractions(['Amoxicillin', 'Paracetamol']);
+    expect(res).toEqual([]);
+  });
+
+  it('does not match two medicines of the same class to each other', async () => {
+    const res = await checkInteractions(['Fluoxetine', 'Sertraline']);
+    expect(res).toEqual([]);
+  });
+});
+
 describe('interactions — checkAllergies', () => {
   it('returns [] when there are no allergies', () => {
     expect(checkAllergies([], ['Penicillin'])).toEqual([]);

@@ -261,6 +261,7 @@ describe('prescription.service — createPrescription', () => {
 
   it('rejects contraindicated combinations with 422 and no side effects', async () => {
     q.mockResolvedValueOnce({ rows: [patientRow()] });
+    q.mockResolvedValueOnce({ rows: [] }); // patient drug allergies (patient_allergies)
     interactionsMock.mockResolvedValueOnce([
       { drug1: 'linezolid', drug2: 'ssri', severity: 'CONTRAINDICATED', description: 'serotonin syndrome risk' },
       { drug1: 'warfarin', drug2: 'aspirin', severity: 'HIGH', description: 'bleeding risk' },
@@ -276,6 +277,7 @@ describe('prescription.service — createPrescription', () => {
 
   it('creates the prescription, encrypts, audits, and notifies pharmacist/patient/nurse', async () => {
     q.mockResolvedValueOnce({ rows: [patientRow()] });
+    q.mockResolvedValueOnce({ rows: [{ allergen: 'Penicillin' }] }); // patient drug allergies
     interactionsMock.mockResolvedValueOnce([
       { drug1: 'warfarin', drug2: 'aspirin', severity: 'HIGH', description: 'bleeding risk' },
     ]);
@@ -294,6 +296,7 @@ describe('prescription.service — createPrescription', () => {
     expect(res.id).toBe('rx1');
     expect(res.interactions).toEqual([expect.objectContaining({ severity: 'HIGH' })]);
     expect(res.allergyWarnings).toEqual([expect.objectContaining({ medicine: 'aspirin', allergen: 'Penicillin' })]);
+    expect(allergiesMock).toHaveBeenCalledWith(['Penicillin'], expect.arrayContaining(['Aspirin', 'Paracetamol']));
 
     // encryption of free notes, nurse instructions, and item instructions
     expect(pgEncryptMock).toHaveBeenCalledWith('fever');
@@ -326,6 +329,7 @@ describe('prescription.service — createPrescription', () => {
 
   it('only notifies the pharmacist when there is no portal account or nurse', async () => {
     q.mockResolvedValueOnce({ rows: [patientRow({ user_id: null })] });
+    q.mockResolvedValueOnce({ rows: [] }); // patient drug allergies
     clientQuery.mockImplementation(async (sql) => sql.startsWith('INSERT INTO prescriptions')
       ? { rows: [{ id: 'rx2' }] } : { rows: [] });
 
@@ -336,6 +340,7 @@ describe('prescription.service — createPrescription', () => {
 
   it('computes item quantities for 1x, SOS, and unknown frequencies', async () => {
     q.mockResolvedValueOnce({ rows: [patientRow()] });
+    q.mockResolvedValueOnce({ rows: [] }); // patient drug allergies
     clientQuery.mockImplementation(async (sql) => sql.startsWith('INSERT INTO prescriptions')
       ? { rows: [{ id: 'rx3' }] } : { rows: [] });
 

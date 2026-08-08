@@ -59,6 +59,31 @@ const LOCAL_INTERACTIONS = [
 ];
 
 // ---------------------------------------------------------------------------
+// Drug classes referenced by the table above, mapped to their member generic
+// names. A medicine name is matched against its own spelling AND against these
+// classes, so a class rule like ['ssri','tramadol'] actually fires for
+// fluoxetine/escitalopram/... + tramadol instead of silently never matching.
+// ---------------------------------------------------------------------------
+const DRUG_CLASSES = {
+  ssri     : ['fluoxetine', 'sertraline', 'paroxetine', 'citalopram', 'escitalopram', 'fluvoxamine'],
+  nsaid    : ['ibuprofen', 'naproxen', 'diclofenac', 'indomethacin', 'ketorolac', 'celecoxib', 'meloxicam', 'piroxicam', 'ketoprofen'],
+  nitrate  : ['nitroglycerin', 'glyceryl trinitrate', 'isosorbide dinitrate', 'isosorbide mononitrate'],
+  diuretic : ['furosemide', 'bumetanide', 'torsemide', 'hydrochlorothiazide', 'chlorthalidone', 'indapamide', 'metolazone', 'spironolactone'],
+  antacid  : ['aluminum hydroxide', 'aluminium hydroxide', 'magnesium hydroxide', 'calcium carbonate'],
+  contrast : ['iohexol', 'iopamidol', 'iodixanol', 'ioversol', 'iodinated contrast', 'contrast media', 'gadopentetate', 'gadobutrol'],
+  alcohol  : ['alcohol', 'ethanol'],
+};
+
+/** Class tokens a medicine belongs to, derived from its (lowercased) name. */
+function classesForName(name) {
+  const set = new Set();
+  for (const [cls, members] of Object.entries(DRUG_CLASSES)) {
+    if (members.some((m) => name.includes(m))) set.add(cls);
+  }
+  return set;
+}
+
+// ---------------------------------------------------------------------------
 // OpenFDA RxNorm interaction API
 // ---------------------------------------------------------------------------
 const OPENFDA_INTERACTION_CACHE_TTL = 60 * 60 * 6; // 6 hours
@@ -140,28 +165,40 @@ async function fetchOpenFdaInteractions(drugNames) {
 // Local interaction check (synchronous, always runs)
 // ---------------------------------------------------------------------------
 function checkLocalInteractions(medicineNames) {
-  const lower = medicineNames.map((n) => n.toLowerCase());
-  const found = [];
+  const lower     = medicineNames.map((n) => n.toLowerCase());
+  const classSets = lower.map(classesForName);
 
+  const matches = [];
   for (const rule of LOCAL_INTERACTIONS) {
     const [a, b] = rule.drugs;
-    const matchA = lower.some((n) => n.includes(a));
-    const matchB = lower.some((n) => n.includes(b));
+    const idxA = lower.findIndex((n, i) => n.includes(a) || classSets[i].has(a));
+    if (idxA === -1) continue;
+    const idxB = lower.findIndex((n, i) => n.includes(b) || classSets[i].has(b));
+    if (idxB === -1 || idxB === idxA) continue; // must be two different medicines
 
-    if (matchA && matchB) {
-      const nameA = lower.find((n) => n.includes(a)) ?? a;
-      const nameB = lower.find((n) => n.includes(b)) ?? b;
-      found.push({
-        drug1      : nameA,
-        drug2      : nameB,
-        severity   : rule.severity,
+    // Specificity = number of non-class (explicit drug) tokens in the rule.
+    // Used to dedupe: a pair matched by both a class rule and an explicit rule
+    // keeps the explicit (more specific) entry.
+    const specificity = rule.drugs.filter((d) => !DRUG_CLASSES[d]).length;
+    matches.push({
+      key: [lower[idxA], lower[idxB]].sort().join('|'),
+      specificity,
+      result: {
+        drug1: lower[idxA],
+        drug2: lower[idxB],
+        severity: rule.severity,
         description: rule.description,
-        source     : 'local',
-      });
-    }
+        source: 'local',
+      },
+    });
   }
 
-  return found;
+  const best = new Map();
+  for (const m of matches) {
+    const prev = best.get(m.key);
+    if (!prev || m.specificity > prev.specificity) best.set(m.key, m);
+  }
+  return [...best.values()].map((m) => m.result);
 }
 
 // ---------------------------------------------------------------------------

@@ -160,16 +160,24 @@ export async function importOpenFdaMedicines(queryStr) {
 export async function createPrescription(data, doctorId, ip, userAgent) {
   const { patientId, diagnosisCodes, notes, items, nurseId, nurseInstructions } = data;
 
-  // 1. Fetch patient (need allergies for check)
+  // 1. Fetch patient (there is no `allergies` column on patients — see 1b)
   const { rows: patRows } = await query(
-    `SELECT id, first_name, last_name, allergies, user_id FROM patients
+    `SELECT id, first_name, last_name, user_id FROM patients
      WHERE id = $1 AND deleted_at IS NULL`,
     [patientId]
   );
   if (!patRows[0]) throw Object.assign(new Error('Patient not found'), { status: 404 });
 
-  const patient      = patRows[0];
+  const patient       = patRows[0];
   const medicineNames = items.map((i) => i.medicineName);
+
+  // 1b. Patient drug allergies live in patient_allergies (type = 'DRUG').
+  const { rows: allergyRows } = await query(
+    `SELECT allergen FROM patient_allergies
+     WHERE patient_id = $1 AND type = 'DRUG'`,
+    [patientId]
+  );
+  const patientAllergies = allergyRows.map((r) => r.allergen);
 
   // 2. Drug interaction check (now async)
   const interactions = await checkInteractions(medicineNames);
@@ -180,7 +188,7 @@ export async function createPrescription(data, doctorId, ip, userAgent) {
   }
 
   // 3. Allergy check
-  const allergyHits = checkAllergies(patient.allergies ?? [], medicineNames);
+  const allergyHits = checkAllergies(patientAllergies, medicineNames);
 
   // 4. Encrypt notes
   const encryptedNotes = notes ? await pgEncrypt(notes) : null;
