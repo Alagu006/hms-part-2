@@ -59,7 +59,10 @@ export async function getReportStatus(jobId) {
     ).catch(() => ({ rows: [] }));
     return rows[0] ?? null;
   }
-  try { return JSON.parse(raw); } catch { return null; }
+  // redis.get() already auto-parses JSON — parsing again here would turn the
+  // object into "[object Object]" and throw, making every status poll return
+  // null (→ 404). Return it as-is.
+  return raw;
 }
 
 // ---------------------------------------------------------------------------
