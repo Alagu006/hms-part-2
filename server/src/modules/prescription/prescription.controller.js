@@ -1,5 +1,5 @@
 import * as svc from './prescription.service.js';
-import { generatePdf } from '../../shared/utils/pdf.service.js';
+import { generatePdf, escapeHtml } from '../../shared/utils/pdf.service.js';
 import { pgDecrypt } from '../../shared/db/pgcrypto.js';
 import { query } from '../../shared/db/pool.js';
 
@@ -102,11 +102,11 @@ export async function downloadPrescriptionPdf(req, res, next) {
     const itemsRows = items.length
       ? items.map(item => `
         <tr>
-          <td>${item.medicine_name ?? '—'}</td>
-          <td>${item.dosage ?? '—'}</td>
-          <td>${item.frequency ?? '—'}</td>
-          <td>${item.duration_days ?? '—'}</td>
-          <td>${item.instructions ?? '—'}</td>
+          <td>${escapeHtml(item.medicine_name ?? '—')}</td>
+          <td>${escapeHtml(item.dosage ?? '—')}</td>
+          <td>${escapeHtml(item.frequency ?? '—')}</td>
+          <td>${escapeHtml(item.duration_days ?? '—')}</td>
+          <td>${escapeHtml(item.instructions ?? '—')}</td>
         </tr>`).join('')
       : '<tr><td colspan="5" style="text-align:center;color:#999;">No items</td></tr>';
 
@@ -137,13 +137,13 @@ export async function downloadPrescriptionPdf(req, res, next) {
       <td style="width:50%;vertical-align:top;padding-right:20px;">
         <div style="background:#f3f8ff;border-radius:6px;padding:12px;">
           <p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#6b7280;letter-spacing:0.05em;">Patient</p>
-          <p style="margin:0;font-size:14px;font-weight:600;">${presc.patient_first} ${presc.patient_last}</p>
+          <p style="margin:0;font-size:14px;font-weight:600;">${escapeHtml(presc.patient_first)} ${escapeHtml(presc.patient_last)}</p>
         </div>
       </td>
       <td style="width:50%;vertical-align:top;">
         <div style="background:#f0fdf4;border-radius:6px;padding:12px;">
           <p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#6b7280;letter-spacing:0.05em;">Prescribing Doctor</p>
-          <p style="margin:0;font-size:14px;font-weight:600;">Dr. ${presc.doctor_first} ${presc.doctor_last}</p>
+          <p style="margin:0;font-size:14px;font-weight:600;">Dr. ${escapeHtml(presc.doctor_first)} ${escapeHtml(presc.doctor_last)}</p>
         </div>
       </td>
     </tr>
@@ -152,7 +152,7 @@ export async function downloadPrescriptionPdf(req, res, next) {
   ${presc.notes?.diagnosisCodes ? `
   <div style="background:#fffbeb;border-radius:6px;padding:10px 14px;margin-bottom:20px;border-left:4px solid #f59e0b;">
     <p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#92400e;letter-spacing:0.05em;">Diagnosis</p>
-    <p style="margin:0;font-size:13px;color:#78350f;">${presc.notes.diagnosisCodes.join(', ')}</p>
+    <p style="margin:0;font-size:13px;color:#78350f;">${escapeHtml(presc.notes.diagnosisCodes.join(', '))}</p>
   </div>` : ''}
 
   <!-- Medicines Table -->
@@ -177,7 +177,7 @@ export async function downloadPrescriptionPdf(req, res, next) {
   ${presc.notes?.freeNotes ? `
   <div style="background:#f9fafb;border-radius:6px;padding:12px;margin-bottom:20px;">
     <p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#6b7280;letter-spacing:0.05em;">Doctor's Notes</p>
-    <p style="margin:0;font-size:13px;color:#374151;white-space:pre-wrap;">${presc.notes.freeNotes}</p>
+    <p style="margin:0;font-size:13px;color:#374151;white-space:pre-wrap;">${escapeHtml(presc.notes.freeNotes)}</p>
   </div>` : ''}
 
   <!-- Footer -->

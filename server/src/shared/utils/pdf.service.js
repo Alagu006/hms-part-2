@@ -56,6 +56,23 @@ async function getBrowser() {
 }
 
 /**
+ * Escape a string for safe interpolation into HTML templates. PDFs render
+ * user-supplied fields (names, notes, item descriptions), so every free-text
+ * value must be escaped to prevent HTML/script injection (R19).
+ *
+ * @param {*} value
+ * @returns {string}
+ */
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Generate a PDF buffer from an HTML string.
  * Uses A4 paper with 10mm margins on all sides.
  *
@@ -67,6 +84,19 @@ export async function generatePdf(htmlString) {
   try {
     const browser = await getBrowser();
     page = await browser.newPage();
+
+    // R19: harden against HTML injection / SSRF. The rendered HTML embeds
+    // user-supplied fields. Disable script execution so injected <script> or
+    // on* attribute handlers cannot run, and block every network request so
+    // injected <img src>/<iframe>/<script src> cannot reach the internal
+    // network or the cloud metadata service (no always-on network).
+    await page.setJavaScriptEnabled(false);
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      const url = req.url();
+      if (url.startsWith('data:') || url === 'about:blank') return req.continue();
+      return req.abort('blockedbyclient');
+    });
 
     // waitUntil: 'load' (not 'networkidle0', which can hang indefinitely when
     // Chromium keeps a background connection open).

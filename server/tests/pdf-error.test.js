@@ -6,6 +6,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../src/shared/utils/pdf.service.js', () => ({
   generatePdf: vi.fn(),
   generatePdfToFile: vi.fn(),
+  escapeHtml: (v) => String(v ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;'),
 }));
 
 vi.mock('../src/modules/billing/billing.service.js', () => ({
@@ -157,5 +160,55 @@ describe('PDF error handling (callers)', () => {
     await expect(
       reports.generateReport({ type: 'patient', format: 'pdf', period: '30d', userId: 'u1' })
     ).rejects.toMatchObject({ code: 'PDF_UNAVAILABLE', status: 503 });
+  });
+
+  it('escapes user-supplied fields in the bill PDF HTML (R19)', async () => {
+    getBillById.mockResolvedValue({
+      id: 'b1', bill_number: 'B-1',
+      items: [{ description: '<script>alert(1)</script>', quantity: 1, unit_price: 10, total_price: 10 }],
+      payments: [{ method: 'CARD', amount: 10, processed_at: new Date().toISOString() }],
+      issued_at: new Date().toISOString(),
+      tax_amount: 0, net_amount: 10, patient_name: 'Rob <b>Hood</b>', mrn: 'M-1',
+    });
+    generatePdf.mockResolvedValue(Buffer.from('%PDF-1.4 fake'));
+
+    const res  = mockRes();
+    const next = vi.fn();
+    await downloadBillPdf({ params: { id: 'b1' } }, res, next);
+
+    const html = generatePdf.mock.calls[0][0];
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).not.toContain('<script>alert(1)</script>');
+    expect(html).toContain('Rob &lt;b&gt;Hood&lt;/b&gt;');
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('escapes user-supplied fields in the prescription PDF HTML (R19)', async () => {
+    getPrescriptionById.mockResolvedValue({
+      id: 'p1',
+      items: [{
+        medicine_name: 'Dolo <b>650</b>', dosage: '1', frequency: 'BD',
+        duration_days: 5, instructions: '<img src=x> instructions',
+      }],
+      created_at: new Date().toISOString(),
+      patient_first: 'A<script>', patient_last: 'B',
+      doctor_first: 'C', doctor_last: 'D',
+      notes: { freeNotes: '<script>evil()</script>', diagnosisCodes: ['J00'] },
+    });
+    generatePdf.mockResolvedValue(Buffer.from('%PDF-1.4 fake'));
+
+    const res  = mockRes();
+    const next = vi.fn();
+    await downloadPrescriptionPdf(
+      { params: { id: 'p1' }, user: { id: 'u1', roles: ['ADMIN'] } }, res, next
+    );
+
+    const html = generatePdf.mock.calls[0][0];
+    expect(html).toContain('A&lt;script&gt;');
+    expect(html).not.toContain('A<script>');
+    expect(html).toContain('&lt;script&gt;evil()&lt;/script&gt;');
+    expect(html).toContain('&lt;img src=x&gt; instructions');
+    expect(html).toContain('Dolo &lt;b&gt;650&lt;/b&gt;');
+    expect(res.statusCode).toBe(200);
   });
 });

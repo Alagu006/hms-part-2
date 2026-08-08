@@ -1,6 +1,6 @@
 import * as svc from './billing.service.js';
 import { auditLog } from '../../shared/middleware/audit.js';
-import { generatePdf } from '../../shared/utils/pdf.service.js';
+import { generatePdf, escapeHtml } from '../../shared/utils/pdf.service.js';
 
 export async function createRazorpayOrderHandler(req, res, next) {
   try {
@@ -222,7 +222,7 @@ export async function downloadBillPdf(req, res, next) {
 
     const itemsRows = items.map(item => `
       <tr>
-        <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;">${item.description ?? '—'}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;">${escapeHtml(item.description ?? '—')}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;text-align:center;">${item.quantity ?? 0}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;text-align:right;">₹${(+item.unit_price ?? 0).toFixed(2)}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #f3f4f6;text-align:right;">₹${(+item.total_price ?? 0).toFixed(2)}</td>
@@ -236,7 +236,7 @@ export async function downloadBillPdf(req, res, next) {
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<title>Bill ${bill.bill_number}</title>
+<title>Bill ${escapeHtml(bill.bill_number)}</title>
 </head>
 <body style="margin:0;padding:0;font-family:Arial,sans-serif;font-size:13px;color:#111;">
 <div style="max-width:800px;margin:0 auto;padding:20px 30px;">
@@ -249,7 +249,7 @@ export async function downloadBillPdf(req, res, next) {
     </div>
     <div style="text-align:right;">
       <p style="margin:0;font-size:12px;color:#374151;"><strong>INVOICE / BILL</strong></p>
-      <p style="margin:2px 0 0;font-size:11px;color:#6b7280;">Bill No: ${bill.bill_number}</p>
+      <p style="margin:2px 0 0;font-size:11px;color:#6b7280;">Bill No: ${escapeHtml(bill.bill_number)}</p>
       <p style="margin:2px 0 0;font-size:11px;color:#6b7280;">Date: ${issuedDate}</p>
     </div>
   </div>
@@ -258,12 +258,12 @@ export async function downloadBillPdf(req, res, next) {
   <div style="display:flex;justify-content:space-between;margin-bottom:24px;gap:20px;">
     <div style="flex:1;background:#f3f8ff;border-radius:6px;padding:12px;">
       <p style="margin:0 0 4px;font-size:10px;text-transform:uppercase;color:#6b7280;letter-spacing:0.05em;">Patient</p>
-      <p style="margin:0;font-size:14px;font-weight:600;">${bill.patient_name ?? '—'}</p>
-      <p style="margin:2px 0 0;font-size:12px;color:#374151;">MRN: ${bill.mrn ?? '—'}</p>
+      <p style="margin:0;font-size:14px;font-weight:600;">${escapeHtml(bill.patient_name ?? '—')}</p>
+      <p style="margin:2px 0 0;font-size:12px;color:#374151;">MRN: ${escapeHtml(bill.mrn ?? '—')}</p>
     </div>
     <div style="text-align:right;">
       <span style="display:inline-block;padding:4px 14px;border-radius:999px;font-size:12px;font-weight:700;background:${statusBadge.bg};color:${statusBadge.color};">
-        ${statusBadge.text}
+        ${escapeHtml(statusBadge.text)}
       </span>
     </div>
   </div>
@@ -319,7 +319,7 @@ export async function downloadBillPdf(req, res, next) {
         ${payments.map(p => `
         <tr>
           <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;">${new Date(p.processed_at).toLocaleDateString('en-IN')}</td>
-          <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;">${p.method ?? '—'}</td>
+          <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;">${escapeHtml(p.method ?? '—')}</td>
           <td style="padding:8px 10px;border-bottom:1px solid #f3f4f6;text-align:right;">₹${(+p.amount ?? 0).toFixed(2)}</td>
         </tr>`).join('')}
       </tbody>

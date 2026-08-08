@@ -3,7 +3,7 @@ import { pool }                      from '../../shared/db/pool.js';
 import { redis }                     from '../../shared/services/redis.service.js';
 import { auditLog }                  from '../../shared/middleware/audit.js';
 import { uuidv7 }                    from '../../shared/utils/uuid.js';
-import { generatePdfToFile }           from '../../shared/utils/pdf.service.js';
+import { generatePdfToFile, escapeHtml } from '../../shared/utils/pdf.service.js';
 import { join }                       from 'path';
 import * as analytics                from './analytics.service.js';
 
@@ -146,7 +146,7 @@ ${data.summary ? `<div style="display:grid;grid-template-columns:repeat(3,1fr);g
 
 function buildStaffReportHtml(data) {
   const rows = (data.doctors ?? []).map(d => `
-    <tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${d.first_name ?? ''} ${d.last_name ?? ''}</td>
+    <tr><td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${escapeHtml(d.first_name ?? '')} ${escapeHtml(d.last_name ?? '')}</td>
     <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center;">${d.patients_seen ?? 0}</td>
     <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center;">${d.prescriptions_count ?? 0}</td>
     <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;text-align:center;">${d.completed_appointments ?? 0}</td></tr>`).join('');
