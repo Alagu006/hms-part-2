@@ -504,7 +504,7 @@ CREATE TABLE payments (
     bill_id         UUID NOT NULL REFERENCES bills(id),
     patient_id      UUID NOT NULL REFERENCES patients(id),
     amount          NUMERIC(14,2) NOT NULL CHECK (amount > 0),
-    method          TEXT NOT NULL CHECK (method IN ('CASH','CARD','INSURANCE','BANK_TRANSFER','CHEQUE','ONLINE')),
+    method          TEXT NOT NULL CHECK (method IN ('CASH','CARD','INSURANCE','BANK_TRANSFER','CHEQUE','ONLINE','REFUND')),
     reference_no    TEXT,
     status          TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING','COMPLETED','FAILED','REFUNDED')),
     processed_by    UUID REFERENCES users(id),
