@@ -93,7 +93,7 @@ async function getPatientContext(userId) {
 // ---------------------------------------------------------------------------
 // Book appointment intent handler
 // ---------------------------------------------------------------------------
-async function handleBookAppointment(userId, patientCtx, extractedData) {
+export async function handleBookAppointment(userId, patientCtx, extractedData) {
   // extractedData comes from LLM response JSON block
   if (!extractedData?.department) {
     return 'To book an appointment, please tell me which department you need (e.g., General Medicine, Cardiology, Orthopedics) and your preferred date.';
@@ -138,7 +138,7 @@ async function handleBookAppointment(userId, patientCtx, extractedData) {
       `INSERT INTO appointments
          (id, patient_id, doctor_id, department_id, scheduled_at, status, type, created_at, updated_at)
        VALUES
-         (gen_random_uuid(), $1, $2, $3, $4, 'SCHEDULED', 'OUTPATIENT', NOW(), NOW())`,
+         (gen_random_uuid(), $1, $2, $3, $4, 'SCHEDULED', 'IN_PERSON', NOW(), NOW())`,
       [patientCtx.patientId, docRows[0].id, deptRows[0].id, scheduledAt]
     );
 
@@ -148,7 +148,27 @@ async function handleBookAppointment(userId, patientCtx, extractedData) {
 
     return `✅ Your appointment has been booked!\n\n**Department:** ${deptRows[0].name}\n**Doctor:** Dr. ${docRows[0].first_name} ${docRows[0].last_name}\n**Date:** ${dateStr}\n\nYou'll receive a confirmation notification shortly.`;
   } catch (err) {
-    logger.error('[chatbot] Book appointment error', { message: err.message });
+    // A genuine booking conflict (unique/exclusion constraint) is a
+    // user-facing condition — surface it distinctly.
+    if (err?.code === '23505' || err?.code === '23P01') {
+      logger.warn('[chatbot] Booking conflict detected', {
+        message: err.message,
+        constraint: err.constraint,
+        userId,
+      });
+      return 'That time slot appears to already be taken. Please try a different time or date, or contact reception to schedule manually.';
+    }
+    // Any other failure is a code defect — log it loudly rather than
+    // swallowing it silently (previously every error, including the
+    // appointments.type CHECK violation, was hidden behind a generic message).
+    logger.error('[chatbot] Book appointment failed unexpectedly', {
+      message: err.message,
+      code: err.code,
+      constraint: err.constraint,
+      detail: err.detail,
+      stack: err.stack,
+      userId,
+    });
     return 'I was unable to book the appointment automatically. Please contact reception at the hospital front desk or call our helpline.';
   }
 }

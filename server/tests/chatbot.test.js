@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const {
   q, redisIncr, redisExpire, redisGet, redisSetex, redisDel,
-  createNotifMock, loggerError, fetchMock,
+  createNotifMock, loggerError, loggerWarn, fetchMock,
 } = vi.hoisted(() => ({
   q: vi.fn(),
   redisIncr: vi.fn(),
@@ -16,6 +16,7 @@ const {
   redisDel: vi.fn(),
   createNotifMock: vi.fn(),
   loggerError: vi.fn(),
+  loggerWarn: vi.fn(),
   fetchMock: vi.fn(),
 }));
 
@@ -38,7 +39,7 @@ vi.mock('../src/shared/services/notification.service.js', () => ({
 }));
 
 vi.mock('../src/shared/logger.js', () => ({
-  logger: { error: loggerError, warn: vi.fn(), info: vi.fn() },
+  logger: { error: loggerError, warn: loggerWarn, info: vi.fn() },
 }));
 
 import * as chatbot from '../src/modules/chatbot/chatbot.service.js';
@@ -47,12 +48,13 @@ vi.stubGlobal('fetch', fetchMock);
 
 const PATIENT = { id: 'p1', first_name: 'Jane', last_name: 'Doe' };
 
-function mockQuery({ patient = PATIENT, appts = [], rxs = [], dept = null, doc = null, receps = [], insertError = false } = {}) {
+function mockQuery({ patient = PATIENT, appts = [], rxs = [], dept = null, doc = null, receps = [], insertError = false, insertConflict = false } = {}) {
   q.mockImplementation(async (sql, params) => {
     if (sql.includes('FROM patients')) return { rows: patient ? [patient] : [] };
     if (sql.includes('FROM appointments')) return { rows: appts };
     if (sql.includes('FROM prescriptions')) return { rows: rxs };
     if (sql.includes('INSERT INTO appointments')) {
+      if (insertConflict) throw Object.assign(new Error('duplicate key value violates unique constraint'), { code: '23505', constraint: 'appointments_pkey' });
       if (insertError) throw new Error('insert failed');
       return { rows: [{ id: 'appt1' }] };
     }
@@ -221,8 +223,24 @@ describe('chatbot.service — sendMessage with Gemini + booking', () => {
     const res = await chatbot.sendMessage('u1', 'book an appointment', null);
     expect(res.reply).toContain('unable to book the appointment automatically');
     expect(loggerError).toHaveBeenCalledWith(
-      '[chatbot] Book appointment error',
-      expect.objectContaining({ message: 'insert failed' })
+      '[chatbot] Book appointment failed unexpectedly',
+      expect.objectContaining({ message: 'insert failed', userId: 'u1' })
+    );
+  });
+
+  it('returns a distinct conflict message for a unique/exclusion violation', async () => {
+    mockQuery({ dept: { id: 'd1', name: 'Cardiology' }, doc: { id: 'doc1', first_name: 'S', last_name: 'T' }, insertConflict: true });
+    geminiReply('INTENT_DATA:{"intent":"BOOK_APPOINTMENT","department":"Cardiology"}');
+    const res = await chatbot.sendMessage('u1', 'book an appointment', null);
+    expect(res.reply).toContain('time slot appears to already be taken');
+    expect(res.reply).not.toContain('unable to book the appointment automatically');
+    expect(loggerWarn).toHaveBeenCalledWith(
+      '[chatbot] Booking conflict detected',
+      expect.objectContaining({ constraint: 'appointments_pkey' })
+    );
+    expect(loggerError).not.toHaveBeenCalledWith(
+      '[chatbot] Book appointment failed unexpectedly',
+      expect.anything()
     );
   });
 
