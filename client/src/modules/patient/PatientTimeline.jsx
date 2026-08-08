@@ -18,12 +18,17 @@ const TYPE_ICONS = {
   vital         : '💓',
 };
 
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
 function formatDate(iso) {
   if (!iso) return '—';
+  const value = DATE_ONLY.test(iso) ? `${iso}T12:00:00` : iso;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
-  }).format(new Date(iso));
+  }).format(date);
 }
 
 export default function PatientTimeline({ patientId: propPatientId }) {
