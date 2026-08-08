@@ -44,6 +44,27 @@ pool.on('connect', () => {
 // ---------------------------------------------------------------------------
 const SLOW_QUERY_MS = parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || '500', 10);
 
+// ---------------------------------------------------------------------------
+// Secret redaction — bind params routinely carry the pgcrypto master key
+// (PG_CRYPTO_KEY, e.g. auth.login, visitors.searchPastVisitors) and the group
+// messaging master key (DB_ENCRYPTION_KEY). They must never reach the logs.
+// ---------------------------------------------------------------------------
+const SECRETS = [process.env.PG_CRYPTO_KEY, process.env.DB_ENCRYPTION_KEY]
+  .filter(Boolean);
+
+/**
+ * Replace every occurrence of a configured secret with [REDACTED].
+ * @param {*} value
+ * @returns {string}
+ */
+export function redact(value) {
+  let out = String(value);
+  for (const secret of SECRETS) {
+    out = out.split(secret).join('[REDACTED]');
+  }
+  return out;
+}
+
 /**
  * Parameterized query wrapper with slow-query logging.
  *
@@ -63,8 +84,8 @@ export async function query(sql, params = [], client = null) {
     if (elapsed > SLOW_QUERY_MS) {
       logger.warn('[pool] Slow query', {
         elapsed,
-        sql   : sql.replace(/\s+/g, ' ').trim(),
-        params: JSON.stringify(params),
+        sql   : redact(sql.replace(/\s+/g, ' ').trim()),
+        params: redact(JSON.stringify(params)),
       });
     }
 
@@ -72,8 +93,8 @@ export async function query(sql, params = [], client = null) {
   } catch (err) {
     logger.error('[pool] Query error', {
       message: err.message,
-      sql    : sql.replace(/\s+/g, ' ').trim(),
-      params : JSON.stringify(params),
+      sql    : redact(sql.replace(/\s+/g, ' ').trim()),
+      params : redact(JSON.stringify(params)),
     });
     throw err;
   }
