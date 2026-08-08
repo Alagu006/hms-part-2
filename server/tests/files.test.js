@@ -309,6 +309,8 @@ describe('file.service — downloadFile access control', () => {
       entity_type: 'PATIENT', uploaded_by: 'u-uploader',
       patient_user_id: null, lab_patient_user_id: null,
       mr_patient_user_id: null, rx_patient_user_id: null,
+      direct_patient_id: null, lab_patient_id: null,
+      mr_patient_id: null, rx_patient_id: null,
       msg_is_member: false,
       ...overrides,
     }];
@@ -335,9 +337,32 @@ describe('file.service — downloadFile access control', () => {
     expect(auditLog).toHaveBeenCalledWith(expect.objectContaining({ action: 'DOWNLOAD', entityId: 'f1' }));
   });
 
-  it('allows staff to download a patient’s file (medical override)', async () => {
-    q.mockResolvedValueOnce({ rows: fileRow({ entity_type: 'PATIENT', patient_user_id: 'u-own' }) });
+  it('allows staff on the care team to download a patient’s file (R18)', async () => {
+    q.mockResolvedValueOnce({ rows: fileRow({ entity_type: 'PATIENT', patient_user_id: 'u-own', direct_patient_id: 'p-own' }) });
+    q.mockResolvedValueOnce({ rows: [{ 1: 1 }] }); // care-team membership
     const res = await files.downloadFile('f1', staffUser());
+    expect(res).not.toBe('FORBIDDEN');
+    expect(q.mock.calls[1][1]).toEqual(['p-own', 'u-staff']);
+  });
+
+  it('FORBIDDEN for a clinical staff member NOT on the patient’s care team (no blanket grant)', async () => {
+    q.mockResolvedValueOnce({ rows: fileRow({ entity_type: 'MEDICAL_RECORD', mr_patient_id: 'p-own' }) });
+    q.mockResolvedValueOnce({ rows: [] }); // not a care-team member
+    const res = await files.downloadFile('f1', staffUser());
+    expect(res).toBe('FORBIDDEN');
+  });
+
+  it('allows a doctor on the care team to download a MEDICAL_RECORD file', async () => {
+    q.mockResolvedValueOnce({ rows: fileRow({ entity_type: 'MEDICAL_RECORD', mr_patient_id: 'p-own' }) });
+    q.mockResolvedValueOnce({ rows: [{ 1: 1 }] });
+    const res = await files.downloadFile('f1', { id: 'u-doctor', roles: ['DOCTOR'] });
+    expect(res).not.toBe('FORBIDDEN');
+    expect(res.buffer).toEqual(Buffer.from('file-bytes'));
+  });
+
+  it('allows admin to download any patient’s clinical file (care-team bypass)', async () => {
+    q.mockResolvedValueOnce({ rows: fileRow({ entity_type: 'LAB_RESULT', lab_patient_id: 'p-own' }) });
+    const res = await files.downloadFile('f1', { id: 'u-admin', roles: ['ADMIN'] });
     expect(res).not.toBe('FORBIDDEN');
   });
 
@@ -360,7 +385,8 @@ describe('file.service — downloadFile access control', () => {
   });
 
   it('FORBIDDEN when a non-clinical staff role requests a patient file', async () => {
-    q.mockResolvedValueOnce({ rows: fileRow({ entity_type: 'MEDICAL_RECORD' }) });
+    q.mockResolvedValueOnce({ rows: fileRow({ entity_type: 'MEDICAL_RECORD', mr_patient_id: 'p-own' }) });
+    q.mockResolvedValueOnce({ rows: [] }); // not on the care team
     const res = await files.downloadFile('f1', { id: 'u-recep', roles: ['RECEPTIONIST'] });
     expect(res).toBe('FORBIDDEN');
   });
@@ -424,7 +450,8 @@ describe('file.service — downloadFile access control', () => {
   });
 
   it('throws 404 when the blob is missing on disk', async () => {
-    q.mockResolvedValueOnce({ rows: fileRow({ storage_key: 'missing-on-disk' }) });
+    q.mockResolvedValueOnce({ rows: fileRow({ storage_key: 'missing-on-disk', direct_patient_id: 'p-own' }) });
+    q.mockResolvedValueOnce({ rows: [{ 1: 1 }] }); // staff on the care team
     await expect(files.downloadFile('f1', staffUser())).rejects.toMatchObject({ status: 404 });
   });
 });

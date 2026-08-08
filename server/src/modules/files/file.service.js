@@ -4,6 +4,7 @@ import crypto      from 'crypto';
 import { fileTypeFromBuffer } from 'file-type';
 import { query }              from '../../shared/db/pool.js';
 import { auditLog }           from '../../shared/middleware/audit.js';
+import { isCareTeamMember }   from '../../shared/middleware/ownership.js';
 import { logger }             from '../../shared/logger.js';
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads');
@@ -36,13 +37,15 @@ const PROFILE_VIEW_ROLES = [
   'ANESTHETIST','DIETITIAN','PHYSIO','SOCIAL_WORKER','SECURITY_OFC','ORDERLY',
 ];
 
-// Roles that may download patient-clinical documents regardless of owner.
-const CLINICAL_DOC_ROLES = ['DOCTOR','NURSE','LAB_TECH','ADMIN','SUPER_ADMIN'];
-
 // Roles that may view incident attachments (matches incident.routes.js viewers).
 const INCIDENT_VIEW_ROLES = ['ADMIN','SUPER_ADMIN','HR','SECURITY_OFC'];
 
-function hasDownloadAccess(requestingUser, file) {
+// Access gate for the downloadFile route. Clinical entity types (PATIENT,
+// MEDICAL_RECORD, LAB_RESULT, PRESCRIPTION) are NOT blanket-granted by role —
+// a non-admin staff member must belong to the patient's care team (same model
+// as ownership.js enforces on every other clinical module, R18). Message,
+// incident and profile-image files stay grant-listed.
+async function hasDownloadAccess(requestingUser, file) {
   const roles = requestingUser.roles ?? [];
   const isAdmin = roles.includes('ADMIN') || roles.includes('SUPER_ADMIN');
 
@@ -50,8 +53,16 @@ function hasDownloadAccess(requestingUser, file) {
     case 'MEDICAL_RECORD':
     case 'LAB_RESULT':
     case 'PRESCRIPTION':
-    case 'PATIENT':
-      return roles.some((r) => CLINICAL_DOC_ROLES.includes(r));
+    case 'PATIENT': {
+      if (isAdmin) return true;
+      const patientId =
+        file.direct_patient_id ??
+        file.lab_patient_id ??
+        file.mr_patient_id ??
+        file.rx_patient_id;
+      if (!patientId) return false;
+      return isCareTeamMember(patientId, requestingUser.id);
+    }
     case 'MESSAGE':
       // Attachments are group-scoped: uploader, group member, or admin.
       return isAdmin || file.uploaded_by === requestingUser.id || file.msg_is_member === true;
@@ -316,12 +327,16 @@ export async function downloadFile(fileId, requestingUser) {
     `SELECT f.*,
        -- for PATIENT entity type
        p_direct.user_id AS patient_user_id,
+       p_direct.id AS direct_patient_id,
        -- for LAB_RESULT entity type
        p_lab.user_id AS lab_patient_user_id,
+       lr.patient_id AS lab_patient_id,
        -- for MEDICAL_RECORD entity type
        p_mr.user_id AS mr_patient_user_id,
+       mr.patient_id AS mr_patient_id,
        -- for PRESCRIPTION entity type
        p_rx.user_id AS rx_patient_user_id,
+       rx.patient_id AS rx_patient_id,
        -- for MESSAGE entity type — is the requester a member of the group?
        CASE WHEN f.entity_type = 'MESSAGE' THEN
          EXISTS (
@@ -354,8 +369,9 @@ export async function downloadFile(fileId, requestingUser) {
       file.mr_patient_user_id ??
       file.rx_patient_user_id;
     if (ownerUserId !== requestingUser.id) return 'FORBIDDEN';
-  } else if (!hasDownloadAccess(requestingUser, file)) {
-    // Every non-patient is granted access explicitly per entity type.
+  } else if (!(await hasDownloadAccess(requestingUser, file))) {
+    // Every non-patient is granted access explicitly — by care team for
+    // clinical entities, by role for message/incident/profile files.
     return 'FORBIDDEN';
   }
 

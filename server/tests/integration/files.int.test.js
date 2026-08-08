@@ -30,7 +30,7 @@ vi.mock('clamscan', () => {
 });
 
 import { useTestDb, run } from '../../test-setup/testDb.js';
-import { uploadFile } from '../../src/modules/files/file.service.js';
+import { uploadFile, downloadFile } from '../../src/modules/files/file.service.js';
 
 useTestDb();
 
@@ -111,5 +111,82 @@ describe('files — R17 ClamAV fail-closed (real DB)', () => {
       [res.id]
     );
     expect(auditCnt.n).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// R18 — clinical file downloads must be care-team scoped (no blanket grant).
+// ---------------------------------------------------------------------------
+describe('files — R18 care-team scoped downloads (real DB)', () => {
+  const requester = (id, roles) => ({ id, roles });
+
+  async function seedPatient(prefix, portalUserId) {
+    const { rows } = await run(
+      `INSERT INTO patients (id, mrn, first_name, last_name, date_of_birth, gender, user_id)
+       VALUES (gen_random_uuid(), $1, 'File', 'Patient', '1990-01-01', 'OTHER', $2)
+       RETURNING id`,
+      [uniq(prefix), portalUserId]
+    );
+    return rows[0].id;
+  }
+
+  async function seedMedicalRecord(patientId, doctorId) {
+    const { rows } = await run(
+      `INSERT INTO medical_records (id, patient_id, attending_doctor_id, chief_complaint)
+       VALUES (gen_random_uuid(), $1, $2, 'cough') RETURNING id`,
+      [patientId, doctorId]
+    );
+    return rows[0].id;
+  }
+
+  async function seedFile(entityType, entityId, uploadedBy, bytes = Buffer.from('file-bytes')) {
+    const storageKey = uniq('KEY');
+    fs.writeFileSync(path.join(uploadDir, storageKey), bytes);
+    const { rows } = await run(
+      `INSERT INTO files
+         (id, original_name, storage_key, mime_type, size_bytes, checksum_sha256,
+          encryption_iv, entity_type, entity_id, uploaded_by)
+       VALUES
+         (gen_random_uuid(), $1, $2, 'application/pdf', $3, 'abc',
+          'client-encrypted', $4, $5, $6)
+       RETURNING id`,
+      ['doc.pdf', storageKey, bytes.length, entityType, entityId, uploadedBy]
+    );
+    return rows[0].id;
+  }
+
+  it('scopes MEDICAL_RECORD downloads to the care team and the owner', async () => {
+    const doctor   = await seedUser('E-INT-R18-D');  // attending doctor
+    const outsider = await seedUser('E-INT-R18-O');  // not on the care team
+    const admin    = await seedUser('E-INT-R18-A');
+    const portal   = await seedUser('E-INT-R18-P');  // patient portal user
+    const patientId = await seedPatient('E-INT-R18-PT', portal);
+    const mrId      = await seedMedicalRecord(patientId, doctor);
+    const fileId    = await seedFile('MEDICAL_RECORD', mrId, doctor);
+
+    // attending doctor (on the care team) → allowed
+    const byDoctor = await downloadFile(fileId, requester(doctor, ['DOCTOR']));
+    expect(byDoctor).not.toBe('FORBIDDEN');
+    expect(byDoctor.originalName).toBe('doc.pdf');
+
+    // outsider doctor NOT on the care team → FORBIDDEN (no blanket role grant)
+    expect(await downloadFile(fileId, requester(outsider, ['DOCTOR']))).toBe('FORBIDDEN');
+
+    // admin bypasses the care-team check → allowed
+    expect(await downloadFile(fileId, requester(admin, ['ADMIN']))).not.toBe('FORBIDDEN');
+
+    // owning patient portal user → allowed
+    expect(await downloadFile(fileId, requester(portal, ['PATIENT']))).not.toBe('FORBIDDEN');
+
+    // a different patient → FORBIDDEN
+    expect(await downloadFile(fileId, requester(outsider, ['PATIENT']))).toBe('FORBIDDEN');
+
+    // the three allowed downloads (doctor, admin, owner) were audited; the two
+    // forbidden attempts were not
+    const { rows: [auditCnt] } = await run(
+      `SELECT COUNT(*)::int AS n FROM audit_logs WHERE entity = 'files' AND action = 'DOWNLOAD' AND entity_id = $1`,
+      [fileId]
+    );
+    expect(auditCnt.n).toBe(3);
   });
 });

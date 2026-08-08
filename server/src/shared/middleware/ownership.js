@@ -88,6 +88,14 @@ const CARE_TEAM_QUERY = `
   LIMIT 1
 `;
 
+// Shared care-team check — true when the staff member is/was one of the
+// patient's treating clinicians (or an admin, handled by callers). Used both
+// by the ownership middleware and by service-level gates (e.g. file downloads).
+export async function isCareTeamMember(patientId, userId) {
+  const { rows } = await query(CARE_TEAM_QUERY, [patientId, userId]);
+  return rows.length > 0;
+}
+
 export function checkOwnership(entityType, paramName = 'id') {
   const sql = OWNERSHIP_QUERIES[entityType];
   if (!sql) {
@@ -120,8 +128,7 @@ export function checkOwnership(entityType, paramName = 'id') {
       }
 
       // Any other staff role must belong to the patient's care team.
-      const { rows: team } = await query(CARE_TEAM_QUERY, [patient_id, req.user.id]);
-      if (!team[0]) {
+      if (!(await isCareTeamMember(patient_id, req.user.id))) {
         return res.status(403).json({ error: 'Access denied' });
       }
       return next();
