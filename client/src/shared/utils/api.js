@@ -25,8 +25,36 @@ export async function getCsrfToken() {
 
 const MUTATING = ['post', 'put', 'patch', 'delete'];
 
+// ── 401 → refresh → retry ─────────────────────────────────────────────────────
+// Access tokens expire after 15 minutes. On a 401, exchange the HttpOnly refresh
+// cookie for a new access token and replay the failed request once. If refresh
+// fails, the session is gone and we fall back to a full logout.
+let refreshInFlight = null;
+
+async function refreshAccessToken() {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const res = await fetch(`${API_BASE}/auth/refresh`, {
+        method      : 'POST',
+        credentials : 'include',
+        headers     : { 'Content-Type': 'application/json', 'x-csrf-token': await getCsrfToken() },
+      });
+      if (!res.ok) throw new Error('Refresh failed');
+      const data = await res.json();
+      if (!data?.accessToken) throw new Error('Refresh returned no token');
+      return data.accessToken;
+    })().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
 // ── Request interceptor — auth + CSRF + payload encryption ───────────────────
 api.interceptors.request.use(async (config) => {
+  // Replayed request — token/CSRF/encryption already prepared on first attempt
+  if (config._retried) return config;
+
   // Attach Bearer token
   const token = useStore.getState()?.accessToken;
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -76,11 +104,31 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    if (error.response?.status === 401) {
+    const status   = error.response?.status;
+    const original = error.config;
+
+    // 401 → try to refresh the access token once, then replay the request
+    if (status === 401 && original && !original._retried) {
+      try {
+        const accessToken = await refreshAccessToken();
+        if (accessToken) {
+          const { user } = useStore.getState();
+          useStore.getState()?.setAuth?.({ user, accessToken });
+          original._retried = true;
+          original.headers = original.headers ?? {};
+          original.headers.Authorization = `Bearer ${accessToken}`;
+          return api(original);
+        }
+      } catch {
+        // Refresh failed — fall through to logout below
+      }
+    }
+
+    if (status === 401) {
       useStore.getState()?.clearAuth?.();
       window.location.href = '/login';
     }
-    if (error.response?.status === 403) {
+    if (status === 403) {
       csrfToken = null;
     }
     return Promise.reject(error);
