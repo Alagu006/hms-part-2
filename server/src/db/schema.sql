@@ -667,7 +667,7 @@ CREATE TABLE incidents (
     reported_by     UUID NOT NULL REFERENCES users(id),
     patient_id      UUID REFERENCES patients(id),
     incident_type   TEXT NOT NULL CHECK (incident_type IN ('FALL','MEDICATION_ERROR','EQUIPMENT_FAILURE','SECURITY','FIRE','INFECTION','OTHER')),
-    severity        TEXT NOT NULL CHECK (severity IN ('LOW','MEDIUM','HIGH','CRITICAL')),
+    severity        INT  NOT NULL CHECK (severity BETWEEN 1 AND 5),
     description     TEXT NOT NULL,  -- pgp_sym_encrypt at app layer
     location        TEXT,
     occurred_at     TIMESTAMPTZ NOT NULL,

@@ -53,7 +53,7 @@ const SLOW_QUERY_MS = parseInt(process.env.SLOW_QUERY_THRESHOLD_MS || '500', 10)
  * @returns {Promise<pg.QueryResult>}
  */
 export async function query(sql, params = [], client = null) {
-  const runner = client ?? pool;
+  const runner = client ?? (testClient ?? pool);
   const start  = Date.now();
 
   try {
@@ -99,3 +99,38 @@ export async function withTransaction(fn) {
     client.release();
   }
 }
+
+// ---------------------------------------------------------------------------
+// Integration-test hook (DB-backed test harness)
+// ---------------------------------------------------------------------------
+// The unit suite mocks pool.query, so it can never prove that SQL actually
+// runs against the real schema — that blind spot let six production features
+// ship 100% broken with green tests. The integration harness (tests/integration)
+// routes every query issued through this module onto ONE client that holds a
+// transaction, which is rolled back after each test.
+//
+// Two entry points are covered:
+//   - pool.query(...) and query(...)  → routed to the test client
+//   - pool.connect()                  → returns the test client (its internal
+//     BEGIN/COMMIT/ROLLBACK become SAVEPOINTs so the outer test transaction
+//     still owns isolation, and release() is a no-op since it is not pooled)
+let testClient = null;
+
+/** @param {import('pg').Client} client */
+export function setTestClient(client) { testClient = client; }
+
+export function clearTestClient() { testClient = null; }
+
+export function getTestClient() { return testClient; }
+
+// Route pool.query through the active test client when one is set.
+const poolQuery = pool.query.bind(pool);
+pool.query = (sql, params) => {
+  if (testClient) return testClient.query(sql, params);
+  return poolQuery(sql, params);
+};
+
+// pool.connect() returns the test client so transaction-owning services
+// (auditLog, refundBill, ...) stay inside the same rollback-able transaction.
+const poolConnect = pool.connect.bind(pool);
+pool.connect = () => (testClient ? Promise.resolve(testClient) : poolConnect());
