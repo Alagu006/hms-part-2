@@ -35,7 +35,7 @@ vi.mock('../src/shared/logger.js', () => ({
 
 import { checkOwnership } from '../src/shared/middleware/ownership.js';
 import * as billing from '../src/modules/billing/billing.service.js';
-import { pool, query } from '../src/shared/db/pool.js';
+import { pool } from '../src/shared/db/pool.js';
 import { auditLog } from '../src/shared/middleware/audit.js';
 import { createNotification } from '../src/shared/services/notification.service.js';
 
@@ -63,14 +63,40 @@ describe('checkOwnership middleware', () => {
     vi.clearAllMocks();
   });
 
-  it('skips the check entirely for non-PATIENT roles (staff pass through)', async () => {
+  it('lets ADMIN/SUPER_ADMIN through without an ownership query', async () => {
     const mw = checkOwnership('bill');
-    const req = makeReq({ user: { id: 'u-staff', roles: ['BILLING'] } });
+    const res = makeRes();
+    const nxt = vi.fn();
+
+    await mw(makeReq({ user: { id: 'u-admin', roles: ['ADMIN'] } }), res, nxt);
+    expect(nxt).toHaveBeenCalledOnce();
+    expect(q).not.toHaveBeenCalled();
+  });
+
+  it('allows a staff clinician who is on the patient\u2019s care team', async () => {
+    q.mockResolvedValueOnce({ rows: [{ patient_id: 'pat-1', user_id: 'u-owner' }] });
+    q.mockResolvedValueOnce({ rows: [{ member: 1 }] });
+    const mw = checkOwnership('bill');
+    const req = makeReq({ params: { id: 'bill-1' }, user: { id: 'u-doctor', roles: ['DOCTOR'] } });
     const res = makeRes();
 
     await mw(req, res, next);
+    expect(q).toHaveBeenNthCalledWith(1, expect.stringContaining('bills'), ['bill-1']);
+    expect(q).toHaveBeenNthCalledWith(2, expect.stringContaining('care_team'), ['pat-1', 'u-doctor']);
     expect(next).toHaveBeenCalledOnce();
-    expect(query).not.toHaveBeenCalled();
+  });
+
+  it('denies 403 to a staff clinician who is NOT on the patient\u2019s care team', async () => {
+    q.mockResolvedValueOnce({ rows: [{ patient_id: 'pat-1', user_id: 'u-owner' }] });
+    q.mockResolvedValueOnce({ rows: [] });
+    const mw = checkOwnership('bill');
+    const req = makeReq({ params: { id: 'bill-1' }, user: { id: 'u-other-doc', roles: ['DOCTOR'] } });
+    const res = makeRes();
+
+    await mw(req, res, next);
+    expect(res._status).toBe(403);
+    expect(res._body).toEqual({ error: 'Access denied' });
+    expect(next).not.toHaveBeenCalled();
   });
 
   it('allows a PATIENT to access their own bill', async () => {

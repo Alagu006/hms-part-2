@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authenticate }    from '../../shared/middleware/auth.js';
 import { authorize }       from '../../shared/middleware/rbac.js';
+import { checkOwnership }  from '../../shared/middleware/ownership.js';
 import { validate }        from '../../shared/middleware/validate.js';
 import { auditMiddleware } from '../../shared/middleware/audit.js';
 import { apiRateLimiter }  from '../../shared/middleware/rateLimiter.js';
@@ -30,6 +31,7 @@ router.get(
 router.get(
   '/patient/:patientId',
   authorize('DOCTOR', 'NURSE', 'PATIENT', 'ADMIN', 'SUPER_ADMIN'),
+  checkOwnership('patient', 'patientId'),
   validate(vitalsHistorySchema),
   getVitalsHistory
 );
