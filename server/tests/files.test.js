@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 
 // ---------------------------------------------------------------------------
 // Shared mocks — env MUST be set before file.service.js is statically imported
@@ -40,6 +40,7 @@ vi.mock('file-type', () => ({
 vi.mock('clamscan', () => {
   class NodeClam {
     async init() {
+      if (clamState.error) throw new Error('connect ECONNREFUSED 127.0.0.1:3310');
       return {
         isInfected: async () => ({ isInfected: clamState.infected, viruses: clamState.viruses }),
       };
@@ -188,7 +189,12 @@ describe('file.service — uploadFile', () => {
     vi.clearAllMocks();
     clamState.infected = false;
     clamState.viruses  = [];
+    clamState.error    = false;
     fileTypeFromBuffer.mockReset();
+  });
+
+  afterEach(() => {
+    delete process.env.CLAMAV_REQUIRED;
   });
 
   it('rejects disallowed MIME with 415', async () => {
@@ -204,6 +210,27 @@ describe('file.service — uploadFile', () => {
     await expect(files.uploadFile({ buffer: Buffer.from('x'), originalName: 'a.pdf', entityType: 'PATIENT', entityId: 'p1' }, 'u'))
       .rejects.toMatchObject({ status: 422, message: /malware detected/ });
     expect(fs.readdirSync(uploadDir).filter((f) => f.startsWith('tmp_'))).toEqual([]);
+  });
+
+  it('FAIL-CLOSED: rejects with 503 when the scanner is unreachable and cleans up temp', async () => {
+    fileTypeFromBuffer.mockResolvedValue({ mime: 'application/pdf' });
+    clamState.error = true;
+    await expect(files.uploadFile({ buffer: Buffer.from('x'), originalName: 'a.pdf', entityType: 'PATIENT', entityId: 'p1' }, 'u'))
+      .rejects.toMatchObject({ status: 503, message: /Virus scanner unavailable/ });
+    // no file was persisted, no row inserted, no audit, and the temp file is gone
+    expect(q.mock.calls.some(([sql]) => sql.startsWith('INSERT INTO files'))).toBe(false);
+    expect(auditLog).not.toHaveBeenCalled();
+    expect(fs.readdirSync(uploadDir).filter((f) => f.startsWith('tmp_'))).toEqual([]);
+  });
+
+  it('CLAMAV_REQUIRED=false opts out of the scan (dev-only) and accepts the upload', async () => {
+    process.env.CLAMAV_REQUIRED = 'false';
+    clamState.error = true; // scanner would be down — but scanning is disabled
+    fileTypeFromBuffer.mockResolvedValue({ mime: 'application/pdf' });
+    q.mockResolvedValueOnce({ rows: [{ id: 'f1', original_name: 'r.pdf', mime_type: 'application/pdf', size_bytes: 1, entity_type: 'PATIENT', entity_id: 'p1', created_at: new Date() }] });
+
+    const res = await files.uploadFile({ buffer: Buffer.from('x'), originalName: 'r.pdf', entityType: 'PATIENT', entityId: 'p1' }, 'u');
+    expect(res.id).toBe('f1');
   });
 
   it('uses declared MIME for client-encrypted uploads without magic-byte detection', async () => {

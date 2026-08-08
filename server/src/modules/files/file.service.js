@@ -66,13 +66,20 @@ function hasDownloadAccess(requestingUser, file) {
 }
 
 // ---------------------------------------------------------------------------
-// ClamAV scan — graceful skip if not installed
+// ClamAV scan — FAIL-CLOSED. When clamd is unreachable and scanning is
+// required the upload is rejected with 503 instead of being accepted unscanned.
+// Set CLAMAV_REQUIRED=false only where scanning is consciously disabled
+// (e.g. local development) — never in production.
 // ---------------------------------------------------------------------------
 async function clamScan(filePath) {
+  if (process.env.CLAMAV_REQUIRED === 'false') {
+    logger.warn('[files] Virus scanning disabled (CLAMAV_REQUIRED=false) — skipping scan');
+    return { isInfected: false, viruses: [] };
+  }
   try {
-    const mod    = await import('clamscan');
+    const mod      = await import('clamscan');
     const NodeClam = mod.default ?? mod;
-    const clam   = await new NodeClam().init({
+    const clam     = await new NodeClam().init({
       removeInfected: false,
       scanLog       : null,
       debugMode     : false,
@@ -88,9 +95,12 @@ async function clamScan(filePath) {
     const { isInfected, viruses } = await clam.isInfected(filePath);
     return { isInfected, viruses };
   } catch (err) {
-    // clamd not reachable — skip gracefully
-    logger.warn('[files] ClamAV not available, skipping virus scan', { message: err?.message });
-    return { isInfected: false, viruses: [] };
+    // clamd not reachable — fail closed rather than accept unscanned bytes
+    logger.error('[files] ClamAV unreachable — rejecting upload (fail-closed)', { message: err?.message });
+    throw Object.assign(
+      new Error('Virus scanner unavailable — upload rejected'),
+      { status: 503 }
+    );
   }
 }
 
