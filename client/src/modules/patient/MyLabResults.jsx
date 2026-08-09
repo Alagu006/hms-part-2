@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import EncryptedFileDownload from '../../shared/components/EncryptedFileDownload.jsx';
 import styles from './MyLabResults.module.scss';
 
@@ -19,7 +19,7 @@ export default function MyLabResults() {
 
   // Resolve the patient record ID for the logged-in user
   useEffect(() => {
-    apiFetch(`${API_BASE}/patients/my`)
+    apiFetch(`/patients/my`)
       .then(r => setPatientId(r?.data?.id ?? r?.id ?? null))
       .catch(() => setError('Could not load patient profile.'));
   }, []);
@@ -29,7 +29,7 @@ export default function MyLabResults() {
     setLoading(true);
     setError('');
     try {
-      const resData = await apiFetch(`${API_BASE}/lab-orders/patient/${patientId}/results?limit=100`);
+      const resData = await apiFetch(`/lab-orders/patient/${patientId}/results?limit=100`);
       setResults(resData?.results ?? []);
     } catch (err) {
       setError('Failed to load lab results.');

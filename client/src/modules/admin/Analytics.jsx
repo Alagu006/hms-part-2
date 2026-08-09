@@ -4,7 +4,7 @@ import {
   ComposedChart,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './Analytics.module.scss';
 
@@ -361,7 +361,7 @@ export default function Analytics() {
     setError(null);
     try {
       const endpoint = endpointMap[tab];
-      const json = await apiFetch(`${API_BASE}/analytics/${endpoint}?period=${p}`);
+      const json = await apiFetch(`/analytics/${endpoint}?period=${p}`);
       setData(prev => ({ ...prev, [`${tab}_${p}`]: json }));
     } catch (e) {
       setError(e.message);

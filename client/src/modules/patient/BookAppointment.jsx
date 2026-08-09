@@ -1,30 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './BookAppointment.module.scss';
 
 async function fetchDepartments() {
-  const data = await apiFetch(`${API_BASE}/departments`);
+  const data = await apiFetch(`/departments`);
   return data?.departments ?? [];
 }
 
 async function fetchDoctors(departmentId) {
   const url = departmentId
-    ? `${API_BASE}/doctors?departmentId=${departmentId}&limit=100`
-    : `${API_BASE}/doctors?limit=100`;
+    ? `/doctors?departmentId=${departmentId}&limit=100`
+    : `/doctors?limit=100`;
   const data = await apiFetch(url);
   return data?.doctors ?? [];
 }
 
 async function fetchMyPatientId() {
-  const data = await apiFetch(`${API_BASE}/patients/my`);
+  const data = await apiFetch(`/patients/my`);
   return data?.data?.id;
 }
 
 async function fetchTakenSlots(doctorId, date) {
   const params = new URLSearchParams({ doctorId, date, limit: 100 });
-  const data = await apiFetch(`${API_BASE}/appointments?${params}`);
+  const data = await apiFetch(`/appointments?${params}`);
   return data?.appointments ?? [];
 }
 
@@ -246,7 +246,7 @@ export default function BookAppointment() {
       const patientId = await fetchMyPatientId();
       const scheduledAt = `${date}T${time}:00.000Z`;
       const selectedDoctor = doctors.find(d => d.id === doctorId);
-      const data = await apiFetch(`${API_BASE}/appointments`, {
+      const data = await apiFetch(`/appointments`, {
         method: 'POST',
         body: JSON.stringify({
           patientId,

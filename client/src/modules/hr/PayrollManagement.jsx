@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './PayrollManagement.module.scss';
 
 // ---------------------------------------------------------------------------
 // API helpers
 // ---------------------------------------------------------------------------
 const fetchRuns = (year) =>
-  apiFetch(`${API_BASE}/payroll/runs${year ? `?year=${year}` : ''}`);
+  apiFetch(`/payroll/runs${year ? `?year=${year}` : ''}`);
 
 const fetchRunDetails = (runId) =>
-  apiFetch(`${API_BASE}/payroll/runs/${runId}/details?limit=100`);
+  apiFetch(`/payroll/runs/${runId}/details?limit=100`);
 
 const createRun = (body) =>
-  apiFetch(`${API_BASE}/payroll/runs`, { method: 'POST', body: JSON.stringify(body) });
+  apiFetch(`/payroll/runs`, { method: 'POST', body: JSON.stringify(body) });
 
 const processRun = (runId) =>
-  apiFetch(`${API_BASE}/payroll/runs/${runId}/process`, { method: 'POST', body: JSON.stringify({}) });
+  apiFetch(`/payroll/runs/${runId}/process`, { method: 'POST', body: JSON.stringify({}) });
 
 // ---------------------------------------------------------------------------
 // Status badge

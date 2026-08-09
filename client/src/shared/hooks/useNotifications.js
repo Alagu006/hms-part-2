@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { io }               from 'socket.io-client';
 import { create }           from 'zustand';
-import { apiFetch, API_BASE } from '../utils/api.js';
+import { apiFetch } from '../utils/api.js';
 import { getAccessToken } from '../store/index.js';
 
 import { getSocketUrl } from '../utils/socketUrl.js';
@@ -75,7 +75,7 @@ export function useNotifications(currentUser) {
   useEffect(() => {
     if (!currentUser?.id) return;
 
-    apiFetch(`${API_BASE}/notifications/unread-count`)
+    apiFetch(`/notifications/unread-count`)
       .then((json) => store.setUnreadCount(json?.count ?? 0))
       .catch(console.error);
   }, [currentUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -127,7 +127,7 @@ export function useNotifications(currentUser) {
         if (permission !== 'granted') return;
 
         // Fetch VAPID public key
-        const keyData = await apiFetch(`${API_BASE}/notifications/vapid-public-key`);
+        const keyData = await apiFetch(`/notifications/vapid-public-key`);
         if (!keyData?.key) return;
         const { key } = keyData;
 
@@ -137,7 +137,7 @@ export function useNotifications(currentUser) {
           applicationServerKey: urlBase64ToUint8Array(key),
         });
 
-        await apiFetch(`${API_BASE}/notifications/subscribe`, {
+        await apiFetch(`/notifications/subscribe`, {
           method : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ subscription: sub.toJSON() }),
@@ -152,7 +152,7 @@ export function useNotifications(currentUser) {
 
   // ── REST helpers exposed to components ───────────────────────────────────
   async function fetchNotifications(page = 1) {
-    const json = await apiFetch(`${API_BASE}/notifications?page=${page}&limit=20`);
+    const json = await apiFetch(`/notifications?page=${page}&limit=20`);
     if (page === 1) store.setNotifications(json?.notifications ?? []);
     else store.setNotifications([...store.notifications, ...(json?.notifications ?? [])]);
     store.setUnreadCount(json?.unreadCount ?? 0);
@@ -162,17 +162,17 @@ export function useNotifications(currentUser) {
   async function markRead(id) {
     store.markRead(id);
     store.decrementUnread();
-    await apiFetch(`${API_BASE}/notifications/${id}/read`, { method: 'PATCH' }).catch(console.error);
+    await apiFetch(`/notifications/${id}/read`, { method: 'PATCH' }).catch(console.error);
   }
 
   async function markAllRead() {
     store.markAllRead();
-    await apiFetch(`${API_BASE}/notifications/read-all`, { method: 'PATCH' }).catch(console.error);
+    await apiFetch(`/notifications/read-all`, { method: 'PATCH' }).catch(console.error);
   }
 
   async function remove(id) {
     store.removeNotification(id);
-    await apiFetch(`${API_BASE}/notifications/${id}`, { method: 'DELETE' }).catch(console.error);
+    await apiFetch(`/notifications/${id}`, { method: 'DELETE' }).catch(console.error);
   }
 
   return { fetchNotifications, markRead, markAllRead, remove };

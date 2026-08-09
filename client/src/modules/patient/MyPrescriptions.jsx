@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './MyPrescriptions.module.scss';
 
@@ -34,7 +34,7 @@ function PrescriptionDetail({ id, onBack }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiFetch(`${API_BASE}/prescriptions/${id}`)
+    apiFetch(`/prescriptions/${id}`)
       .then((data) => setData(data.data))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -146,8 +146,8 @@ export default function MyPrescriptions({ patientId }) {
 
   // Determine endpoint: if patientId provided use history route, else use /my
   const endpoint = patientId
-    ? `${API_BASE}/prescriptions/patient/${patientId}`
-    : `${API_BASE}/prescriptions/my`;
+    ? `/prescriptions/patient/${patientId}`
+    : `/prescriptions/my`;
 
   const fetchList = useCallback(async () => {
     setLoading(true);

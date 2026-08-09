@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './AddPatientForm.module.scss';
 
 const INITIAL = {
@@ -55,7 +55,7 @@ export default function AddPatientForm({ onClose, onSuccess }) {
     setLoading(true);
     try {
       const body = Object.fromEntries(Object.entries(form).filter(([, v]) => v !== ''));
-      await apiFetch(`${API_BASE}/patients`, { method: 'POST', body: JSON.stringify(body) });
+      await apiFetch(`/patients`, { method: 'POST', body: JSON.stringify(body) });
       setToast({ message: 'Patient registered. Temporary password sent to email.', type: 'success' });
       setDone(true);
       onSuccess?.();

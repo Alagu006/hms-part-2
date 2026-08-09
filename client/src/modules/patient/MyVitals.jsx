@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './MyVitals.module.scss';
 
 function fmt(iso) {
@@ -52,7 +52,7 @@ export default function MyVitals() {
 
   // Resolve own patient ID
   useEffect(() => {
-    apiFetch(`${API_BASE}/patients/my`)
+    apiFetch(`/patients/my`)
       .then(d => setPatientId(d?.data?.id))
       .catch(console.error);
   }, []);
@@ -61,7 +61,7 @@ export default function MyVitals() {
     if (!patientId) return;
     setLoading(true);
     try {
-      const json = await apiFetch(`${API_BASE}/vitals/patient/${patientId}?days=${days}&limit=100`);
+      const json = await apiFetch(`/vitals/patient/${patientId}?days=${days}&limit=100`);
       setVitals(json?.vitals ?? []);
     } catch { setVitals([]); }
     finally { setLoading(false); }

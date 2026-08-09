@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../store/index.js';
 import { useNotificationStore } from '../hooks/useNotifications.js';
-import { apiFetch, API_BASE } from '../utils/api.js';
+import { apiFetch } from '../utils/api.js';
 import { decodeJwtPayload } from '../utils/crypto.js';
 import styles from './ActiveSessions.module.scss';
 
@@ -107,12 +107,12 @@ export default function ActiveSessions({ onClose }) {
 
   const { data: sessions = [], isLoading, error } = useQuery({
     queryKey: ['active-sessions'],
-    queryFn: () => apiFetch(`${API_BASE}/auth/sessions`),
+    queryFn: () => apiFetch(`/auth/sessions`),
     enabled: !!accessToken,
   });
 
   const revokeMutation = useMutation({
-    mutationFn: (sessionId) => apiFetch(`${API_BASE}/auth/sessions/${sessionId}`, { method: 'DELETE' }),
+    mutationFn: (sessionId) => apiFetch(`/auth/sessions/${sessionId}`, { method: 'DELETE' }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
       addToast({ title: 'Session revoked', body: 'That device has been signed out.', type: 'SESSION_REVOKED' });
@@ -123,7 +123,7 @@ export default function ActiveSessions({ onClose }) {
   });
 
   const signOutAllMutation = useMutation({
-    mutationFn: () => apiFetch(`${API_BASE}/auth/sessions`, { method: 'DELETE' }),
+    mutationFn: () => apiFetch(`/auth/sessions`, { method: 'DELETE' }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['active-sessions'] });
       addToast({

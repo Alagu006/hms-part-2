@@ -1,60 +1,60 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './PharmacistDashboard.module.scss';
 
 // ---------------------------------------------------------------------------
 // API calls
 // ---------------------------------------------------------------------------
 async function fetchPendingPrescriptions() {
-  const json = await apiFetch(`${API_BASE}/prescriptions?status=PENDING&page=1&limit=50`);
+  const json = await apiFetch(`/prescriptions?status=PENDING&page=1&limit=50`);
   return json?.prescriptions ?? [];
 }
 
 async function fetchDispensedToday() {
   const today = new Date().toISOString().split('T')[0];
-  const json = await apiFetch(`${API_BASE}/prescriptions?status=DISPENSED&page=1&limit=50`);
+  const json = await apiFetch(`/prescriptions?status=DISPENSED&page=1&limit=50`);
   return (json?.prescriptions ?? []).filter(p => new Date(p.created_at).toISOString().split('T')[0] === today);
 }
 
 async function fetchAllMedicines({ page = 1, search = '' } = {}) {
   const params = new URLSearchParams({ page, limit: 20 });
   if (search) params.set('search', search);
-  const json = await apiFetch(`${API_BASE}/prescriptions/medicines?${params}`);
+  const json = await apiFetch(`/prescriptions/medicines?${params}`);
   return json?.data ?? { items: [], total: 0 };
 }
 
 async function fetchLowStockItems() {
-  const json = await apiFetch(`${API_BASE}/inventory?category=MEDICINE&lowStock=true&page=1&limit=50`);
+  const json = await apiFetch(`/inventory?category=MEDICINE&lowStock=true&page=1&limit=50`);
   return json?.data?.items ?? [];
 }
 
 async function fetchPendingCount() {
-  const json = await apiFetch(`${API_BASE}/prescriptions?status=PENDING&page=1&limit=1`);
+  const json = await apiFetch(`/prescriptions?status=PENDING&page=1&limit=1`);
   return json?.total ?? 0;
 }
 
 async function fetchDispensedCount() {
-  const json = await apiFetch(`${API_BASE}/prescriptions?status=DISPENSED&page=1&limit=1`);
+  const json = await apiFetch(`/prescriptions?status=DISPENSED&page=1&limit=1`);
   const today = new Date().toISOString().split('T')[0];
   return (json?.prescriptions ?? []).filter(p => new Date(p.created_at).toISOString().split('T')[0] === today).length;
 }
 
 async function fetchLowStockCount() {
-  const json = await apiFetch(`${API_BASE}/inventory?category=MEDICINE&lowStock=true&page=1&limit=1`);
+  const json = await apiFetch(`/inventory?category=MEDICINE&lowStock=true&page=1&limit=1`);
   return json?.data?.total ?? 0;
 }
 
 async function dispensePrescription(id, items) {
   const dispensedItems = items.map((item) => ({ itemId: item.id, dispensed: true }));
-  return apiFetch(`${API_BASE}/prescriptions/${id}/dispense`, {
+  return apiFetch(`/prescriptions/${id}/dispense`, {
     method: 'PATCH',
     body: JSON.stringify({ dispensedItems, notes: '' }),
   });
 }
 
 async function addMedicine(data) {
-  return apiFetch(`${API_BASE}/prescriptions/medicines`, {
+  return apiFetch(`/prescriptions/medicines`, {
     method: 'POST',
     body: JSON.stringify(data),
   });

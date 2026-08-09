@@ -1,38 +1,38 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './InventoryManagerDashboard.module.scss';
 
 // ---------------------------------------------------------------------------
 // API calls
 // ---------------------------------------------------------------------------
 async function fetchLowStockItems() {
-  const json = await apiFetch(`${API_BASE}/inventory?lowStock=true&limit=100`);
+  const json = await apiFetch(`/inventory?lowStock=true&limit=100`);
   return json?.items ?? [];
 }
 
 async function fetchInventoryStats() {
-  return apiFetch(`${API_BASE}/inventory/stats`);
+  return apiFetch(`/inventory/stats`);
 }
 
 async function fetchBedMatrix() {
-  const json = await apiFetch(`${API_BASE}/inventory/beds`);
+  const json = await apiFetch(`/inventory/beds`);
   return json?.data ?? [];
 }
 
 async function fetchInventoryTransactions() {
-  const json = await apiFetch(`${API_BASE}/admin/audit-logs?entity=inventory_items&limit=10`);
+  const json = await apiFetch(`/admin/audit-logs?entity=inventory_items&limit=10`);
   return json?.rows ?? json?.logs ?? [];
 }
 
 async function fetchEquipmentItems() {
-  const json = await apiFetch(`${API_BASE}/inventory?category=EQUIPMENT&limit=50`);
+  const json = await apiFetch(`/inventory?category=EQUIPMENT&limit=50`);
   return json?.items ?? [];
 }
 
 async function adjustQuantity(id, adjustment, reason) {
-  return apiFetch(`${API_BASE}/inventory/${id}/adjust`, {
+  return apiFetch(`/inventory/${id}/adjust`, {
     method: 'PATCH',
     body: JSON.stringify({ adjustment, reason }),
   });

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './CDSInsightsPanel.module.scss';
 
 // ── Severity config ───────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ export default function CDSInsightsPanel({ patientId, collapsed: initCollapsed =
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['cds-insights', patientId],
-    queryFn : () => apiFetch(`${API_BASE}/cds/insights/${patientId}`).then(r => r.data),
+    queryFn : () => apiFetch(`/cds/insights/${patientId}`).then(r => r.data),
     enabled : !!patientId && !collapsed,
     staleTime: 2 * 60_000, // 2 min
     retry: 1,
@@ -151,7 +151,7 @@ export default function CDSInsightsPanel({ patientId, collapsed: initCollapsed =
 
   const ackMutation = useMutation({
     mutationFn: ({ alertId, reason }) =>
-      apiFetch(`${API_BASE}/cds/alerts/${alertId}/acknowledge`, {
+      apiFetch(`/cds/alerts/${alertId}/acknowledge`, {
         method: 'POST',
         body  : JSON.stringify({ reason }),
       }),
@@ -160,7 +160,7 @@ export default function CDSInsightsPanel({ patientId, collapsed: initCollapsed =
 
   const dismissMutation = useMutation({
     mutationFn: ({ alertId, reason }) =>
-      apiFetch(`${API_BASE}/cds/alerts/${alertId}/dismiss`, {
+      apiFetch(`/cds/alerts/${alertId}/dismiss`, {
         method: 'POST',
         body  : JSON.stringify({ reason }),
       }),

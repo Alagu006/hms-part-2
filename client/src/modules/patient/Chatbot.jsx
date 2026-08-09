@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import { useStore } from '../../shared/store/index.js';
 import styles from './Chatbot.module.scss';
 
@@ -96,7 +96,7 @@ export default function Chatbot() {
   // Load history from server on mount
   useEffect(() => {
     if (!userId || messages.length > 0) return;
-    apiFetch(`${API_BASE}/chatbot/history`)
+    apiFetch(`/chatbot/history`)
       .then((data) => {
         const history = data?.data ?? [];
         if (!history.length) return;
@@ -121,7 +121,7 @@ export default function Chatbot() {
     setInput('');
     setTyping(true);
     try {
-      const data = await apiFetch(`${API_BASE}/chatbot/message`, {
+      const data = await apiFetch(`/chatbot/message`, {
         method: 'POST',
         body: JSON.stringify({ message: text }),
       });

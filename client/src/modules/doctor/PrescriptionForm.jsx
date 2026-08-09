@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './PrescriptionForm.module.scss';
 
 const FREQ_OPTIONS = ['1x', '2x', '3x', 'SOS'];
@@ -181,7 +181,7 @@ function PatientSearch({ onSelect }) {
   useEffect(() => {
     if (debouncedQ.length < 2) { setResults([]); return; }
     setLoading(true);
-    apiFetch(`${API_BASE}/patients?search=${encodeURIComponent(debouncedQ)}&limit=8`)
+    apiFetch(`/patients?search=${encodeURIComponent(debouncedQ)}&limit=8`)
       .then(json => setResults(json?.patients ?? []))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -221,7 +221,7 @@ function AddMedicineModal({ onAdded, onClose }) {
     if (!form.name.trim()) { setErr('Name is required'); return; }
     setSaving(true);
     try {
-      const json = await apiFetch(`${API_BASE}/prescriptions/medicines`, {
+      const json = await apiFetch(`/prescriptions/medicines`, {
         method: 'POST',
         body: JSON.stringify(form),
       });
@@ -280,7 +280,7 @@ function NurseSearch({ onSelect }) {
   useEffect(() => {
     if (debouncedQ.length < 2) { setResults([]); return; }
     setLoading(true);
-    apiFetch(`${API_BASE}/messaging/users`)
+    apiFetch(`/messaging/users`)
       .then(json => {
         const all = json?.data ?? [];
         const q = debouncedQ.toLowerCase();
@@ -337,7 +337,7 @@ function MedicineSearch({ item, onChange, onAddNew }) {
     if (debouncedQ.length < 3) { onChange({ searchResults: [], showDropdown: false }); return; }
     let cancelled = false;
     setLoading(true);
-    apiFetch(`${API_BASE}/prescriptions/medicines/search?q=${encodeURIComponent(debouncedQ)}`)
+    apiFetch(`/prescriptions/medicines/search?q=${encodeURIComponent(debouncedQ)}`)
       .then(json => { if (!cancelled) onChange({ searchResults: json?.data ?? [], showDropdown: true }); })
       .catch(console.error)
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -527,7 +527,7 @@ export default function PrescriptionForm({ patientId: propPatientId, patientName
 
     setLoading(true);
     try {
-      const json = await apiFetch(`${API_BASE}/prescriptions`, {
+      const json = await apiFetch(`/prescriptions`, {
         method: 'POST',
         body: JSON.stringify(payload),
       });

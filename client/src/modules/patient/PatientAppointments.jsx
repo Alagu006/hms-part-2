@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './PatientAppointments.module.scss';
 
 const JOIN_WINDOW_MS = 5 * 60 * 1000;
 
 async function fetchAppointments() {
-  const data = await apiFetch(`${API_BASE}/appointments?patientId=me&limit=50`);
+  const data = await apiFetch(`/appointments?patientId=me&limit=50`);
   return data?.appointments ?? [];
 }
 
 async function fetchMyTeleSessions() {
-  const data = await apiFetch(`${API_BASE}/telemedicine/sessions/my?limit=50`);
+  const data = await apiFetch(`/telemedicine/sessions/my?limit=50`);
   return data?.data?.sessions ?? [];
 }
 
@@ -129,7 +129,7 @@ export default function PatientAppointments() {
 
   const mutation = useMutation({
     mutationFn: ({ id, body }) =>
-      apiFetch(`${API_BASE}/appointments/${id}/patient`, { method: 'PATCH', body: JSON.stringify(body) }),
+      apiFetch(`/appointments/${id}/patient`, { method: 'PATCH', body: JSON.stringify(body) }),
     onSuccess: (_, { body }) => {
       qc.invalidateQueries({ queryKey: ['patient-appointments'] });
       setToast(body.action === 'cancel' ? 'Appointment cancelled.' : 'Appointment updated.');

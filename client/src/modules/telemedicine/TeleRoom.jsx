@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import { useAuth, getAccessToken } from '../../shared/store/index.js';
 import {
   encryptChatMessage,
@@ -30,7 +30,7 @@ function ConsultationNoteModal({ sessionId, onSaved, onSkip }) {
   async function handleSave() {
     setSaving(true);
     try {
-      await apiFetch(`${API_BASE}/telemedicine/sessions/${sessionId}/end`, {
+      await apiFetch(`/telemedicine/sessions/${sessionId}/end`, {
         method: 'PATCH',
         body: JSON.stringify({ consultationNote: note }),
       });
@@ -131,7 +131,7 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
   // ── 1. Resolve session UUID from room token ───────────────────────────────
   useEffect(() => {
     if (sessionId || !roomToken) return;
-    apiFetch(`${API_BASE}/telemedicine/sessions/my?limit=50`)
+    apiFetch(`/telemedicine/sessions/my?limit=50`)
       .then(d => {
         const s = (d?.data?.sessions ?? []).find(s => s.room_id === roomToken || s.room_token === roomToken);
         if (s) setSessionId(s.id);
@@ -143,7 +143,7 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
   // ── 2. Fetch token once session ID is known ───────────────────────────────
   useEffect(() => {
     if (!sessionId) return;
-    apiFetch(`${API_BASE}/telemedicine/sessions/${sessionId}/token`)
+    apiFetch(`/telemedicine/sessions/${sessionId}/token`)
       .then(d => setTokenData(d?.data))
       .catch(e => {
         setError(e.message);
@@ -572,7 +572,7 @@ export default function TeleRoom({ sessionId: sessionIdProp }) {
           sessionId={sessionId}
           onSaved={() => { setShowNote(false); setStatus('ended'); }}
           onSkip={async () => {
-            await apiFetch(`${API_BASE}/telemedicine/sessions/${sessionId}/end`, {
+            await apiFetch(`/telemedicine/sessions/${sessionId}/end`, {
               method: 'PATCH', body: JSON.stringify({}),
             }).catch(console.error);
             setShowNote(false);

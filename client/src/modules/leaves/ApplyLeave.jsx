@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './ApplyLeave.module.scss';
 
 const LEAVE_TYPES = [
@@ -98,7 +98,7 @@ export default function ApplyLeave({ onSuccess }) {
 
   const loadData = useCallback(async () => {
     try {
-      const data = await apiFetch(`${API_BASE}/leaves/my`);
+      const data = await apiFetch(`/leaves/my`);
       setBalances(data?.balances ?? []);
       setLeaves(data?.leaves ?? []);
     } catch { /* silent */ }
@@ -115,7 +115,7 @@ export default function ApplyLeave({ onSuccess }) {
     setError(null);
     setSubmitting(true);
     try {
-      await apiFetch(`${API_BASE}/leaves`, {
+      await apiFetch(`/leaves`, {
         method: 'POST',
         body: JSON.stringify({
           leaveType: form.leaveType,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { io }       from 'socket.io-client';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import { importKey } from '../../shared/utils/crypto.js';
 import { useAuth, getAccessToken } from '../../shared/store/index.js';
 import { getSocketUrl } from '../../shared/utils/socketUrl.js';
@@ -16,7 +16,7 @@ const SOCKET_URL = getSocketUrl();
 
 async function getGroupKey(groupId) {
   if (_groupKeyCache.has(groupId)) return _groupKeyCache.get(groupId);
-  const res = await apiFetch(`${API_BASE}/messaging/groups/${groupId}/key`);
+  const res = await apiFetch(`/messaging/groups/${groupId}/key`);
   if (!res?.key) throw new Error('Failed to fetch group key');
   const cryptoKey = await importKey(res.key);
   _groupKeyCache.set(groupId, cryptoKey);
@@ -97,7 +97,7 @@ function MembersPanel({ members, groupId, allUsers, onMemberAdded }) {
   async function addMember(userId) {
     setSaving(true);
     try {
-      await apiFetch(`${API_BASE}/messaging/groups/${groupId}/members`, {
+      await apiFetch(`/messaging/groups/${groupId}/members`, {
         method: 'POST',
         body: JSON.stringify({ userId }),
       });
@@ -276,8 +276,8 @@ export default function MessagingLayout() {
   }, [currentUser?.id]);
 
   useEffect(() => {
-    apiFetch(`${API_BASE}/messaging/groups`).then(json => setGroups(json?.data ?? [])).catch(console.error);
-    apiFetch(`${API_BASE}/messaging/users`).then(json => setAllUsers(json?.data ?? [])).catch(console.error);
+    apiFetch(`/messaging/groups`).then(json => setGroups(json?.data ?? [])).catch(console.error);
+    apiFetch(`/messaging/users`).then(json => setAllUsers(json?.data ?? [])).catch(console.error);
   }, []);
 
   const selectGroup = useCallback(async (group) => {
@@ -298,8 +298,8 @@ export default function MessagingLayout() {
       setGroupKey(null);
     }
 
-    apiFetch(`${API_BASE}/messaging/groups/${group.id}/pinned`).then(json => setPinnedMsgs(json?.data ?? [])).catch(console.error);
-    apiFetch(`${API_BASE}/messaging/groups/${group.id}/members`).then(json => setGroupMembers(json?.data ?? [])).catch(console.error);
+    apiFetch(`/messaging/groups/${group.id}/pinned`).then(json => setPinnedMsgs(json?.data ?? [])).catch(console.error);
+    apiFetch(`/messaging/groups/${group.id}/members`).then(json => setGroupMembers(json?.data ?? [])).catch(console.error);
 
     socketRef.current?.emit('message:read', { groupId: group.id, lastReadMessageId: Date.now() });
     setGroups(prev => prev.map(g => g.id === group.id ? { ...g, unread_count: 0 } : g));
@@ -309,8 +309,8 @@ export default function MessagingLayout() {
     const existing = groups.find(g => g.type === 'DIRECT' && g.other_user_id === targetUser.id);
     if (existing) { selectGroup(existing); return; }
     try {
-      await apiFetch(`${API_BASE}/messaging/direct/${targetUser.id}/history?page=1&limit=1`);
-      const updated = await apiFetch(`${API_BASE}/messaging/groups`);
+      await apiFetch(`/messaging/direct/${targetUser.id}/history?page=1&limit=1`);
+      const updated = await apiFetch(`/messaging/groups`);
       const newGroups = updated?.data ?? [];
       setGroups(newGroups);
       const dmGroup = newGroups.find(g => g.type === 'DIRECT');
@@ -323,7 +323,7 @@ export default function MessagingLayout() {
   useEffect(() => {
     if (!activeGroup || !hasMore || loadingHistory) return;
     setLoadingHistory(true);
-    apiFetch(`${API_BASE}/messaging/groups/${activeGroup.id}/history?page=${page}&limit=50`)
+    apiFetch(`/messaging/groups/${activeGroup.id}/history?page=${page}&limit=50`)
       .then(json => {
         const incoming = json?.messages ?? [];
         setMessages(prev => page === 1 ? incoming : [...incoming, ...prev]);
@@ -350,7 +350,7 @@ export default function MessagingLayout() {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       
       const res = await apiFetch(
-        `${API_BASE}/messaging/groups/${activeGroup.id}/purge-old?beforeDate=${sevenDaysAgo}`,
+        `/messaging/groups/${activeGroup.id}/purge-old?beforeDate=${sevenDaysAgo}`,
         { method: 'DELETE' }
       );
       
@@ -427,7 +427,7 @@ export default function MessagingLayout() {
             {showMembers && activeGroup.type !== 'DIRECT' && (
               <MembersPanel members={groupMembers} groupId={activeGroup.id} allUsers={allUsers}
                 onMemberAdded={() => {
-                  apiFetch(`${API_BASE}/messaging/groups/${activeGroup.id}/members`)
+                  apiFetch(`/messaging/groups/${activeGroup.id}/members`)
                     .then(json => setGroupMembers(json?.data ?? []))
                     .catch(console.error);
                 }} />

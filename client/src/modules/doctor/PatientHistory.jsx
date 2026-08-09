@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import CDSInsightsPanel from '../cds/CDSInsightsPanel.jsx';
 import styles from './PatientHistory.module.scss';
 
@@ -49,7 +49,7 @@ function PatientSearch({ onSelect }) {
       setLoading(true);
       try {
         const json = await apiFetch(
-          `${API_BASE}/patients?search=${encodeURIComponent(query.trim())}&limit=10`
+          `/patients?search=${encodeURIComponent(query.trim())}&limit=10`
         );
         setResults(json?.patients ?? []);
       } catch { setResults([]); }
@@ -128,7 +128,7 @@ function Timeline({ patientId, patientName }) {
   useEffect(() => {
     setLoading(true);
     setError(null);
-    apiFetch(`${API_BASE}/patients/${patientId}/timeline?page=${page}&limit=${limit}`)
+    apiFetch(`/patients/${patientId}/timeline?page=${page}&limit=${limit}`)
       .then(json => {
         setItems(json?.items ?? []);
         setTotal(json?.total ?? 0);

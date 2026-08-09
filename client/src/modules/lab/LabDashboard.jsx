@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import EncryptedFileUpload from '../../shared/components/EncryptedFileUpload.jsx';
 import styles from './LabDashboard.module.scss';
 
@@ -11,7 +11,7 @@ function today() {
 async function fetchOrders(params) {
   const q = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v !== undefined) q.set(k, v); });
-  const json = await apiFetch(`${API_BASE}/lab-orders?${q}`);
+  const json = await apiFetch(`/lab-orders?${q}`);
   return json?.labOrders ?? [];
 }
 
@@ -47,7 +47,7 @@ function UploadPanel({ order, onClose, onComplete }) {
     setError('');
     try {
       // Step 1: create the lab result first to get its ID
-      const resultRes = await apiFetch(`${API_BASE}/lab-orders/results`, {
+      const resultRes = await apiFetch(`/lab-orders/results`, {
         method: 'POST',
         body: JSON.stringify({
           labOrderId    : order.id,
@@ -60,13 +60,13 @@ function UploadPanel({ order, onClose, onComplete }) {
 
       // Step 2: if a file was uploaded, re-link it to the actual lab result ID
       if (uploadedFile && labResultId) {
-        await apiFetch(`${API_BASE}/files/${uploadedFile.fileId}/entity`, {
+        await apiFetch(`/files/${uploadedFile.fileId}/entity`, {
           method: 'PATCH',
           body: JSON.stringify({ entityType: 'LAB_RESULT', entityId: labResultId }),
         });
       }
 
-      await apiFetch(`${API_BASE}/lab-orders/${order.id}`, {
+      await apiFetch(`/lab-orders/${order.id}`, {
         method : 'PATCH',
         body: JSON.stringify({ status: 'COMPLETED' }),
       });
@@ -145,7 +145,7 @@ function OrderRow({ order, action, qc }) {
 
   async function handleAction(newStatus) {
     try {
-      await apiFetch(`${API_BASE}/lab-orders/${order.id}`, {
+      await apiFetch(`/lab-orders/${order.id}`, {
         method : 'PATCH',
         body: JSON.stringify({ status: newStatus }),
       });

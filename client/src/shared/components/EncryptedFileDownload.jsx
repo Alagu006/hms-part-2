@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { importKey, base64ToBuffer } from '../utils/crypto.js';
-import api, { API_BASE } from '../utils/api.js';
+import api from '../utils/api.js';
 import { getFileKey } from '../utils/keyStore.js';
 import styles from './EncryptedFileDownload.module.scss';
 
@@ -56,7 +56,7 @@ export default function EncryptedFileDownload({ fileId, fileName, mimeType }) {
 
     try {
       // ── Step 1: Fetch encrypted file from server ──────────────────────────
-      const res = await api.get(`${API_BASE}/files/${fileId}/download`, { responseType: 'arraybuffer' });
+      const res = await api.get(`/files/${fileId}/download`, { responseType: 'arraybuffer' });
 
       // ── Step 2: Extract IV from response header ───────────────────────────
       const ivB64        = res.headers['x-encryption-iv'];

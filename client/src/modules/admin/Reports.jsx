@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './Reports.module.scss';
 
 const REPORT_TYPES = [
@@ -35,7 +35,7 @@ export default function Reports() {
   // ---------------------------------------------------------------------------
   const fetchHistory = useCallback(async () => {
     try {
-      const json = await apiFetch(`${API_BASE}/analytics/reports/history`);
+      const json = await apiFetch(`/analytics/reports/history`);
       setHistory(json?.history ?? json ?? []);
     } catch { /* silent */ }
   }, []);
@@ -49,7 +49,7 @@ export default function Reports() {
     clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
       try {
-        const status = await apiFetch(`${API_BASE}/analytics/reports/status/${id}`);
+        const status = await apiFetch(`/analytics/reports/status/${id}`);
         setJobStatus(status);
         if (status?.status === 'completed' || status?.status === 'failed') {
           clearInterval(pollRef.current);
@@ -69,7 +69,7 @@ export default function Reports() {
 
     try {
       const params = new URLSearchParams(form).toString();
-      const json = await apiFetch(`${API_BASE}/analytics/reports/generate?${params}`);
+      const json = await apiFetch(`/analytics/reports/generate?${params}`);
       const id = json?.jobId;
       if (!id) throw new Error(json?.error ?? 'Failed to enqueue');
       setJobId(id);
@@ -85,7 +85,7 @@ export default function Reports() {
     const filenamePart = downloadKey.startsWith('report:file:')
       ? downloadKey.slice('report:file:'.length)
       : downloadKey;
-    const blob = await apiFetch(`${API_BASE}/analytics/reports/download/${encodeURIComponent(filenamePart)}`);
+    const blob = await apiFetch(`/analytics/reports/download/${encodeURIComponent(filenamePart)}`);
     if (!blob) { setError('Download failed or file expired'); return; }
     const url = URL.createObjectURL(blob);
     const a   = document.createElement('a');

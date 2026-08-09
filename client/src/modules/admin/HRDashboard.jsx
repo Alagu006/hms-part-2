@@ -1,19 +1,19 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './HRDashboard.module.scss';
 
 // ---------------------------------------------------------------------------
 // API calls
 // ---------------------------------------------------------------------------
 async function fetchPendingLeaves() {
-  const json = await apiFetch(`${API_BASE}/leaves?status=PENDING&limit=50`);
+  const json = await apiFetch(`/leaves?status=PENDING&limit=50`);
   return json?.leaves ?? (Array.isArray(json) ? json : []);
 }
 
 async function fetchApprovedLeavesToday() {
   const today = new Date().toISOString().split('T')[0];
-  const json = await apiFetch(`${API_BASE}/leaves?status=APPROVED&dateFrom=${today}&dateTo=${today}`);
+  const json = await apiFetch(`/leaves?status=APPROVED&dateFrom=${today}&dateTo=${today}`);
   return json?.leaves ?? (Array.isArray(json) ? json : []);
 }
 
@@ -27,7 +27,7 @@ async function fetchShiftsThisWeek() {
   const startStr = startOfWeek.toISOString().split('T')[0];
   const endStr = endOfWeek.toISOString().split('T')[0];
 
-  const json = await apiFetch(`${API_BASE}/shifts?limit=100`);
+  const json = await apiFetch(`/shifts?limit=100`);
   const shifts = json?.shifts ?? [];
   return shifts.filter(s => {
     const shiftDate = s.shift_date?.split('T')[0];
@@ -36,7 +36,7 @@ async function fetchShiftsThisWeek() {
 }
 
 async function fetchLeaveBalances() {
-  const json = await apiFetch(`${API_BASE}/leaves?status=APPROVED&limit=100`);
+  const json = await apiFetch(`/leaves?status=APPROVED&limit=100`);
   const leaves = json?.leaves ?? (Array.isArray(json) ? json : []);
 
   const currentYear = new Date().getFullYear();
@@ -57,17 +57,17 @@ async function fetchMonthlyApprovedCount() {
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
   const today = now.toISOString().split('T')[0];
-  const json = await apiFetch(`${API_BASE}/leaves?status=APPROVED&dateFrom=${firstOfMonth}&dateTo=${today}&limit=1`);
+  const json = await apiFetch(`/leaves?status=APPROVED&dateFrom=${firstOfMonth}&dateTo=${today}&limit=1`);
   const leaves = json?.leaves ?? (Array.isArray(json) ? json : []);
   return json?.total ?? leaves.length;
 }
 
 async function approveLeave(id) {
-  return apiFetch(`${API_BASE}/leaves/${id}/approve`, { method: 'PATCH', body: JSON.stringify({}) });
+  return apiFetch(`/leaves/${id}/approve`, { method: 'PATCH', body: JSON.stringify({}) });
 }
 
 async function rejectLeave(id, reviewNote) {
-  return apiFetch(`${API_BASE}/leaves/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reviewNote }) });
+  return apiFetch(`/leaves/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ reviewNote }) });
 }
 
 // ---------------------------------------------------------------------------

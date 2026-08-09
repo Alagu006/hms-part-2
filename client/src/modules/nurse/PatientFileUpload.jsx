@@ -91,7 +91,7 @@ export default function PatientFileUpload({ assignments, loading = false }) {
       const { data } = await res.json();
 
       // 6. Send IV to server (separate PATCH as per existing pattern)
-      await apiFetch(`${API_BASE}/files/${data.id}/iv`, {
+      await apiFetch(`/files/${data.id}/iv`, {
         method: 'PATCH',
         body: JSON.stringify({ iv }),
       });

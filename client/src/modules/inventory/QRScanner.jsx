@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './QRScanner.module.scss';
 
 export default function QRScanner({ onClose }) {
@@ -82,7 +82,7 @@ export default function QRScanner({ onClose }) {
     setResult(null);
     setAdjMsg('');
     try {
-      const json = await apiFetch(`${API_BASE}/inventory/qr/${encodeURIComponent(code)}`);
+      const json = await apiFetch(`/inventory/qr/${encodeURIComponent(code)}`);
       setResult(json.data);
     } catch (e) {
       setError(e.message);
@@ -95,7 +95,7 @@ export default function QRScanner({ onClose }) {
     setAdjSaving(true);
     setAdjMsg('');
     try {
-      const json = await apiFetch(`${API_BASE}/inventory/${result.id}/adjust`, {
+      const json = await apiFetch(`/inventory/${result.id}/adjust`, {
         method : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({ adjustment: parseFloat(adjustment), reason: adjReason }),

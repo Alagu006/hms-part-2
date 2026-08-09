@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './BroadcastCompose.module.scss';
 
 const MAX_MSG  = 5000;
@@ -114,7 +114,7 @@ export default function BroadcastCompose() {
   const { data: staffCount = 0 } = useQuery({
     queryKey: ['broadcast-staff-count'],
     queryFn: async () => {
-      const d = await apiFetch(`${API_BASE}/broadcasts/staff-count`);
+      const d = await apiFetch(`/broadcasts/staff-count`);
       return d?.count ?? 0;
     },
   });
@@ -123,14 +123,14 @@ export default function BroadcastCompose() {
   const { data: history = [], isLoading: histLoading } = useQuery({
     queryKey: ['broadcasts'],
     queryFn: async () => {
-      const d = await apiFetch(`${API_BASE}/broadcasts?limit=50&page=1`);
+      const d = await apiFetch(`/broadcasts?limit=50&page=1`);
       return d?.broadcasts ?? [];
     },
     refetchInterval: 30_000,
   });
 
   const mutation = useMutation({
-    mutationFn: () => apiFetch(`${API_BASE}/broadcasts`, {
+    mutationFn: () => apiFetch(`/broadcasts`, {
       method: 'POST',
       body: JSON.stringify(form),
     }),

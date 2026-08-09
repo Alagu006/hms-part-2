@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './GenerateQR.module.scss';
 
 export default function GenerateQR({ onClose }) {
@@ -25,7 +25,7 @@ export default function GenerateQR({ onClose }) {
     const timer = setTimeout(async () => {
       try {
         const json = await apiFetch(
-          `${API_BASE}/inventory?search=${encodeURIComponent(search)}&limit=10`
+          `/inventory?search=${encodeURIComponent(search)}&limit=10`
         );
         if (json) setItems(json.data?.items ?? []);
       } catch { /* ignore */ }
@@ -44,7 +44,7 @@ export default function GenerateQR({ onClose }) {
     setQrImage('');
 
     try {
-      const json = await apiFetch(`${API_BASE}/inventory/qr/generate`, {
+      const json = await apiFetch(`/inventory/qr/generate`, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({ itemId: selected.id }),

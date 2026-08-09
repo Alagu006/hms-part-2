@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import VisitorCheckIn from './VisitorCheckIn.jsx';
 import styles from './SecurityDashboard.module.scss';
 
@@ -8,23 +8,23 @@ import styles from './SecurityDashboard.module.scss';
 // API calls
 // ---------------------------------------------------------------------------
 async function fetchActiveVisitors() {
-  const json = await apiFetch(`${API_BASE}/visitors?checkedOut=false&limit=100`);
+  const json = await apiFetch(`/visitors?checkedOut=false&limit=100`);
   return json.visitors ?? [];
 }
 
 async function fetchTodaysVisitors() {
   const today = new Date().toISOString().split('T')[0];
-  const json = await apiFetch(`${API_BASE}/visitors?date=${today}&limit=100`);
+  const json = await apiFetch(`/visitors?date=${today}&limit=100`);
   return json.visitors ?? [];
 }
 
 async function fetchIncidents() {
-  const json = await apiFetch(`${API_BASE}/incidents?limit=10`);
+  const json = await apiFetch(`/incidents?limit=10`);
   return json;
 }
 
 async function checkoutVisitor(id) {
-  const json = await apiFetch(`${API_BASE}/visitors/${id}/checkout`, {
+  const json = await apiFetch(`/visitors/${id}/checkout`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),

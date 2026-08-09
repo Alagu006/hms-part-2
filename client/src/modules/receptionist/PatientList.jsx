@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './PatientList.module.scss';
 
 function useDebounce(value, delay = 400) {
@@ -31,7 +31,7 @@ export default function PatientList({ onAdd, onSelect }) {
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (statusFilter)    params.set('status', statusFilter);
 
-      const json = await apiFetch(`${API_BASE}/patients?${params}`);
+      const json = await apiFetch(`/patients?${params}`);
       setPatients(json.patients ?? []);
       setTotal(json.total ?? 0);
     } catch (err) {

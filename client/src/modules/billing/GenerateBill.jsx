@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './GenerateBill.module.scss';
 
 const CATEGORIES = ['CONSULTATION','PROCEDURE','MEDICINE','LAB','ROOM','EQUIPMENT','OTHER'];
@@ -21,7 +21,7 @@ function PatientSearch({ onSelect }) {
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const json = await apiFetch(`${API_BASE}/patients?search=${encodeURIComponent(q)}&limit=8`);
+        const json = await apiFetch(`/patients?search=${encodeURIComponent(q)}&limit=8`);
         setResults(json?.patients ?? json?.data ?? []);
       } finally { setLoading(false); }
     }, 300);
@@ -242,7 +242,7 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
 
   useEffect(() => {
     if (!patient) return;
-    apiFetch(`${API_BASE}/bills/pending-services/${patient.id}`)
+    apiFetch(`/bills/pending-services/${patient.id}`)
       .then((json) => setPending(json.data))
       .catch(console.error);
   }, [patient]);
@@ -296,7 +296,7 @@ export default function GenerateBill({ userRole = 'RECEPTIONIST' }) {
     setError(null);
     setSubmitting(true);
     try {
-      const json = await apiFetch(`${API_BASE}/bills`, {
+      const json = await apiFetch(`/bills`, {
         method : 'POST',
         body   : JSON.stringify({ patientId: patient.id, items, taxPercent, notes }),
       });

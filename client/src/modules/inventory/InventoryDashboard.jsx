@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import BedMatrix    from './BedMatrix.jsx';
 import QRScanner    from './QRScanner.jsx';
 import GenerateQR   from './GenerateQR.jsx';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles       from './InventoryDashboard.module.scss';
 
 const TABS     = ['Medicines', 'Equipment', 'Beds', 'Rooms'];
@@ -74,7 +74,7 @@ function ItemModal({ item, onSave, onClose }) {
     setSaving(true);
     setError('');
     try {
-      const url    = isEdit ? `${API_BASE}/inventory/${item.id}` : `${API_BASE}/inventory`;
+      const url    = isEdit ? `/inventory/${item.id}` : `/inventory`;
       const method = isEdit ? 'PATCH' : 'POST';
       const json    = await apiFetch(url, {
         method,
@@ -146,7 +146,7 @@ function CsvImport({ onDone }) {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const json  = await apiFetch(`${API_BASE}/inventory/import`, {
+      const json  = await apiFetch(`/inventory/import`, {
         method : 'POST',
         body   : fd,
       });
@@ -209,7 +209,7 @@ export default function InventoryDashboard({ currentUser }) {
   const categoryForTab = { Medicines: 'MEDICINE', Equipment: 'EQUIPMENT' };
 
   const fetchStats = useCallback(async () => {
-    const json = await apiFetch(`${API_BASE}/inventory/stats`);
+    const json = await apiFetch(`/inventory/stats`);
     if (json) setStats(json.data);
   }, []);
 
@@ -223,7 +223,7 @@ export default function InventoryDashboard({ currentUser }) {
       ...(search && { search }),
       ...(lowOnly && { lowStock: 'true' }),
     });
-    const json = await apiFetch(`${API_BASE}/inventory?${params}`);
+    const json = await apiFetch(`/inventory?${params}`);
     if (json) { setItems(json.data.items); setTotal(json.data.total); }
     setLoading(false);
   }, [activeTab, page, search, lowOnly]);
@@ -234,7 +234,7 @@ export default function InventoryDashboard({ currentUser }) {
 
   async function handleDelete(id) {
     if (!confirm('Delete this item?')) return;
-    await apiFetch(`${API_BASE}/inventory/${id}`, { method: 'DELETE' });
+    await apiFetch(`/inventory/${id}`, { method: 'DELETE' });
     fetchItems();
     fetchStats();
   }

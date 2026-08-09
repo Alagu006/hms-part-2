@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './MyBills.module.scss';
 
 const RAZORPAY_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
@@ -108,7 +108,7 @@ async function initiateRazorpay({ billId, billNumber, patientName, onSuccess, on
 
   let orderData;
   try {
-    const json = await apiFetch(`${API_BASE}/bills/${billId}/create-order`, {
+    const json = await apiFetch(`/bills/${billId}/create-order`, {
       method : 'POST',
     });
     orderData = json.data;
@@ -127,7 +127,7 @@ async function initiateRazorpay({ billId, billNumber, patientName, onSuccess, on
     theme      : { color: '#1e3a5f' },
     handler    : async (response) => {
       try {
-        const vjson = await apiFetch(`${API_BASE}/bills/${billId}/verify-payment`, {
+        const vjson = await apiFetch(`/bills/${billId}/verify-payment`, {
           method : 'POST',
           body   : JSON.stringify({
             razorpayOrderId  : response.razorpay_order_id,
@@ -277,7 +277,7 @@ export default function MyBills({ patientId: propPatientId }) {
   // Resolve own patient ID if not passed as prop
   useEffect(() => {
     if (propPatientId) { setPatientId(propPatientId); return; }
-    apiFetch(`${API_BASE}/patients/my`)
+    apiFetch(`/patients/my`)
       .then(d => setPatientId(d?.data?.id))
       .catch(e => { setError(e.message); setLoading(false); });
   }, [propPatientId]);
@@ -286,7 +286,7 @@ export default function MyBills({ patientId: propPatientId }) {
     if (!patientId) return;
     setLoading(true);
     try {
-      const json = await apiFetch(`${API_BASE}/bills/patient/${patientId}`);
+      const json = await apiFetch(`/bills/patient/${patientId}`);
       setBills(json?.data ?? []);
     } catch (e) {
       setError(e.message);

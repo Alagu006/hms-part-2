@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './VisitorCheckIn.module.scss';
 
 const ID_TYPES = ['NATIONAL_ID', 'PASSPORT', 'DRIVING_LICENSE', 'OTHER'];
@@ -41,7 +41,7 @@ function PatientLookup({ onFound }) {
     setError('');
     setLoading(true);
     try {
-      const res = await apiFetch(`${API_BASE}/patients/lookup?mrn=${encodeURIComponent(mrn.trim())}`);
+      const res = await apiFetch(`/patients/lookup?mrn=${encodeURIComponent(mrn.trim())}`);
       if (!res?.data) { setError('No patient found with that MRN'); return; }
       onFound(res.data);
     } catch (err) {
@@ -115,7 +115,7 @@ function VisitorAutocomplete({ value, onChange, onSelect }) {
     if (val.trim().length < 2) { setSuggestions([]); setOpen(false); return; }
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await apiFetch(`${API_BASE}/visitors/search?q=${encodeURIComponent(val.trim())}`);
+        const res = await apiFetch(`/visitors/search?q=${encodeURIComponent(val.trim())}`);
         const list = res.data ?? res;
         setSuggestions(Array.isArray(list) ? list : []);
         setOpen(true);
@@ -199,7 +199,7 @@ function VisitorForm({ patientId, onSuccess }) {
   useEffect(() => {
     let cancelled = false;
     setCheckingHistory(true);
-    apiFetch(`${API_BASE}/visitors/patient/${patientId}?limit=10`)
+    apiFetch(`/visitors/patient/${patientId}?limit=10`)
       .then((res) => {
         if (cancelled) return;
         const list = res.data?.visitors ?? res.visitors ?? [];
@@ -213,7 +213,7 @@ function VisitorForm({ patientId, onSuccess }) {
 
   const mutation = useMutation({
     mutationFn: (body) =>
-      apiFetch(`${API_BASE}/visitors`, { method: 'POST', body: JSON.stringify(body) }),
+      apiFetch(`/visitors`, { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visitors'] });
       onSuccess();

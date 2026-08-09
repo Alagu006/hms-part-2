@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store/index.js';
-import { apiFetch, API_BASE } from '../utils/api.js';
+import { apiFetch } from '../utils/api.js';
 import { useDarkMode } from '../hooks/useDarkMode.js';
 import { clearSessionKey } from '../utils/sessionKey.js';
 import styles from './Sidebar.module.scss';
@@ -278,7 +278,7 @@ export default function Sidebar({ onOpenSearch }) {
   const navItems = NAV[primaryRole] ?? FALLBACK_NAV;
 
   const handleLogout = async () => {
-    try { await apiFetch(`${API_BASE}/auth/logout`, { method: 'POST' }); } catch { /* ignore */ }
+    try { await apiFetch(`/auth/logout`, { method: 'POST' }); } catch { /* ignore */ }
     clearSessionKey();
     clearAuth();
     navigate('/login');

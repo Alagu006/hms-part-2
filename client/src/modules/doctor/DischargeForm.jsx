@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './DischargeForm.module.scss';
 
 // ---------------------------------------------------------------------------
@@ -23,7 +23,7 @@ function PatientSearch({ onSelect }) {
   useEffect(() => {
     if (debouncedQ.length < 2) { setResults([]); return; }
     setLoading(true);
-    apiFetch(`${API_BASE}/patients?search=${encodeURIComponent(debouncedQ)}&limit=8`)
+    apiFetch(`/patients?search=${encodeURIComponent(debouncedQ)}&limit=8`)
       .then(json => setResults(json?.patients ?? []))
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -92,7 +92,7 @@ export default function DischargeForm({ patientId: propPatientId, onSuccess }) {
     setSaving(true);
     setError(null);
     try {
-      const json = await apiFetch(`${API_BASE}/discharge-summaries`, {
+      const json = await apiFetch(`/discharge-summaries`, {
         method : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body   : JSON.stringify({

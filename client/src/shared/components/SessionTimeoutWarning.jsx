@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createInactivityTimer } from '../utils/inactivity.js';
-import { apiFetch, API_BASE } from '../utils/api.js';
+import { apiFetch } from '../utils/api.js';
 import { useStore } from '../store/index.js';
 import { clearSessionKey } from '../utils/sessionKey.js';
 import styles from './SessionTimeoutWarning.module.scss';
@@ -27,7 +27,7 @@ export default function SessionTimeoutWarning() {
     setCountdown(WARN_SECONDS);
     try {
       // Ping any authenticated endpoint to refresh the session
-      await apiFetch(`${API_BASE}/auth/refresh`, { method: 'POST' });
+      await apiFetch(`/auth/refresh`, { method: 'POST' });
     } catch { /* ignore */ }
   }, []);
 

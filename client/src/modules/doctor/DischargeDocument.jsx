@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './DischargeDocument.module.scss';
 
 export default function DischargeDocument({ patientId, summaryId }) {
@@ -10,7 +10,7 @@ export default function DischargeDocument({ patientId, summaryId }) {
 
   useEffect(() => {
     if (!patientId) return;
-    apiFetch(`${API_BASE}/discharge-summaries/${patientId}`)
+    apiFetch(`/discharge-summaries/${patientId}`)
       .then((data) => setSummaries(data))
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));

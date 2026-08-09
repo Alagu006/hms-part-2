@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import { useAuth } from '../../shared/store/index.js';
 import styles from './UpcomingSession.module.scss';
 
@@ -112,8 +112,8 @@ export default function UpcomingSession({ currentUser: currentUserProp, onJoin: 
   const fetchAll = useCallback(async () => {
     try {
       const [waiting, active] = await Promise.all([
-        apiFetch(`${API_BASE}/telemedicine/sessions/my?limit=20&status=WAITING`),
-        apiFetch(`${API_BASE}/telemedicine/sessions/my?limit=20&status=ACTIVE`),
+        apiFetch(`/telemedicine/sessions/my?limit=20&status=WAITING`),
+        apiFetch(`/telemedicine/sessions/my?limit=20&status=ACTIVE`),
       ]);
       const all = [...(waiting?.data?.sessions ?? []), ...(active?.data?.sessions ?? [])];
       const seen = new Set();
@@ -121,7 +121,7 @@ export default function UpcomingSession({ currentUser: currentUserProp, onJoin: 
       setSessions(deduped);
 
       if (!isDoctor) {
-        const apptData = await apiFetch(`${API_BASE}/appointments?patientId=me&limit=50`);
+        const apptData = await apiFetch(`/appointments?patientId=me&limit=50`);
         const appts = (apptData?.appointments ?? []).filter(a =>
           a.type === 'TELEMEDICINE' &&
           ['SCHEDULED', 'CONFIRMED'].includes(a.status) &&

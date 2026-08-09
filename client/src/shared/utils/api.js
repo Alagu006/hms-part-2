@@ -153,6 +153,18 @@ async function normalizeError(error) {
   return new Error(msg);
 }
 
+// ── URL normalisation ────────────────────────────────────────────────────────
+// The axios instance above already prepends `baseURL` (= API_BASE) to whatever
+// url is given to it. If a caller passes `${API_BASE}/path`, the request hits
+// `/api/api/path` and 404s. Strip a leading API_BASE so both calling styles
+// resolve to the same endpoint. Callers should pass a plain `/path`.
+export function normalizeApiUrl(url) {
+  if (typeof url !== 'string' || !API_BASE) return url;
+  if (url === API_BASE) return '/';
+  if (url.startsWith(`${API_BASE}/`)) return url.slice(API_BASE.length);
+  return url;
+}
+
 // ── Convenience wrapper over the axios instance ──────────────────────────────
 // Preserves the old apiFetch(url, { method, body, headers }) signature so
 // existing call sites behave identically: it returns parsed JSON, a Blob for
@@ -162,10 +174,15 @@ async function normalizeError(error) {
 export async function apiFetch(url, options = {}) {
   const { method = 'GET', body, headers, responseType, ...rest } = options;
 
+  const finalUrl = normalizeApiUrl(url);
+  if (finalUrl !== url && import.meta.env.DEV) {
+    console.warn(`[api] apiFetch got a doubled base URL — stripping "${url}" to "${finalUrl}". Call sites should pass a plain "/path".`);
+  }
+
   const config = {
-    url,
-    method   : method.toLowerCase(),
-    headers  : headers ?? {},
+    url     : finalUrl,
+    method  : method.toLowerCase(),
+    headers : headers ?? {},
     ...rest,
   };
   if (responseType) config.responseType = responseType;

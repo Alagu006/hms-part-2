@@ -91,7 +91,7 @@ export default function UserProfile() {
   const [twoFaWorking, setTwoFaWorking]   = useState(false);
 
   useEffect(() => {
-    apiFetch(`${API_BASE}/auth/me`)
+    apiFetch(`/auth/me`)
       .then((data) => {
         const p = data?.data ?? data;
         setProfile(p);
@@ -103,7 +103,7 @@ export default function UserProfile() {
 
   // Fetch 2FA status
   useEffect(() => {
-    apiFetch(`${API_BASE}/auth/2fa/status`)
+    apiFetch(`/auth/2fa/status`)
       .then((data) => setTwoFaEnabled(data?.enabled ?? false))
       .catch(() => {})
       .finally(() => setTwoFaLoading(false));
@@ -166,7 +166,7 @@ export default function UserProfile() {
       const { data: uploaded } = await res.json();
 
       // 3. Send IV to server
-      await apiFetch(`${API_BASE}/files/profile-image/${uploaded.id}/iv`, {
+      await apiFetch(`/files/profile-image/${uploaded.id}/iv`, {
         method: 'PATCH',
         body: JSON.stringify({ iv: ivB64 }),
       });
@@ -175,7 +175,7 @@ export default function UserProfile() {
       await storeFileKey(uploaded.id, keyB64, ivB64, file.name);
 
       // 5. Link to profile
-      await apiFetch(`${API_BASE}/auth/image`, {
+      await apiFetch(`/auth/image`, {
         method: 'PATCH',
         body: JSON.stringify({ profileImageFileId: uploaded.id }),
       });
@@ -200,7 +200,7 @@ export default function UserProfile() {
     setTwoFaWorking(true);
     try {
       const endpoint = twoFaEnabled ? '/auth/2fa/disable/request' : '/auth/2fa/enable/request';
-      await apiFetch(`${API_BASE}${endpoint}`, { method: 'POST', body: JSON.stringify({}) });
+      await apiFetch(endpoint, { method: 'POST', body: JSON.stringify({}) });
       setTwoFaStep(twoFaEnabled ? 'confirm_disable' : 'confirm_enable');
       setTwoFaMsg('A verification code has been sent to your registered email.');
     } catch (err) {
@@ -222,7 +222,7 @@ export default function UserProfile() {
       const endpoint = twoFaStep === 'confirm_enable'
         ? '/auth/2fa/enable/confirm'
         : '/auth/2fa/disable/confirm';
-      await apiFetch(`${API_BASE}${endpoint}`, {
+      await apiFetch(endpoint, {
         method: 'POST',
         body: JSON.stringify({ otp: twoFaOtp }),
       });

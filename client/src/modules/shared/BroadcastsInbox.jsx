@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './BroadcastsInbox.module.scss';
 
 const PRIORITY_MAP = {
@@ -24,7 +24,7 @@ function timeAgo(iso) {
 
 // Fetch broadcasts from the notifications endpoint (staff-side view)
 async function fetchMyBroadcasts(page) {
-  const data = await apiFetch(`${API_BASE}/notifications?type=BROADCAST&page=${page}&limit=20`);
+  const data = await apiFetch(`/notifications?type=BROADCAST&page=${page}&limit=20`);
   return data ?? { notifications: [], total: 0 };
 }
 
@@ -77,12 +77,12 @@ export default function BroadcastsInbox() {
   const totalPages    = Math.ceil(total / 20);
 
   const markRead = useMutation({
-    mutationFn: (id) => apiFetch(`${API_BASE}/notifications/${id}/read`, { method: 'PATCH' }),
+    mutationFn: (id) => apiFetch(`/notifications/${id}/read`, { method: 'PATCH' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['my-broadcasts'] }),
   });
 
   const markAllRead = useMutation({
-    mutationFn: () => apiFetch(`${API_BASE}/notifications/read-all`, { method: 'PATCH' }),
+    mutationFn: () => apiFetch(`/notifications/read-all`, { method: 'PATCH' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['my-broadcasts'] }),
   });
 

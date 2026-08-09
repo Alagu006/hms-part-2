@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './FinancialSummary.module.scss';
 
 function fmt(n) { return Number(n ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }); }
@@ -76,7 +76,7 @@ export default function FinancialSummary() {
     setLoading(true);
     setError(null);
     try {
-      const json = await apiFetch(`${API_BASE}/bills/summary/financial?date=${date}`);
+      const json = await apiFetch(`/bills/summary/financial?date=${date}`);
       setData(json.data);
     } catch (e) {
       setError(e.message);

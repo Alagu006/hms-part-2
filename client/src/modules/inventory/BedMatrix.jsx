@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './BedMatrix.module.scss';
 
 const STATUS_LABELS = {
@@ -28,7 +28,7 @@ function AddRoomModal({ onSave, onClose }) {
     setSaving(true);
     setError('');
     try {
-      await apiFetch(`${API_BASE}/inventory/beds/rooms`, {
+      await apiFetch(`/inventory/beds/rooms`, {
         method: 'POST',
         body: JSON.stringify({ ...form, floor: Number(form.floor) }),
       });
@@ -90,7 +90,7 @@ function AddBedModal({ room, onSave, onClose }) {
     setSaving(true);
     setError('');
     try {
-      await apiFetch(`${API_BASE}/inventory/beds/rooms/${room.id}/beds`, {
+      await apiFetch(`/inventory/beds/rooms/${room.id}/beds`, {
         method: 'POST',
         body: JSON.stringify({ bedNumber }),
       });
@@ -140,7 +140,7 @@ function BedModal({ bed, onSave, onClose }) {
     setSaving(true);
     setError('');
     try {
-      const json = await apiFetch(`${API_BASE}/inventory/beds/${bed.id}`, {
+      const json = await apiFetch(`/inventory/beds/${bed.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, notes }),
@@ -224,7 +224,7 @@ export default function BedMatrix({ roomsOnly = false }) {
   const fetchBeds = useCallback(async () => {
     setLoading(true);
     try {
-      const json = await apiFetch(`${API_BASE}/inventory/beds`);
+      const json = await apiFetch(`/inventory/beds`);
       if (json) setRooms(json.data ?? []);
     } catch (e) {
       console.error('[BedMatrix]', e);

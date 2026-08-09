@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import LabTestsPanel from './LabTestsPanel.jsx';
 import CDSInsightsPanel from '../cds/CDSInsightsPanel.jsx';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
@@ -19,19 +19,19 @@ function today() {
 async function fetchAppointments(date, status) {
   const params = new URLSearchParams({ doctorId: 'me', date, limit: 50 });
   if (status) params.set('status', status);
-  const json = await apiFetch(`${API_BASE}/appointments?${params}`);
+  const json = await apiFetch(`/appointments?${params}`);
   return json.appointments ?? [];
 }
 
 async function fetchPendingCount() {
   const params = new URLSearchParams({ status: 'PENDING', limit: 1 });
-  const json = await apiFetch(`${API_BASE}/prescriptions/count?${params}`);
+  const json = await apiFetch(`/prescriptions/count?${params}`);
   return json?.count ?? 0;
 }
 
 async function fetchRecentPatients() {
   const params = new URLSearchParams({ doctorId: 'me', limit: 5 });
-  const json = await apiFetch(`${API_BASE}/patients?${params}`);
+  const json = await apiFetch(`/patients?${params}`);
   return json.patients ?? [];
 }
 
@@ -257,12 +257,12 @@ export default function DoctorDashboard() {
   const teleSessionMutation = useMutation({
     mutationFn: async (appt) => {
       // Try to find an existing session for this appointment first
-      const existing = await apiFetch(`${API_BASE}/telemedicine/sessions/my?limit=50`);
+      const existing = await apiFetch(`/telemedicine/sessions/my?limit=50`);
       const sessions = existing?.data?.sessions ?? [];
       const found = sessions.find(s => s.appointment_id === appt.id && ['SCHEDULED','ACTIVE'].includes(s.status));
       if (found) return found;
       // Create a new session
-      const created = await apiFetch(`${API_BASE}/telemedicine/sessions`, {
+      const created = await apiFetch(`/telemedicine/sessions`, {
         method: 'POST',
         body: JSON.stringify({
           patientId    : appt.patient_id,

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import SkeletonLoader from '../../shared/components/SkeletonLoader.jsx';
 import styles from './PatientTimeline.module.scss';
 
@@ -43,7 +43,7 @@ export default function PatientTimeline({ patientId: propPatientId }) {
   // Resolve own patient ID if not passed as prop
   useEffect(() => {
     if (propPatientId) { setPatientId(propPatientId); return; }
-    apiFetch(`${API_BASE}/patients/my`)
+    apiFetch(`/patients/my`)
       .then(d => setPatientId(d?.data?.id))
       .catch(console.error);
   }, [propPatientId]);
@@ -53,7 +53,7 @@ export default function PatientTimeline({ patientId: propPatientId }) {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page, limit });
-      const json = await apiFetch(`${API_BASE}/patients/${patientId}/timeline?${params}`);
+      const json = await apiFetch(`/patients/${patientId}/timeline?${params}`);
       setItems(json?.items ?? []);
       setTotal(json?.total ?? 0);
     } catch (err) {

@@ -112,7 +112,7 @@ export default function EncryptedFileUpload({
       });
 
       // ── Step 4: Send IV to server (PATCH /files/:id/iv) ───────────────────
-      await apiFetch(`${API_BASE}/files/${fileId}/iv`, {
+      await apiFetch(`/files/${fileId}/iv`, {
         method : 'PATCH',
         body: JSON.stringify({ iv: ivB64 }),
       });

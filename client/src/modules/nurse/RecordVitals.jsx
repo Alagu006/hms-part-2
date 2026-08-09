@@ -4,7 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import PatientAllergies from '../../shared/components/PatientAllergies.jsx';
 import styles from './RecordVitals.module.scss';
 
@@ -96,7 +96,7 @@ function PatientSearch({ onSelect }) {
     const t = setTimeout(async () => {
       setLoading(true);
       try {
-        const json = await apiFetch(`${API_BASE}/patients?search=${encodeURIComponent(query.trim())}&limit=10`);
+        const json = await apiFetch(`/patients?search=${encodeURIComponent(query.trim())}&limit=10`);
         setResults(json?.patients ?? []);
       } catch { setResults([]); }
       finally { setLoading(false); }
@@ -168,7 +168,7 @@ export default function RecordVitals({ patientId: propPatientId, patientName: pr
     if (!patientId) return;
     setHistLoading(true);
     try {
-      const data = await apiFetch(`${API_BASE}/vitals/patient/${patientId}?days=7&limit=50`);
+      const data = await apiFetch(`/vitals/patient/${patientId}?days=7&limit=50`);
       setHistory(data.vitals ?? []);
     } catch (err) {
       console.error(err);
@@ -206,7 +206,7 @@ export default function RecordVitals({ patientId: propPatientId, patientName: pr
       }
       if (form.notes) payload.notes = form.notes;
 
-      const data = await apiFetch(`${API_BASE}/vitals`, {
+      const data = await apiFetch(`/vitals`, {
         method : 'POST',
         body: JSON.stringify(payload),
       });

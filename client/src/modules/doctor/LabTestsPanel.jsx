@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import EncryptedFileDownload from '../../shared/components/EncryptedFileDownload.jsx';
 import styles from './LabTestsPanel.module.scss';
 
@@ -23,7 +23,7 @@ function PatientSearch({ value, onChange }) {
 
   const { data: patients = [], isFetching } = useQuery({
     queryKey: ['patient-search', query],
-    queryFn : () => apiFetch(`${API_BASE}/patients?search=${encodeURIComponent(query)}&limit=8`)
+    queryFn : () => apiFetch(`/patients?search=${encodeURIComponent(query)}&limit=8`)
                       .then(r => r?.patients ?? []),
     enabled : query.length >= 2,
     staleTime: 10_000,
@@ -145,14 +145,14 @@ function ResultsViewer() {
 
   const { data: results = [], isLoading: resultsLoading, isError: resultsError } = useQuery({
     queryKey: ['patient-lab-results', searchedId],
-    queryFn : () => apiFetch(`${API_BASE}/lab-orders/patient/${searchedId}/results?limit=100`)
+    queryFn : () => apiFetch(`/lab-orders/patient/${searchedId}/results?limit=100`)
                       .then(r => r?.results ?? []),
     enabled : !!searchedId,
   });
 
   const { data: pendingOrders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['patient-lab-orders-pending', searchedId],
-    queryFn : () => apiFetch(`${API_BASE}/lab-orders?patientId=${searchedId}&limit=100`)
+    queryFn : () => apiFetch(`/lab-orders?patientId=${searchedId}&limit=100`)
                       .then(r => r?.labOrders?.filter(o => o.status !== 'COMPLETED' && o.status !== 'CANCELLED') ?? []),
     enabled : !!searchedId,
   });
@@ -278,7 +278,7 @@ export default function LabTestsPanel() {
   const [success, setSuccess] = useState('');
 
   const mutation = useMutation({
-    mutationFn: (form) => apiFetch(`${API_BASE}/lab-orders`, {
+    mutationFn: (form) => apiFetch(`/lab-orders`, {
       method: 'POST',
       body  : JSON.stringify({
         patientId: form.patientId,

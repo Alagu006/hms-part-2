@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import styles from './ReceptionistDashboard.module.scss';
 
 function useDebounce(value, delay = 400) {
@@ -18,17 +18,17 @@ function useDebounce(value, delay = 400) {
 // ---------------------------------------------------------------------------
 async function fetchTodaysAppointments() {
   const today = new Date().toISOString().split('T')[0];
-  const json = await apiFetch(`${API_BASE}/appointments?date=${today}&limit=50`);
+  const json = await apiFetch(`/appointments?date=${today}&limit=50`);
   return json.appointments ?? [];
 }
 
 async function fetchRecentPatients() {
-  const json = await apiFetch(`${API_BASE}/patients?limit=5`);
+  const json = await apiFetch(`/patients?limit=5`);
   return json.patients ?? [];
 }
 
 async function fetchBedMatrix() {
-  const json = await apiFetch(`${API_BASE}/inventory/beds`);
+  const json = await apiFetch(`/inventory/beds`);
   return json.data ?? [];
 }
 
@@ -36,8 +36,8 @@ async function fetchTodaysStats() {
   const today = new Date().toISOString().split('T')[0];
 
   const [apptsJson, patientsJson] = await Promise.all([
-    apiFetch(`${API_BASE}/appointments?date=${today}&limit=1`),
-    apiFetch(`${API_BASE}/patients?limit=100`),
+    apiFetch(`/appointments?date=${today}&limit=1`),
+    apiFetch(`/patients?limit=100`),
   ]);
 
   const todayPatients = (patientsJson.patients ?? []).filter(p => {
@@ -52,7 +52,7 @@ async function fetchTodaysStats() {
 }
 
 async function updateAppointmentStatus(id, status) {
-  const json = await apiFetch(`${API_BASE}/appointments/${id}`, {
+  const json = await apiFetch(`/appointments/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status }),
@@ -61,12 +61,12 @@ async function updateAppointmentStatus(id, status) {
 }
 
 async function searchPatients(query) {
-  const json = await apiFetch(`${API_BASE}/patients?search=${encodeURIComponent(query)}&limit=10`);
+  const json = await apiFetch(`/patients?search=${encodeURIComponent(query)}&limit=10`);
   return json.patients ?? [];
 }
 
 async function logVisitor(data) {
-  const json = await apiFetch(`${API_BASE}/visitors`, {
+  const json = await apiFetch(`/visitors`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),

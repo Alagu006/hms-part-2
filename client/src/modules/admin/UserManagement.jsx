@@ -193,7 +193,7 @@ function EditUserModal({ user, departments, onClose, onSaved }) {
       // strip empty strings
       Object.keys(body).forEach(k => { if (body[k] === '') delete body[k]; });
 
-      const updated = await apiFetch(`${API_BASE}/admin/users/${user.id}`, {
+      const updated = await apiFetch(`/admin/users/${user.id}`, {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
@@ -359,7 +359,7 @@ export default function UserManagement() {
       const params = new URLSearchParams({ limit: 200 });
       if (filters.role)   params.set('role', filters.role);
       if (filters.status) params.set('status', filters.status);
-      const data = await apiFetch(`${API_BASE}/admin/users?${params}`);
+      const data = await apiFetch(`/admin/users?${params}`);
       setUsers(Array.isArray(data) ? data : []);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -368,14 +368,14 @@ export default function UserManagement() {
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   useEffect(() => {
-    apiFetch(`${API_BASE}/departments`).then(d => setDepartments(d?.departments ?? [])).catch(() => {});
+    apiFetch(`/departments`).then(d => setDepartments(d?.departments ?? [])).catch(() => {});
   }, []);
 
   const openPanel = async (user) => {
     setSelected(user);
     setSessLoading(true);
     try {
-      const data = await apiFetch(`${API_BASE}/admin/sessions`);
+      const data = await apiFetch(`/admin/sessions`);
       setSessions((Array.isArray(data) ? data : []).filter((s) => s.userId === user.id));
     } catch { setSessions([]); }
     finally { setSessLoading(false); }
@@ -384,7 +384,7 @@ export default function UserManagement() {
   const toggleStatus = async (user) => {
     setToggling(user.id);
     try {
-      await apiFetch(`${API_BASE}/admin/users/${user.id}/status`, { method: 'PATCH', body: JSON.stringify({ isActive: !user.is_active }) });
+      await apiFetch(`/admin/users/${user.id}/status`, { method: 'PATCH', body: JSON.stringify({ isActive: !user.is_active }) });
       setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_active: !u.is_active } : u));
       if (selected?.id === user.id) setSelected((s) => ({ ...s, is_active: !s.is_active }));
     } catch (e) { console.error(e); }
@@ -394,7 +394,7 @@ export default function UserManagement() {
   const handleDelete = async (user) => {
     setDeleting(user.id);
     try {
-      await apiFetch(`${API_BASE}/admin/users/${user.id}`, { method: 'DELETE' });
+      await apiFetch(`/admin/users/${user.id}`, { method: 'DELETE' });
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
       if (selected?.id === user.id) setSelected(null);
     } catch (e) { console.error(e); }
@@ -402,7 +402,7 @@ export default function UserManagement() {
   };
 
   const forceLogout = async (sessionId) => {
-    await apiFetch(`${API_BASE}/admin/sessions/${sessionId}`, { method: 'DELETE' });
+    await apiFetch(`/admin/sessions/${sessionId}`, { method: 'DELETE' });
     setSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
   };
 
@@ -414,7 +414,7 @@ export default function UserManagement() {
       const body = { ...createForm };
       ['departmentId','phone','specialization','licenseNumber','dateOfBirth','gender','bloodGroup','shiftType','address','emergencyContact']
         .forEach((k) => { if (!body[k]) delete body[k]; });
-      await apiFetch(`${API_BASE}/admin/users`, { method: 'POST', body: JSON.stringify(body) });
+      await apiFetch(`/admin/users`, { method: 'POST', body: JSON.stringify(body) });
       setShowCreate(false);
       setCreateForm(EMPTY_FORM);
       fetchUsers();

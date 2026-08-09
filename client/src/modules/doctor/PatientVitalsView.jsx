@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { apiFetch, API_BASE } from '../../shared/utils/api.js';
+import { apiFetch } from '../../shared/utils/api.js';
 import PatientAllergies from '../../shared/components/PatientAllergies.jsx';
 import styles from './PatientVitalsView.module.scss';
 
@@ -48,7 +48,7 @@ function PatientSearch({ onSelect }) {
       setLoading(true);
       try {
         const json = await apiFetch(
-          `${API_BASE}/patients?search=${encodeURIComponent(query.trim())}&limit=10`
+          `/patients?search=${encodeURIComponent(query.trim())}&limit=10`
         );
         setResults(json?.patients ?? []);
       } catch { setResults([]); }
@@ -133,7 +133,7 @@ export default function PatientVitalsView() {
     if (!patientId) return;
     setLoading(true);
     try {
-      const json = await apiFetch(`${API_BASE}/vitals/patient/${patientId}?days=${days}&limit=100`);
+      const json = await apiFetch(`/vitals/patient/${patientId}?days=${days}&limit=100`);
       setVitals(json?.vitals ?? []);
     } catch { setVitals([]); }
     finally { setLoading(false); }
