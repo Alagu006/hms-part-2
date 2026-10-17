@@ -152,7 +152,7 @@ export async function markAllAsRead(userId) {
   );
   await redis.set(UNREAD_KEY(userId), '0');
   if (rowCount > 0) {
-    await auditLog({ userId, action: 'UPDATE', entity: 'notifications', entityId: 'bulk', prevData: { is_read: false }, nextData: { is_read: true, count: rowCount } });
+    await auditLog({ userId, action: 'UPDATE', entity: 'notifications', entityId: null, prevData: { is_read: false }, nextData: { is_read: true, count: rowCount } });
   }
 }
 

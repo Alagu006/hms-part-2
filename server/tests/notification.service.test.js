@@ -177,7 +177,7 @@ describe('notification.service — markAllAsRead', () => {
     q.mockResolvedValueOnce({ rowCount: 3 });
     await notif.markAllAsRead('u1');
     expect(redisSet).toHaveBeenCalledWith('notif:unread:u1', '0');
-    expect(auditMock).toHaveBeenCalledWith(expect.objectContaining({ entityId: 'bulk' }));
+    expect(auditMock).toHaveBeenCalledWith(expect.objectContaining({ entityId: null }));
   });
 
   it('does not audit when there was nothing to update', async () => {
