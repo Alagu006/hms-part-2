@@ -1,16 +1,24 @@
 import { pool, withTransaction } from '../../shared/db/pool.js';
 import { auditLog }           from '../../shared/middleware/audit.js';
 import { createNotification } from '../../shared/services/notification.service.js';
+import { pgEncrypt, pgDecrypt } from '../../shared/db/pgcrypto.js';
+
+async function decryptNotes(row) {
+  if (!row?.notes) return row;
+  try { row.notes = await pgDecrypt(row.notes); } catch { row.notes = null; }
+  return row;
+}
 
 // ---------------------------------------------------------------------------
 // Create OT schedule (with conflict check)
 // ---------------------------------------------------------------------------
 export async function createOTSchedule(
-  { patientId, doctorId, anesthetistId, theatre, scheduledAt, durationMinutes, procedure, status },
+  { patientId, doctorId, anesthetistId, theatre, scheduledAt, durationMinutes, procedure, status, notes },
   createdBy, io, ip
 ) {
   const start = new Date(scheduledAt);
   const end   = new Date(start.getTime() + durationMinutes * 60_000);
+  const encryptedNotes = notes != null ? await pgEncrypt(notes) : null;
 
   // Conflict check + INSERT must be atomic: two concurrent bookings for the
   // same theatre could otherwise both pass the overlap check and double-book.
@@ -20,15 +28,16 @@ export async function createOTSchedule(
     const { rows } = await client.query(
       `INSERT INTO ot_schedules
          (id, patient_id, surgeon_id, anesthetist_id, room_id, procedure_name,
-          scheduled_start, scheduled_end, status, created_by, created_at, updated_at)
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+          scheduled_start, scheduled_end, status, notes, created_by, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
        RETURNING *`,
-      [patientId, doctorId, anesthetistId ?? null, roomId, procedure, start, end, status ?? 'SCHEDULED', createdBy]
+      [patientId, doctorId, anesthetistId ?? null, roomId, procedure, start, end, status ?? 'SCHEDULED', encryptedNotes, createdBy]
     );
     return rows;
   });
 
   const schedule = { ...row, theatre };
+  await decryptNotes(schedule);
 
   await auditLog({ userId: createdBy, action: 'CREATE', entity: 'ot_schedules', entityId: row.id, nextData: row, ip });
   await notifyOTParties(schedule, doctorId, anesthetistId, patientId, io, 'OT_SCHEDULED');
@@ -72,7 +81,7 @@ export async function getOTSchedules({ date, theatre, status }) {
      ORDER BY os.scheduled_start`,
     params
   );
-  return rows;
+  return Promise.all(rows.map(decryptNotes));
 }
 
 // ---------------------------------------------------------------------------
@@ -93,7 +102,7 @@ export async function getOTSchedule(id) {
     [id]
   );
   if (!rows[0]) { const e = new Error('OT schedule not found'); e.status = 404; throw e; }
-  return rows[0];
+  return decryptNotes(rows[0]);
 }
 
 // ---------------------------------------------------------------------------
@@ -133,11 +142,13 @@ export async function updateOTSchedule(id, updates, userId, io, ip) {
       procedure: 'procedure_name', status: 'status',
     };
 
+    const encryptedNotes = updates.notes != null ? await pgEncrypt(updates.notes) : null;
+
     for (const [key, val] of Object.entries(updates)) {
       if (key === 'theatre' || key === 'scheduledAt' || key === 'durationMinutes') continue;
       const col = colMap[key] ?? key;
       fields.push(`${col} = $${p++}`);
-      params.push(val);
+      params.push(key === 'notes' ? encryptedNotes : val);
     }
 
     if (updates.scheduledAt || updates.durationMinutes) {
@@ -171,7 +182,7 @@ export async function updateOTSchedule(id, updates, userId, io, ip) {
   if (!result.changed) return result.prev;
 
   await auditLog({ userId, action: 'UPDATE', entity: 'ot_schedules', entityId: id, prevData: result.prev, nextData: result.next, ip });
-  return result.next;
+  return decryptNotes(result.next);
 }
 
 // ---------------------------------------------------------------------------

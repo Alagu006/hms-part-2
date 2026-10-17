@@ -44,6 +44,11 @@ vi.mock('../src/shared/db/pool.js', () => ({
   withTransaction: withTx,
 }));
 
+vi.mock('../src/shared/db/pgcrypto.js', () => ({
+  pgEncrypt: async (v) => (v == null ? null : `enc(${v})`),
+  pgDecrypt: async (v) => (v == null ? null : v),
+}));
+
 vi.mock('../src/shared/middleware/audit.js', () => ({
   auditLog      : auditMock,
   auditMiddleware: vi.fn(),
@@ -338,7 +343,7 @@ describe('telemedicine.service — endSession', () => {
     expect(res).toEqual({ ok: true });
   });
 
-  it('writes a medical record note when provided', async () => {
+  it('writes an encrypted medical record note when provided', async () => {
     q.mockResolvedValueOnce({ rows: [{ id: 's1', doctor_id: 'doc1', patient_id: 'p1', status: 'ACTIVE' }] })
       .mockResolvedValueOnce({})                    // UPDATE session
       .mockResolvedValueOnce({});                   // INSERT medical record
@@ -346,8 +351,8 @@ describe('telemedicine.service — endSession', () => {
 
     const insert = q.mock.calls[2][0];
     expect(insert).toContain('INSERT INTO medical_records');
-    expect(insert).toContain("'TELEMEDICINE_NOTE'");
-    expect(q.mock.calls[2][1]).toEqual(['p1', 'doc1', 'All good']);
+    expect(insert).toContain('attending_doctor_id');
+    expect(q.mock.calls[2][1]).toEqual(['p1', 'doc1', 'enc(All good)']);
     expect(auditMock).toHaveBeenCalledWith('doc1', 'END_SESSION', 'telemedicine_sessions', 's1',
       { status: 'ACTIVE' }, { status: 'COMPLETED', hasNote: true }, 'ip', 'ua');
     expect(res).toEqual({ ok: true });

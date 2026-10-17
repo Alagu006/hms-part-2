@@ -374,6 +374,13 @@ export async function getPatientTimeline(patientId, requestingUser, { page, limi
   const total = rows[0]?.total_count ?? 0;
   const items = rows.map(({ total_count, ...r }) => r);
 
+  // Decrypt medical-record notes surfaced in the timeline.
+  await Promise.all(items.map(async (item) => {
+    if (item.type === 'medical_record' && item.notes) {
+      try { item.notes = await pgDecrypt(item.notes); } catch { item.notes = null; }
+    }
+  }));
+
   return { items, total: parseInt(total, 10), page, limit };
 }
 
@@ -401,11 +408,19 @@ export async function getMedicalRecordById(recordId) {
      FROM medical_records mr
      JOIN patients p ON p.id = mr.patient_id
      JOIN users u ON u.id = mr.attending_doctor_id
-     LEFT JOIN departments d ON d.id = mr.department_id
+     LEFT JOIN departments d ON d.id = u.department_id
      WHERE mr.id = $1 AND mr.deleted_at IS NULL`,
     [recordId]
   );
-  return rows[0] ?? null;
+  if (!rows[0]) return null;
+
+  const record = rows[0];
+  for (const field of ['chief_complaint', 'diagnosis', 'treatment_plan', 'notes']) {
+    if (record[field]) {
+      try { record[field] = await pgDecrypt(record[field]); } catch { record[field] = null; }
+    }
+  }
+  return record;
 }
 
 // ── Patient Allergies ─────────────────────────────────────────────────────────

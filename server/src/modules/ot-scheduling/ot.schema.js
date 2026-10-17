@@ -14,6 +14,7 @@ export const createOTScheduleSchema = z.object({
     durationMinutes : z.number().int().positive().max(720),
     procedure       : z.string().min(1).max(500),
     status          : status.default('SCHEDULED'),
+    notes           : z.string().max(2000).optional().nullable(),
   }),
 });
 
@@ -28,6 +29,7 @@ export const updateOTScheduleSchema = z.object({
     durationMinutes : z.number().int().positive().max(720).optional(),
     procedure       : z.string().min(1).max(500).optional(),
     status          : status.optional(),
+    notes           : z.string().max(2000).optional().nullable(),
   }),
 });
 

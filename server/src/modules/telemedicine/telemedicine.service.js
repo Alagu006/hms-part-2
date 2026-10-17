@@ -1,5 +1,6 @@
 ﻿import crypto from 'crypto';
 import { query, withTransaction } from '../../shared/db/pool.js';
+import { pgEncrypt }            from '../../shared/db/pgcrypto.js';
 import { auditLog } from '../../shared/middleware/audit.js';
 import { createNotification, NotificationType } from '../../shared/services/notification.service.js';
 import { emailQueue } from '../../shared/jobs/queue.js';
@@ -242,8 +243,8 @@ export async function endSession(sessionId, userId, { consultationNote }, ip, us
 
   if (consultationNote && consultationNote.trim()) {
     await query(
-      "INSERT INTO medical_records (id, patient_id, doctor_id, record_type, notes, created_at) VALUES (gen_random_uuid(), $1, $2, 'TELEMEDICINE_NOTE', $3, NOW())",
-      [session.patient_id, userId, consultationNote.trim()]
+      "INSERT INTO medical_records (id, patient_id, attending_doctor_id, notes, created_at) VALUES (gen_random_uuid(), $1, $2, $3, NOW())",
+      [session.patient_id, userId, await pgEncrypt(consultationNote.trim())]
     );
   }
 

@@ -22,6 +22,11 @@ vi.mock('../src/shared/db/pool.js', () => ({
   withTransaction: withTxnMock,
 }));
 
+vi.mock('../src/shared/db/pgcrypto.js', () => ({
+  pgEncrypt: async (v) => (v == null ? null : `enc(${v})`),
+  pgDecrypt: async (v) => (v == null ? null : (typeof v === 'string' && v.startsWith('enc(') ? v.slice(4, -1) : v)),
+}));
+
 vi.mock('../src/shared/middleware/audit.js', () => ({
   auditLog: auditMock,
   auditMiddleware: vi.fn(),
@@ -72,9 +77,46 @@ describe('ot.service — createOTSchedule', () => {
     expect(insertSql).toContain('INSERT INTO ot_schedules');
     expect(q.mock.calls[1][1]).toEqual([
       'p1', 'd1', null, null, 'Surgery',
-      expect.any(Date), expect.any(Date), 'SCHEDULED', 'u1',
+      expect.any(Date), expect.any(Date), 'SCHEDULED', null, 'u1',
     ]);
     expect(res.theatre).toBe('OT1');
+  });
+
+  it('encrypts notes on create and decrypts on read', async () => {
+    const room = { id: 'r1' };
+    const scheduleRow = { id: 'ot1', procedure_name: 'Surgery', notes: 'enc(sensitive ot notes)' };
+    q.mockResolvedValueOnce({ rows: [room] })                          // conflict room lookup (FOR UPDATE)
+      .mockResolvedValueOnce({ rows: [] })                             // conflict query — clear
+      .mockResolvedValueOnce({ rows: [scheduleRow] })                  // INSERT
+      .mockResolvedValueOnce({ rows: [{ id: 'n1' }] })                 // nurses
+      .mockResolvedValueOnce({ rows: [] });                            // receptionists
+
+    const res = await ot.createOTSchedule({
+      patientId: 'p1', doctorId: 'd1', theatre: 'OT1',
+      scheduledAt: '2026-08-01T10:00:00', durationMinutes: 60,
+      procedure: 'Surgery', notes: 'sensitive ot notes',
+    }, 'u1', null, 'ip');
+
+    // stored value is the encrypted form, not plaintext
+    expect(q.mock.calls[2][1][8]).toBe('enc(sensitive ot notes)');
+    // returned value is decrypted
+    expect(res.notes).toBe('sensitive ot notes');
+  });
+
+  it('encrypts notes on update and decrypts the returned row', async () => {
+    const prev = {
+      id: 'ot1', theatre: 'OT1', procedure_name: 'Old', status: 'SCHEDULED',
+      scheduled_start: '2026-08-01T10:00:00.000Z', scheduled_end: '2026-08-01T11:00:00.000Z',
+    };
+    q.mockResolvedValueOnce({ rows: [prev] })     // getOTSchedule (FOR UPDATE)
+      .mockResolvedValueOnce({ rows: [{ id: 'ot1', procedure_name: 'Old', notes: 'enc(updated note)' }] }); // UPDATE
+
+    const res = await ot.updateOTSchedule('ot1', { notes: 'updated note' }, 'u1', null, 'ip');
+
+    const updateCall = q.mock.calls[1];
+    expect(updateCall[0]).toContain('notes = ');
+    expect(updateCall[1][0]).toBe('enc(updated note)');
+    expect(res.notes).toBe('updated note');
   });
 
   it('creates a schedule and notifies all parties', async () => {
@@ -94,7 +136,7 @@ describe('ot.service — createOTSchedule', () => {
     }, 'u1', io, 'ip');
 
     expect(q.mock.calls[2][1]).toEqual(['p1', 'd1', 'a1', 'r1', 'Appendectomy',
-      expect.any(Date), expect.any(Date), 'CONFIRMED', 'u1',
+      expect.any(Date), expect.any(Date), 'CONFIRMED', null, 'u1',
     ]);
     expect(res).toEqual({ ...scheduleRow, theatre: 'OT1' });
 
